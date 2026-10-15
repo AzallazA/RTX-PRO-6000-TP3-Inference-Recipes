@@ -1,7 +1,3 @@
-
-New version available: v0.7.9 (current: v0.7.8)
-Upgrade and restart? [Y/n]: Skipping update.
-
 ╭──────────────────────────── NVIDIA P2P Override ─────────────────────────────╮
 │ Effective: yes                                                               │
 │ Configured file: yes (/etc/modprobe.d/nvidia-p2p-override.conf)              │
@@ -11,7 +7,7 @@ Upgrade and restart? [Y/n]: Skipping update.
 ╭─────────────────────────────── Configuration ────────────────────────────────╮
 │ LLM Inference Benchmark                                                      │
 │ Model: GLM-5.3-Flash-TP3 @ localhost:15015                                   │
-│ Decode concurrency: [1]                                                      │
+│ Decode concurrency: [32]                                                     │
 │ Decode contexts: ['32k']                                                     │
 │ Duration: 30.0s per decode test | Max tokens: 24576                          │
 │ Pre-decode warmup: C=1 max-runnable context for 15s                          │
@@ -19,14 +15,14 @@ Upgrade and restart? [Y/n]: Skipping update.
 │ Prefill: skipped | Sustained decode: 1 cells                                 │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 Engine: vLLM 0.1.dev22108+g89f1ceecd  Models: ['GLM-5.3-Flash-TP3']
-KV cache budget (vLLM metrics): 3,278,412 tokens (kv_cache_size_tokens)
+KV cache budget (vLLM metrics): 4,152,888 tokens (kv_cache_size_tokens)
 Model context length: 1,048,576 tokens
 Prefill tests: skipped
-Calibrating padding text (run=encspkvgmmnl, up to 32k)...
+Calibrating padding text (run=syzzqrifurzq, up to 32k)...
   Token targeting: single-point estimate from 8k (use --token-targeting exact 
 for /tokenize binary search)
   Calibrated: 6.18 chars/token (cached, source=8k)
-  32k: 202,352 chars (~32,767 tokens)
+  32k: 202,393 chars (~32,767 tokens)
 Done.
 
 
@@ -38,27 +34,27 @@ llm-decode-bench v0.7.8
 │ concurrency and passed warmup. Use this as the main tuning/regression signal │
 │ for kernels, NCCL, DCP, MTP, and scheduler changes.                          │
 ╰──────────────────────────────────────────────────────────────────────────────╯
-Aggregate tok/s  + TTFT/ITL
-╭────────────┬────────────╮
-│ ctx \ conc │          1 │
-├────────────┼────────────┤
-│ 32k        │ 206.0 30/5 │
-╰────────────┴────────────╯
+Aggregate tok/s  + TTFT/ITL   
+╭────────────┬───────────────╮
+│ ctx \ conc │            32 │
+├────────────┼───────────────┤
+│ 32k        │ 1639.5 720/19 │
+╰────────────┴───────────────╯
 Sustained Decode: aggregate tok/s uses OpenAI stream usage by default 
 (continuous completion_tokens when the server supports it). Prometheus is kept 
 as validation/scheduler data.
 Aggregate source(s): openai_continuous_usage
-Per-Request tok/s     
-╭────────────┬───────╮
-│ ctx \ conc │     1 │
-├────────────┼───────┤
-│ 32k        │ 206.0 │
-╰────────────┴───────╯
+Per-Request tok/s    
+╭────────────┬──────╮
+│ ctx \ conc │   32 │
+├────────────┼──────┤
+│ 32k        │ 51.2 │
+╰────────────┴──────╯
 Client request      
 latency: p50 / p90  
 ms                  
 ╭────────────┬─────╮
-│ ctx \ conc │   1 │
+│ ctx \ conc │  32 │
 ├────────────┼─────┤
 │ 32k        │ —/— │
 ╰────────────┴─────╯
@@ -72,13 +68,13 @@ Sustained mode: client latency metrics explain request UX variance; aggregate
 tok/s remains the primary throughput signal. 
 ITL=(last_token_time-first_token_time)/(output_tokens-1), user tok/s=1/ITL.
 Hardware Summary                                                                
-╭───┬─┬───────┬───────────┬───────┬─────────┬─────┬──────┬─────┬───────────────╮
-│ … │ │ mode  │ GPU avg/… │ Mem … │ W avg/… │ T … │ CPU… │ VR… │ PCIe rx/tx a… │
-├───┼─┼───────┼───────────┼───────┼─────────┼─────┼──────┼─────┼───────────────┤
-│ … │ │ sust… │  100/100% │   59% │ 1050/1… │ 75C │  62C │ 96… │     5350/5283 │
-╰───┴─┴───────┴───────────┴───────┴─────────┴─────┴──────┴─────┴───────────────╯
+╭───┬──┬───────┬───────────┬───────┬─────────┬─────┬─────┬─────┬───────────────╮
+│ … │  │ mode  │ GPU avg/… │ Mem … │ W avg/… │ T … │ CP… │ VR… │ PCIe rx/tx a… │
+├───┼──┼───────┼───────────┼───────┼─────────┼─────┼─────┼─────┼───────────────┤
+│ … │  │ sust… │  100/100% │   61% │ 1050/1… │ 69C │ 76C │ 97… │   19703/19164 │
+╰───┴──┴───────┴───────────┴───────┴─────────┴─────┴─────┴─────┴───────────────╯
 ╭─────────────────────── Whole-run GPU Power ────────────────────────╮
-│ avg 959 W | max 1,069 W | limit 1,050 W | over 1m 02s | 28 samples │
+│ avg 952 W | max 1,050 W | limit 1,050 W | over 1m 04s | 29 samples │
 ╰────────────────────────────────────────────────────────────────────╯
 Hardware summary is sampled from nvidia-smi during the measured part of each 
 cell. Whole-run GPU power is the sampled sum of GPU power draw across the 
@@ -96,23 +92,23 @@ a coarse live diagnostic, not a per-kernel NCCL profiler.
 │ Primary matrices repeated last so the important numbers are visible without  │
 │ scrolling back through diagnostics.                                          │
 ╰──────────────────────────────────────────────────────────────────────────────╯
-Aggregate decode tok/s
-╭────────────┬───────╮
-│ ctx \ conc │     1 │
-├────────────┼───────┤
-│ 32k        │ 206.0 │
-╰────────────┴───────╯
-MTP-normalized decode       
-steps/s (accept len)        
-╭────────────┬─────────────╮
-│ ctx \ conc │           1 │
-├────────────┼─────────────┤
-│ 32k        │ 84.1 (2.45) │
-╰────────────┴─────────────╯
+Aggregate decode tok/s 
+╭────────────┬────────╮
+│ ctx \ conc │     32 │
+├────────────┼────────┤
+│ 32k        │ 1639.5 │
+╰────────────┴────────╯
+MTP-normalized decode steps/s
+(accept len)                 
+╭────────────┬──────────────╮
+│ ctx \ conc │           32 │
+├────────────┼──────────────┤
+│ 32k        │ 615.7 (2.66) │
+╰────────────┴──────────────╯
 steps/s = tok/s ÷ accept_len: engine forward passes per second, independent of 
 MTP acceptance, so runs with different acceptance are directly comparable. 
 (accept len) = tokens emitted per engine step.
 
 Results saved to 
-/home/USER/glm53-tp3-patch-guide/kraken-port/release/kraken-20261008/dflash-de
-fault-c1.json
+/home/USER/glm53-tp3-patch-guide/kraken-port/release/kraken-20261015/bench/c32
+.json
