@@ -8,7 +8,7 @@ Every measurement of this release's build. The fork is rebased onto upstream Fla
 | Package | `ds41-1017-engram-mxfp4@gb202-tp3-202611070243` |
 | Build | 342 hot experts per parked layer (20-33), merged VRAM/host expert bank, BRRR fused layer tail on all 40 layers (parked layers only in graphs of 12 rows or fewer), token embedding and vision tower in host RAM, all-reduce sized for 1024 rows, MXFP4 Engram, prefill chunk 4096, 8 slots, 5 DSpark drafts |
 | KV cache | 2,373,760 tokens (two 1M-token sessions) |
-| Serve flags | `--mtp-draft-tokens 5 --mtp-adaptive-verification --mtp-max-verification-token-budget 128 --mtp-adaptive-verification-alpha 0.8 --scheduler-policy balanced --prefix-cache-memory 16G`, `FLARE_ENGRAM_RAM_TABLES=0` (both Engram tables in RAM) |
+| Serve flags | `--mtp-draft-tokens 5 --mtp-adaptive-verification --mtp-max-verification-token-budget 24 --mtp-adaptive-verification-alpha 0.8 --scheduler-policy balanced --prefix-cache-memory 16G`, `FLARE_ENGRAM_RAM_TABLES=0` (both Engram tables in RAM) |
 | Hardware | 3 × RTX PRO 6000 Blackwell Workstation, 256 GB DDR5-6000, PCIe Gen5 NVMe |
 
 Unless noted, the benchmark is `llm_decode_bench.py --concurrency 1,4,8 --contexts 32k --coding-peak` (ignore-EOS),
@@ -99,6 +99,22 @@ and it repeated invented tool output. Natural-EOS benches showed 0 loops.
 | k7, alpha 1.0, throughput | 299 | 698 | 930 | 467 | 2,220,416 |
 
 k5 wins at c4 (+6%) and c8 (+3%) and keeps 153K more KV tokens. k7 is ~2% ahead on coding and ties at c1.
+
+### Verification row cap (`--mtp-max-verification-token-budget`, 450 W, k5, alpha 0.8, balanced)
+
+A full c8 step at k5 verifies 48 rows; the cap limits how many rows the adaptive verifier may use. Runs from a sweep
+plus an alternating 128 / 24 / 128 / 24 confirmation:
+
+| Cap | Runs | c1 | c4 | c8 | Coding |
+| --- | --- | --- | --- | --- | --- |
+| 128 (no cap; earlier default) | 4 | 301 | 731 | 963 | 468 |
+| 48 | 2 | 298 | 721 | 968 | 464 |
+| 32 | 1-2 | 298 | 726 | 954 | 463 |
+| **24 (default)** | 4 (c8: 3) | **306** | **734** | **986** | **473** |
+
+Each gap is inside the run-to-run spread, but all four favor 24 (+1.7% / +0.4% / +2.4% / +1%), so it became the
+default. Higher core offsets at cap 24 (+100: 312 / 731 / 978, coding 471; +150: 308 / 722 / 972, coding 469) gave
+nothing over +75.
 
 ### Prefix-cache memory (k5, alpha 0.8, balanced; 1 run each, 16G is the 4-run mean)
 

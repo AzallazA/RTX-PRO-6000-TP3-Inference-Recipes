@@ -93,6 +93,7 @@ What matters most for speed, in our measurements:
 | Prefill all-reduce runtime sized for 1024 rows instead of the 4096-row chunk (`FLARE_DS41_AR_ROWS`) | ~600 MiB/GPU back, prefill unchanged |
 | 342 hot experts per parked layer instead of 300 | c1/c4/c8 +4-5%, coding +6%, at 2.37M KV |
 | Adaptive-verification alpha 0.8 instead of 0.6 | within noise of 0.6 (sweep in MEASUREMENTS.md) |
+| Verification row cap 24 (`--mtp-max-verification-token-budget 24`, was 128 = no cap) | 4-run A/B: c1 +1.7%, c4 +0.4%, c8 +2.4%, coding +1%; output unchanged (only how many drafts are checked per step) |
 
 ## How it fits in 3 × 96 GB
 
@@ -110,7 +111,7 @@ against a reference.
 Side effect: top_p is fixed at 1.0, the model's default.
 
 **Prefill in 4096-token chunks** (+15-16% prefill over 2048). **Speculative decoding:** DSpark (the checkpoint's 3
-`mtp.*` layers) with 5 drafts, an NVFP4 draft head, an FP8 Markov head and adaptive verification (alpha 0.8, budget 128).
+`mtp.*` layers) with 5 drafts, an NVFP4 draft head, an FP8 Markov head and adaptive verification (alpha 0.8, at most 24 verification rows per step).
 
 **Fixes required for TP3 at all** (unchanged from 20261105): FlashInfer `tiny_decode` honors `swiglu_limit`
 (`tp3-patches/flashinfer-tiny-decode-swiglu.patch`, without it replies corrupt mid-way), world-size-3 PCIe
