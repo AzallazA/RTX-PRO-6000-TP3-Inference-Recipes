@@ -124,8 +124,21 @@ nothing over +75.
 | 32G | 296 | 712 | 951 | 468 | 84 GiB |
 | 48G | 290 | 723 | 955 | 464 | 70 GiB |
 
-A larger prefix cache doesn't change speed; it costs only host RAM. This bench never reuses a prompt, so it can't
-show the gain from cache hits.
+A larger prefix cache doesn't change decode speed; it costs only host RAM.
+
+**Reuse test.** 80 distinct ~127K-token prompts (~10M tokens, far more than the 2.37M-token GPU pool), then a sample
+re-sent oldest-first, time to first token:
+
+| Re-sent prompt | 16G host cache | 32G host cache |
+| --- | --- | --- |
+| 0-4, 10 (oldest) | ~9.1 s (cold) | ~9.1 s (cold) |
+| 20, 30, 40, 50 | ~9.0 s (cold) | **0.14 s** |
+| 60, 70 (still in the GPU pool) | 0.14 s | 0.14 s |
+| first send (cold prefill) | ~9.0 s | ~9.1 s |
+
+A 127K-token prompt takes ~390 MB of host cache (~3.1 KB/token): 16G keeps ~37 such prompts warm (~4.5M tokens),
+32G ~78 (~9.5M), on top of the ~18 in the GPU pool. A host hit is ~65x faster than re-prefilling. Use
+`PREFIX_CACHE=32G` if you return to many long sessions; it leaves ~84 GiB of RAM free instead of ~97.
 
 ## Engram tables on disk (user)
 
