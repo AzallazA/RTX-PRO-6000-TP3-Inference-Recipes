@@ -22,10 +22,11 @@ Runtime: [NVIDIA Flare](https://github.com/NVIDIA/flare-local-inference) `main` 
 The fused layer tail is adapted from [fraserprice/DeepSeek-4.1-Flash-1017-BRRR](https://huggingface.co/fraserprice/DeepSeek-4.1-Flash-1017-BRRR) (Apache-2.0).
 
 **How to get it:** build the package yourself; there is no prebuilt download. [EXPORT.md](EXPORT.md) walks through
-it: download the two public checkpoints (~412 GB), build the fork, export (~40 min on the 3 GPUs). Then:
+it: download the two public checkpoints (~412 GB), build the fork, export twice (~30 min each; the first run also
+tunes kernels, 20-30 min more). `./check_env.sh <fork checkout>` is a read-only preflight for all of it. Then:
 
 ```bash
-FLARE=<fork>/flare/target/release/flare PACKAGE=<package path> ./serve.sh   # port 15015, model DeepSeek-V4.1-Flash, ~55 s
+FLARE=<fork>/flare/target/release/flare ./serve.sh   # port 15015, model DeepSeek-V4.1-Flash, ~55 s; PACKAGE=<name or path> if the view was not named ds41-1017-engram-mxfp4
 ```
 
 Measured on the system in [Test system](#test-system) at **450 W/GPU, +75 MHz core, +6000 MHz memory offset**
@@ -55,9 +56,9 @@ speed with draft acceptance divided out; tok/s also depends on how predictable t
 ## Contents
 
 1. [Test system](#test-system) · [What changed](#what-changed-since-20261105) · [How it fits in 3 × 96 GB](#how-it-fits-in-3--96-gb)
-2. [More KV: fewer hot experts](#more-kv-fewer-hot-experts) · [Engram on disk (less RAM)](#engram-on-disk-less-ram) · [Memory](#memory)
+2. [More KV: fewer hot experts](#more-kv-fewer-hot-experts) · [Which settings for me](#which-settings-for-me) · [Engram on disk (less RAM)](#engram-on-disk-less-ram) · [Memory](#memory)
 3. [Quality and long context](#quality-and-long-context) · [Measured and not adopted](#measured-and-not-adopted) · [Known limitations](#known-limitations)
-4. [Building the package](#building-the-package) ([EXPORT.md](EXPORT.md)) · [Files](#files) · [Licenses](#licenses) · [Credits](#credits)
+4. [Coming from 20261105](#coming-from-20261105) · [Building the package](#building-the-package) ([EXPORT.md](EXPORT.md)) · [Files](#files) · [Licenses](#licenses) · [Credits](#credits)
 
 ## Test system
 
@@ -101,7 +102,10 @@ What matters most for speed, in our measurements:
 other 42 in pinned host memory. Each layer's experts sit in **one contiguous virtual range**: a VRAM prefix and a
 host-NUMA tail, mapped with CUDA VMM. One MoE kernel call per layer reads both, so PCIe reads of cold experts overlap
 the hot experts' compute. Expert IDs are remapped hot-first using route counts recorded from real traffic (a blend of
-0.6 code and 0.4 prose).
+0.6 code and 0.4 prose). Each `expert-order/*.json` carries its provenance in a `source` field:
+`blend 0.6 code (544K tok live traffic) + 0.4 prose (109K tok llm-inference-bench), 2026-10-30; layers 20-33 un-permuted`.
+The counts were recorded with the vLLM build's route monitor; the fork ships no route-dump tool, so they cannot be
+regenerated on Flare. The blend is general-purpose (code plus prose) and every number here was measured with it.
 
 **MXFP4 Engram tables in RAM.** The two Engram n-gram tables take 189 GiB in FP8. NVIDIA's MXFP4 versions are
 97 GiB, and both are held fully in host RAM. The b12x Engram lookup gets a packed-FP4 path that decodes bit-exact
@@ -131,6 +135,19 @@ slower because more experts stream over PCIe. Export with `HOT=<n> ./export.sh`;
 > **Approximate.** KV count ≈ 2.37M + (342 − HOT) × 92K tokens (measured: 92.2K); only 342 and 300 were measured on this fork.
 > The speed cost depends on how often your traffic routes to the experts that became cold. Measure your own export
 > (`Allocate cache` in the server log prints the KV count; [EXPORT.md](EXPORT.md) has the bench command).
+
+## Which settings for me
+
+| Your situation | Export (`export.sh`) | Serve (`serve.sh`) | Expect |
+| --- | --- | --- | --- |
+| 256 GB RAM, up to two 1M-token sessions (the tested setup) | defaults (`HOT=342`) | defaults | the numbers above: 2.37M KV, ~305 / 738 / 975 tok/s at 32K c1 / c4 / c8, 450 W |
+| ≤ ~128 GB RAM | defaults | `ENGRAM_RAM=0` | ~59 GiB host RAM instead of ~148; decode ~4% slower, prefill the same ([Engram on disk](#engram-on-disk-less-ram)) |
+| Six 1M-token sessions at once | `HOT=300` | defaults | 6.25M KV; decode 4-7% slower (350 W: 269 / 610 / 800 against 288 / 634 / 838 tok/s) |
+| Many long sessions you return to | defaults | `PREFIX_CACHE=32G` | ~78 warm 127K-token prompts instead of ~37; a host-cache hit answers in 0.14 s instead of ~9 s of re-prefill; 16 GiB more RAM (MEASUREMENTS.md "Reuse test") |
+| Heavy image use | `FLARE_DS41_VISION_HOST=0` plus a lower `HOT` to make room for the vision tower in VRAM | defaults | images without the ~3 s host-RAM penalty; **not measured** on this fork (KV and speed cost per the `HOT` rule above) |
+| 350 W cards | defaults, exported at your power limit (tuning measures the cards as they run) | defaults | 10-14% slower: 275 / 644 / 850 tok/s at 32K, prefill 12,931 |
+
+`DRAFTS` must be the same at export and serve (default 5 in both scripts): the package is captured for one draft count.
 
 ## Engram on disk (less RAM)
 
@@ -200,24 +217,44 @@ The same protocol as the vLLM Kraken TP3 releases ([qualification/](qualificatio
 - Not upstreamable as written: Flare's contribution rules exclude model-specific offload policy and AI-authored
   GPU-execution changes. This is a personal fork.
 
+## Coming from 20261105
+
+- **New base commit.** The fork now sits on upstream `972e28e4` (20261105: `78b18b1c`) and the old `source.patch`
+  conflicts with it. Make a fresh clone, or in the existing checkout drop the old patch (`git checkout -- . && git clean -fd`)
+  and `git checkout 972e28e44781d8d0c84d70ae434db92c36076a43` before applying this folder's `source.patch`.
+- Re-run `uv sync --locked --extra prepare --extra test`, then `uv run --locked --extra prepare python -m ignition.patches`
+  (a step the 20261105 guide did not have) and the four FlashInfer patches in `tp3-patches/` (unchanged since 20261105,
+  but `uv sync` reinstalls FlashInfer). `./check_env.sh <fork>` confirms the state.
+- The kernel tuning cache in `~/.cache/flare/kernels` carries over and shortens the warm-up export; keep it.
+- Old packages coexist with the new one (same model name `ds41-1017-engram-mxfp4`, new version). Remove one with
+  `flare models remove ds41-1017-engram-mxfp4@gb202-tp3-<timestamp>`, then `flare models gc` to free the space.
+- Serve flags changed: verification row cap 24 instead of 128 (`BUDGET`) and alpha 0.8 instead of 0.6 (`ALPHA`). The
+  new `serve.sh` has them; the old command still runs the new package but gives up the 1-2% measured for the cap.
+
 ## Building the package
 
 Full guide: **[EXPORT.md](EXPORT.md)**. In short:
 
 ```bash
 # from this folder
-./make_checkpoint_view.sh <deepseek snapshot> <nvidia NVFP4 snapshot> ~/ds41-flare-ckpt   # 307 GB + 105 GB of downloads
+./check_env.sh <fork>                                                                 # read-only preflight: toolchain, fork state, disk, idle GPUs
+./make_checkpoint_view.sh <deepseek snapshot> <nvidia NVFP4 snapshot> ~/ds41-1017-engram-mxfp4   # 307 GB + 105 GB of downloads
 # from the fork checkout (export.sh uses its .venv)
 cd <fork>
-CKPT=~/ds41-flare-ckpt HOT=300 /path/to/this-folder/export.sh   # warms the kernel tuning cache (a cold cache runs out of memory at HOT=342)
-CKPT=~/ds41-flare-ckpt /path/to/this-folder/export.sh           # the release build, HOT=342
+CKPT=~/ds41-1017-engram-mxfp4 HOT=300 /path/to/this-folder/export.sh   # warms the kernel tuning cache (a cold cache runs out of memory at HOT=342)
+CKPT=~/ds41-1017-engram-mxfp4 /path/to/this-folder/export.sh           # the release build, HOT=342
 ```
+
+The model name is the checkpoint directory's name: this view exports as `ds41-1017-engram-mxfp4`, which is what
+`serve.sh` runs by default. Another directory name needs `PACKAGE=<that name>` when serving.
 
 ## Files
 
 | Path | What |
 | --- | --- |
 | `EXPORT.md` | how to build the package yourself |
+| `check_env.sh` | read-only preflight: toolchain, memlock, fork commit and patches, disk, idle GPUs (PASS / WARN / FAIL) |
+| `versions.txt` | exact versions behind the numbers: driver, CUDA, Python, torch, FlashInfer, Rust, uv, Flare and benchmark commits, GPU settings |
 | `MEASUREMENTS.md` | every measurement of this build: power, settings sweeps, k5 vs k7, prefix cache, Engram on disk |
 | `ENGRAM-PRECISION.md` | MXFP4 vs FP8 Engram tables: every quality score we have for each, from the vLLM and Flare releases |
 | `serve.sh` / `export.sh` | serve the package / export it from a checkpoint view |
@@ -225,14 +262,16 @@ CKPT=~/ds41-flare-ckpt /path/to/this-folder/export.sh           # the release bu
 | `source.patch` | the fork's changes against Flare `972e28e4` (49 files, including the adapted `brrr/` kernels; see the update note in EXPORT.md) |
 | `expert-order/` | per-layer route counts that set the hot-expert placement |
 | `tp3-patches/` | the four FlashInfer patches |
-| `tools/` | `bench_steps.py`, `verify_fix.py` (corruption check), `tool_calls.py`, `llm-bench-flare-steps.patch` |
+| `tools/` | `bench_steps.py` (steps/s from a bench JSON), `verify_fix.py` (corruption check), `llm-bench-flare-steps.patch` (optional, for `llm-inference-bench` v0.9.1); the tool-call test is `qualification/tool_calls.py` |
 | `qualification/` | the qualification suite (adapted for Flare, concurrency 8) and its results |
 
 ## Licenses
 
-DeepSeek weights and NVIDIA's NVFP4 release: MIT (texts in `licenses/`). Flare and FlashInfer: Apache-2.0 (LICENSE,
-NOTICE and `THIRD_PARTY_NOTICES.md` kept; modified files marked). BRRR: Apache-2.0 (`licenses/BRRR-LICENSE`,
-`licenses/BRRR-NOTICE`). The fused decoder kernel in `brrr/kernels/decoder.cu` is modified for TP3 and Flare: CSF
+DeepSeek weights and NVIDIA's NVFP4 release: MIT (texts in `licenses/`). Flare: Apache-2.0 (`licenses/LICENSE`,
+`licenses/NOTICE` and `licenses/THIRD_PARTY_NOTICES.md` kept; modified files marked). FlashInfer, which
+`tp3-patches/` modifies: Apache-2.0 (`licenses/FlashInfer-LICENSE`, `licenses/FlashInfer-NOTICE`). BRRR: Apache-2.0
+(`licenses/BRRR-LICENSE`, `licenses/BRRR-NOTICE`). `llm-inference-bench`, which `tools/llm-bench-flare-steps.patch`
+modifies, is MIT (its README). The fused decoder kernel in `brrr/kernels/decoder.cu` is modified for TP3 and Flare: CSF
 scale decode, Flare's dense weight layout, RoPE from Flare's frequencies, hot-expert slot mapping and Flare
 peer-storage buffers. The `flare` binary links only libc/libstdc++; NVIDIA's CUDA Python wheels are used only for
 exporting and are not redistributed.

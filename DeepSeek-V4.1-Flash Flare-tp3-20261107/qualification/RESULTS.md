@@ -25,5 +25,24 @@ runs keep their full texts).
 Running it: start the server, then `FLARE_LOG=<server log> CKPT=<checkpoint view> ./qual_all.sh` (or name stages:
 `./qual_all.sh eval tools`). Every output lands in a fresh `run-<date>/` directory next to the script (`QUAL_OUT` overrides
 it); the shipped `results/` and this file are never written. The long-generation stage replays `captured-request.san.json`
-(the sanitized 581K-token conversation, shipped here). LiveBench and `llm-inference-bench` are expected in
-`~/LiveBench` and `~/llm-inference-bench`.
+(the sanitized 581K-token conversation, shipped here). LiveBench and `llm-inference-bench` checkouts (each with its own
+`.venv`) are expected in `~/LiveBench` and `~/llm-inference-bench`; `LIVEBENCH_DIR` and `LLM_BENCH_DIR` override the paths.
+
+Stages in `qual_all.sh` order, with the durations of the shipped run (450 W, concurrency 8) and what each one needs
+beyond the running server:
+
+| Stage | Minutes | Needs |
+| --- | --- | --- |
+| `eval` | ~1 | — |
+| `tools` | ~1 | — |
+| `lavd` | ~8 | `llm-inference-bench` (`LLM_BENCH_DIR`) |
+| `hotel` | ~10 | `llm-inference-bench` |
+| `retrieval` | ~2 | — |
+| `longgen` | ~7 | `CKPT=<checkpoint view>` (its tokenizer) |
+| `eos` | ~4 | `llm-inference-bench` |
+| `livebench` | ~8 | LiveBench checkout with its `.venv` (`LIVEBENCH_DIR`) |
+| `stress` | ~15 | `FLARE_LOG=<server log>` |
+
+Smoke test, about 5 minutes and nothing but the server: `./qual_all.sh eval tools retrieval`. The full suite is about
+1 hour. Environment: `FLARE_LOG`, `CKPT`, `LLM_BENCH_DIR` (default `~/llm-inference-bench`), `LIVEBENCH_DIR` (default
+`~/LiveBench`), `QUAL_OUT` (output directory), `QC` (profile concurrency, default 8).

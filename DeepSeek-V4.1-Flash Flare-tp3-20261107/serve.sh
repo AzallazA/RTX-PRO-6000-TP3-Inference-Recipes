@@ -1,10 +1,15 @@
 #!/bin/bash
 # Serve the exported package on 3 GPUs with both Engram tables in host RAM (~97 GiB).
 #   FLARE         path to this fork's flare binary   (default: flare/target/release/flare in the fork checkout)
-#   PACKAGE       path to the exported package        (default: the default version in Flare's model cache)
+#   PACKAGE       model name (= the checkpoint directory name the package was exported from) or a package path
+#                 (default ds41-1017-engram-mxfp4 = the view name in EXPORT.md; Flare picks its default version)
 #   ENGRAM_RAM=0  read the Engram tables from disk instead: ~90 GiB less host RAM, decode ~4% slower, prefill unchanged
 #   PREFIX_CACHE  host RAM for reusable prompt KV (default 16G; 32G/48G cost only RAM)
 #   BUDGET        max verification rows per step (default 24; 128 = no cap, ~1-2% slower at c8)
+#   DRAFTS        DSpark drafts (default 5); must equal the DRAFTS the package was exported with
+#   ALPHA         adaptive-verification alpha (default 0.8; 0.6 and 1.0 measured within noise)
+#   SCHEDULER     scheduler policy (default balanced; throughput measured within ~2%)
+#   GPUS, PORT, HOST   default 0,1,2 / 15015 / 127.0.0.1
 set -euo pipefail
 FLARE=${FLARE:-flare/target/release/flare}
 PACKAGE=${PACKAGE:-ds41-1017-engram-mxfp4}

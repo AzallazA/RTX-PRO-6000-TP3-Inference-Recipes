@@ -22,6 +22,17 @@ export CUDA_HOME=/usr/local/cuda-13.1 PATH=/usr/local/cuda-13.1/bin:$PATH
 ulimit -l        # must print "unlimited"
 ```
 
+`check_env.sh` in this folder checks all of the above plus the fork state (step 2), free disk and idle GPUs. It is
+read-only and prints one `PASS` / `WARN` / `FAIL` line per requirement; `WARN` lines are steps you have not done yet.
+Run it once the clone from step 2 exists and again after each step:
+
+```bash
+/path/to/this-folder/check_env.sh <fork checkout>      # exit 1 if anything FAILed; MIN_FREE_GB=<n> if checkpoints live on another drive
+```
+
+The exact versions behind every number in this folder (driver, toolkit, torch, FlashInfer, benchmarks) are in
+[versions.txt](versions.txt). torch's `cu132` wheel next to the 13.1 toolkit is expected, not a mismatch.
+
 ## 2. Build the Flare fork
 
 The fork is upstream NVIDIA Flare at `972e28e4` plus `source.patch` from this folder.
@@ -67,7 +78,7 @@ them change the exported package or its numbers; they matter for serving and for
 | `FLARE_ENGRAM_RAM_TABLES` tables were not counted toward `--memory-limit` host accounting, and the disk row-cache budget was split across tables no longer on disk | correct host accounting; disk tables get the whole cache budget |
 | `--history-drafts` inputs were advertised for every DeepSeek export but only consumed under vocabulary-parallel sampling | TP4 exports behave like upstream again (TP3 unchanged) |
 | Guards: the BRRR tail checks its attention-output dtype and RoPE table; the parked-layer gate requires an actual host tail; the export fails loudly if b12x ever re-materialises host-parked experts (TP4-style tiling would) | no silent garbage or VRAM over-commit on future changes |
-| Three opt-in experiments measured level and left switched off (`FLARE_DS41_BRRR_SPARSE`, `FLARE_DS41_FUSED_QKV_NORM`, `FLARE_DS41_QB_ATOMIC`; `tp3-patches/flashinfer-dense-splitk-deferral.patch` and `flashinfer-tuning-route-reuse.patch` belong to them and are **not** needed) | default build untouched; see MEASUREMENTS.md |
+| Three opt-in experiments measured level and left switched off (`FLARE_DS41_BRRR_SPARSE`, `FLARE_DS41_FUSED_QKV_NORM`, `FLARE_DS41_QB_ATOMIC`). The two FlashInfer patches they rely on, `flashinfer-dense-splitk-deferral.patch` and `flashinfer-tuning-route-reuse.patch`, are fork-only and not shipped here; `tp3-patches/` holds only the four the default build needs | default build untouched; see MEASUREMENTS.md |
 
 A `flare` binary built from the updated patch serves the published package as before (checked: same KV count, corruption check clean).
 
@@ -90,9 +101,15 @@ Then assemble the view (symlinks only, no copies) with this folder's `config.jso
 /path/to/this-folder/make_checkpoint_view.sh \
   ~/.cache/huggingface/hub/models--deepseek-ai--DeepSeek-V4.1-Flash-1017/snapshots/1bae0e1088993b9b82de08f59de5be5a34e42170 \
   ~/.cache/huggingface/hub/models--nvidia--DeepSeek-V4.1-Flash-1017-NVFP4/snapshots/<revision> \
-  ~/ds41-flare-ckpt
+  ~/ds41-1017-engram-mxfp4
 # expect: "96085 tensors in 48 shards, missing 0; layer-1 Engram table U8 [384006168, 128]"
 ```
+
+**The directory name becomes the model name.** Flare names the exported model after the checkpoint directory: the
+package lands in `~/.cache/flare/packages/models/<directory name>/gb202-tp3-<timestamp>`, `flare models list` shows
+it as `<directory name>`, and `flare run <directory name>` serves it. `serve.sh` defaults to
+`PACKAGE=ds41-1017-engram-mxfp4`, the name used here; if you name the view differently, serve with
+`PACKAGE=<your name>` (or the package path).
 
 The index in this folder is NVIDIA's mapping with a corrected `total_size`. Flare checks that field against the
 actual tensor bytes; the uncorrected value makes the export stop at "index total_size does not match".
@@ -104,9 +121,11 @@ kernel tuning cache, tuning at `HOT=342` runs out of VRAM. A `HOT=300` export fi
 second export reuses it:
 
 ```bash
-CKPT=~/ds41-flare-ckpt HOT=300 /path/to/this-folder/export.sh   # warms the tuning cache (and gives the 6.25M-KV variant)
-CKPT=~/ds41-flare-ckpt /path/to/this-folder/export.sh           # the release build (HOT=342)
+CKPT=~/ds41-1017-engram-mxfp4 HOT=300 /path/to/this-folder/export.sh   # warms the tuning cache (and gives the 6.25M-KV variant)
+CKPT=~/ds41-1017-engram-mxfp4 /path/to/this-folder/export.sh           # the release build (HOT=342)
 ```
+
+`DRAFTS` (default 5) must be the same at export and in `serve.sh`: the package is captured for one draft count.
 
 `export.sh` sets these and runs `ignition export`:
 
@@ -119,7 +138,7 @@ CKPT=~/ds41-flare-ckpt /path/to/this-folder/export.sh           # the release bu
 | `FLARE_DS41_BRRR_LAYERS` | `0-39` | layers that use the fused BRRR layer tail (compiled from `brrr/kernels/decoder.cu` at export) |
 | `FLARE_DS41_BRRR_CKPT` | `$CKPT` | checkpoint the BRRR tail reads its weight layout from |
 | `FLARE_DS41_BRRR_PARKED_MAX_ROWS` | `12` | parked layers use the BRRR tail only in graphs of ≤12 rows |
-| `FLARE_DS41_EMBED_HOST`, `FLARE_DS41_VISION_HOST` | `1`, `1` | token embedding and vision tower in device-visible host RAM |
+| `FLARE_DS41_EMBED_HOST`, `FLARE_DS41_VISION_HOST` | `1`, `1` | token embedding and vision tower in device-visible host RAM. `FLARE_DS41_VISION_HOST=0` in the environment keeps the vision tower in VRAM (images ~3 s faster each; pair it with a lower `HOT`; unmeasured) |
 | `FLARE_DS41_AR_ROWS` | `1024` | size the prefill all-reduce runtime for 1024 rows (~600 MiB/GPU less than 4096) |
 | `FLARE_DS41_TP3_VOCAB_PARALLEL` | `1` | vocabulary-parallel sampling at TP3 (fixes top_p at 1.0) |
 | `FLARE_DS41_TP3_GRAPH_GIB` | `1` | the planner's graph-memory estimate for TP3 |
@@ -127,10 +146,46 @@ CKPT=~/ds41-flare-ckpt /path/to/this-folder/export.sh           # the release bu
 | `--max-concurrency` | `8` | request slots |
 | `--mtp-draft-tokens` (`DRAFTS`) | `5` | DSpark drafts, NVFP4 draft head, FP8 Markov head. 7 measured slower (MEASUREMENTS.md) |
 
-What you'll see, roughly: weights load (~1 min) → BRRR kernel compile (~1 min, first export only) → kernel tuning
-(**20-30 min with a cold cache**, seconds when cached) → compile (~3 min) → graph capture → weight payloads written
-(~3 min) → publish (~8 min). The log ends with
-`Exported cache entry: ~/.cache/flare/packages/models/<checkpoint name>/gb202-tp3-<timestamp>`.
+### What to expect, and how long
+
+Stage durations from the two exports behind this release (the `[ OK ]` lines in the log), in order. The first export
+also compiles the BRRR kernel (~1 min, cached in `.brrr-ext/` afterwards) and, on a fresh machine, tunes every kernel
+from scratch.
+
+| Stage (log line) | First export, `HOT=300` | Second export, `HOT=342` | Cumulative, second export |
+| --- | --- | --- | --- |
+| Load weights | 46 s | 45 s | 0.8 min |
+| Allocate model state, construct graph catalog | 26 s | 27 s | 1.2 min |
+| Prepare and tune kernels | **20-30 min with a cold cache** (175 s measured with a partly warm one) | 151 s | 3.7 min |
+| Compile model forwards | 259 s (cold compile cache) | 41 s | 4.4 min |
+| Load and warm compiled forwards | 238 s | 214 s | 8.0 min |
+| Prepare serving graphs (capture) | 18 s | 23 s | 8.4 min |
+| Materialize weight payloads | 170 s | 166 s | 11.1 min |
+| Release preparation resources, assemble package payloads | 111 s | 107 s | 12.9 min |
+| Verify and publish 3 ranks + shared data, commit | 410 s | 436 s | 20.2 min |
+| **Wall time to `Exported cache entry`** | **~50-60 min expected** (29 min measured with the partly warm cache) | **~30 min** | |
+
+The stage lines add up to about 20 minutes; the rest of the wall time is process start-up, the b12x progress between
+stages and the final clean-up. Second-export log, `<home>` = your home directory:
+
+```text
+[    OK    ] Load weights.  45.3s
+[    OK    ] Prepare and tune kernels.  150.6s
+[    OK    ] Compile model forwards.  35/35  40.6s
+[    OK    ] Load compiled forwards.  105/105  135.1s
+[    OK    ] Materialize weight payloads.  165.5s
+[    OK    ] Verify and publish shared data.  104451107600 source bytes verified  115.9s
+[    OK    ] Commit package.  <home>/.cache/flare/packages/models/ds41-1017-engram-mxfp4/gb202-tp3-202611070243  0.0s
+Exported cache entry: <home>/.cache/flare/packages/models/ds41-1017-engram-mxfp4/gb202-tp3-202611070243
+```
+
+When you then serve it (step 5), the server log should show this for `HOT=342` at the default `PREFIX_CACHE=16G`
+(2,461,184 tokens at `32G`; `HOT=300` gives 6,247,680):
+
+```text
+[    OK    ] Allocate cache.  6.3 GiB · 2373760 KV tokens · 225 shared snapshot slots · limited by memory  0.1s
+[    OK    ] Start server.  http://127.0.0.1:15015 · 1048576 tokens/request  0.3s
+```
 
 ### Variants: more KV for less speed
 
@@ -149,13 +204,17 @@ about **92K KV tokens**. Decode gets slower because more experts stream over PCI
 ## 5. Check and serve
 
 ```bash
-flare/target/release/flare models list                      # the new version appears as the default
-FLARE=flare/target/release/flare PACKAGE=<package path> /path/to/this-folder/serve.sh
+flare/target/release/flare models list                      # model ds41-1017-engram-mxfp4 (= the view's directory name), version gb202-tp3-<timestamp>, newest = default
+FLARE=flare/target/release/flare /path/to/this-folder/serve.sh              # serves ds41-1017-engram-mxfp4; PACKAGE=<name>@<version> or a path for another one
 ```
+
+The model name in `flare models list` is the checkpoint view's directory name (step 3); each export adds a version
+`gb202-tp3-<timestamp>` and the newest becomes the default. `serve.sh` defaults to `PACKAGE=ds41-1017-engram-mxfp4`,
+so with the view name above it needs no `PACKAGE`. Keep `DRAFTS` equal to the export's.
 
 The server is ready when the log shows `Start server. http://127.0.0.1:15015`, about 55 s with the Engram tables
 loading into RAM. The `Allocate cache` line reports the KV token count; it should match the table above within a
-few thousand tokens.
+few thousand tokens (the excerpt in step 4 shows the expected line).
 
 **Less host RAM:** `ENGRAM_RAM=0 ./serve.sh` reads both Engram tables from disk with direct I/O. The server then
 uses ~59 GiB of host RAM instead of ~148 GiB, with decode ~4% slower and prefill unchanged on Gen5 NVMe. See the
@@ -171,8 +230,9 @@ cd llm-inference-bench && .venv/bin/python llm_decode_bench.py --port 15015 --mo
 python3 /path/to/this-folder/tools/bench_steps.py result.json   # steps/s and tokens/step per cell
 ```
 
-Optional: `tools/llm-bench-flare-steps.patch` (`git apply` inside `llm-inference-bench`, tested on v0.9.1) makes the
-benchmark's own summary show the "MTP-normalized decode steps/s" table for Flare, computed from Flare's draft-round counters.
+Optional: `tools/llm-bench-flare-steps.patch` (`git apply` inside `llm-inference-bench`, tested on v0.9.1; the
+benchmark is MIT-licensed, see its README) makes the benchmark's own summary show the "MTP-normalized decode steps/s"
+table for Flare, computed from Flare's draft-round counters.
 
 ## 6. Troubleshooting
 
@@ -186,5 +246,6 @@ benchmark's own summary show the "MTP-normalized decode steps/s" table for Flare
 | Chat requests return 400 for `thinking` / `clear_thinking` | Flare's thinking toggle is `chat_template_kwargs: {"enable_thinking": true}` (or `false`); vLLM's `thinking` / `clear_thinking` fields are rejected |
 | The command does nothing and exits 0 | your shell's `env` is not `/usr/bin/env` (uv installs one at `~/.local/bin/env`); the scripts here call `/usr/bin/env` explicitly |
 | Corruption check reports true corruptions | `flashinfer-tiny-decode-swiglu.patch` is not applied in `.venv` |
+| `serve.sh` fails because `ds41-1017-engram-mxfp4` is not found | the checkpoint view had another directory name, and the model name follows it (step 3). `flare models list` shows the name; serve with `PACKAGE=<name>` or the package path |
 | First `flare run` of a new package asks to trust the publisher | packages are signed with your local development key (`~/.config/flare/`); approve it once in an interactive terminal |
 | Disk fills up after several exports | remove old versions with `flare models remove <model>@<version>` then `flare models gc` (deleting folders by hand frees nothing: files are shared) |

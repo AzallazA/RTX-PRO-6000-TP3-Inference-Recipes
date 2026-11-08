@@ -3,8 +3,10 @@
 # Same protocol as the .11 vLLM release where possible, at concurrency 8 instead of 4 (about 1 h instead of 2.5 h); Flare deltas noted inline.
 # Outputs go to $QUAL_OUT (default run-<date>/ next to this script), never into the shipped results/ and RESULTS.md.
 # Needs: FLARE_LOG=<server log> (stress stage), CKPT=<checkpoint view> (long generation detokenizes with its tokenizer),
-# ~/llm-inference-bench and ~/LiveBench checkouts.
+# llm-inference-bench and LiveBench checkouts: LLM_BENCH_DIR (default ~/llm-inference-bench), LIVEBENCH_DIR (default ~/LiveBench).
 cd "$(dirname "$(readlink -f "$0")")"; Q=$PWD
+LLM_BENCH_DIR=${LLM_BENCH_DIR:-$HOME/llm-inference-bench}; LIVEBENCH_DIR=${LIVEBENCH_DIR:-$HOME/LiveBench}
+export LLM_BENCH=${LLM_BENCH:-$LLM_BENCH_DIR/llm_decode_bench.py}   # run_qualification.py (longgen) uses this path
 export QUAL_OUT=${QUAL_OUT:-$Q/run-$(date +%Y%m%d-%H%M)}; mkdir -p "$QUAL_OUT"; O=$QUAL_OUT
 S=${*:-eval tools lavd hotel retrieval longgen eos livebench stress}
 note(){ echo "$(date -u +%FT%T) — $*" | tee -a "$O/QUAL.md"; }
@@ -36,17 +38,17 @@ if has longgen; then
   note "long generation: $(python3 -c "import json;r=json.load(open('$O/long-generation.json'));print(len(r),'runs, fails',sum(x['fail'] for x in r),'| completions',[x['completion'] for x in r],'| repeat_8gram',[x['repeat_8gram'] for x in r])")"
 fi
 if has eos; then   # bench decode with natural EOS: checks the ignore_eos loop theory
-  (cd ~/llm-inference-bench && .venv/bin/python llm_decode_bench.py --port 15015 --model DeepSeek-V4.1-Flash \
+  (cd "$LLM_BENCH_DIR" && .venv/bin/python llm_decode_bench.py --port 15015 --model DeepSeek-V4.1-Flash \
      --concurrency 1,4,8 --contexts 32k --duration 60 --respect-eos \
      --output $O/eos-bench.json > $O/eos-bench.log 2>&1)
   note "respect-eos bench: $(grep -E '│ 32k' $O/eos-bench.log | head -1 | tr -s ' ') loops: $(grep -c 'ERROR: loop' $O/eos-bench.log)"
 fi
 if has livebench; then   # LiveBench coding, same settings as the .11 run (81.9)
-  (cd ~/LiveBench/livebench && ~/LiveBench/.venv/bin/python run_livebench.py --venv ~/LiveBench/.venv/bin/activate --model DeepSeek-V4.1-Flash \
+  (cd "$LIVEBENCH_DIR/livebench" && "$LIVEBENCH_DIR/.venv/bin/python" run_livebench.py --venv "$LIVEBENCH_DIR/.venv/bin/activate" --model DeepSeek-V4.1-Flash \
      --model-display-name DeepSeek-V4.1-Flash-flare-v3-2x --api-base http://localhost:15015/v1 --api-key dummy \
      --bench-name live_bench/coding --livebench-release-option 2024-11-25 --parallel-requests 8 --max-tokens 32768 \
      --force-temperature 1.0 > $O/livebench.log 2>&1
-   ~/LiveBench/.venv/bin/python show_livebench_result.py --bench-name live_bench/coding --livebench-release-option 2024-11-25 \
+   "$LIVEBENCH_DIR/.venv/bin/python" show_livebench_result.py --bench-name live_bench/coding --livebench-release-option 2024-11-25 \
      --model-list DeepSeek-V4.1-Flash-flare-v3-2x > $O/livebench-score.log 2>&1)
   note "LiveBench coding: $(grep -i -A3 'average\|flare-v3-2x' $O/livebench-score.log | tr -s ' ' | tail -3 | tr '\n' ' ')"
 fi
