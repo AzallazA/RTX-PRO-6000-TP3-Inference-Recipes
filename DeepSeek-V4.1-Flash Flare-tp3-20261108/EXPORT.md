@@ -41,7 +41,7 @@ The fork is upstream NVIDIA Flare at `972e28e4` plus `source.patch` from this fo
 git clone https://github.com/NVIDIA/flare-local-inference.git flare
 cd flare
 git checkout 972e28e44781d8d0c84d70ae434db92c36076a43
-git apply /path/to/this-folder/source.patch           # 86 files (45 new, including brrr/); applies cleanly to 972e28e4
+git apply /path/to/this-folder/source.patch           # 149 files (103 new, including brrr/ and tp3-tools/); applies cleanly to 972e28e4
 
 uv sync --locked --extra prepare --extra test         # Python environment in .venv (pulls FlashInfer @ 1f8ed8a3)
 uv run --locked --extra prepare python -m ignition.patches   # Flare's torch/Triton patches; re-run after every uv sync
@@ -68,6 +68,13 @@ Check the build:
 flare/target/release/flare --version
 .venv/bin/ignition export --help | head -3
 ```
+
+**Update 2026-11-08.1.** `source.patch` is now generated from fork tag `flare-tp3-20261108.1`: the `TP3Config` object
+(the `FLARE_DS41_*` variables keep their names and defaults; invalid or removed names fail the export loudly; the
+resolved configuration is written as `tp3-config.json` beside `model.safetensors`), the BRRR prologue and QB_ATOMIC
+experiment paths removed, the FP64 per-operator layer test, and `tp3-tools/release/` (this folder's scripts and the
+expert order, kept in the fork as the single source). The exported package gains ~6K KV tokens from the removed
+prologue scratch buffers (2,467,200 at 32G prefix cache). Full c8 qualification of that package: see the README.
 
 **Update 2026-11-08.** `source.patch` now carries the BRRR kernel hygiene pass (cold-first parked jobs, per-chunk attention
 flags, a constants contract between kernel and config, a cross-rank agreement check), vision weight staging

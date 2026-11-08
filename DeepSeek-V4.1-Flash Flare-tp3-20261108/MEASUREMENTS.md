@@ -219,3 +219,9 @@ corruptions; KV 2,461,184 both. Under the 4-concurrent qualification runner the 
 KV dry run: `flare run <package> <serve flags> --dry-run` (new) reproduces the recorded "Allocate cache" lines of five packages
 exactly. It also shows that the 2,373,760 → 2,461,184 KV change between the 16G and 32G configurations was the verification
 row cap (24 drops 13 speculative graphs, ~76 MiB per rank), not the prefix cache (which costs ~10 MiB of device headroom).
+
+### Qualification, 2026-11-08 (c8, both packages)
+
+See the README's "Qualification of this folder's packages" table; raw results under `qualification/results/run-20261108-c8/`
+and `run-20261108.1-c8/`. Export-to-export variance measured the same day (identical code re-exported: c1/c4/c8 298/731/988
+vs 302/726/983 over 4 rounds) and session drift (~2% at c8) are recorded in the fork handbook, section D.1.

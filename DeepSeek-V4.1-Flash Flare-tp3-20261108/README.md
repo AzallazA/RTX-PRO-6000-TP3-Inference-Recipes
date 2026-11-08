@@ -13,7 +13,11 @@ DeepSeek-V4.1-Flash-1017 served by **NVIDIA Flare at tensor parallel 3 with the 
 - Helios resolves Engram table storage (RAM or disk, per table) in one place; `flare run ... --dry-run` prints the
   memory plan and KV capacity of a package without touching the GPUs;
 - three GPU equivalence tests (fused layer tail vs Flare's stock path with FP64 per-operator bounds, expert parking
-  layouts, staged vision) and the fork handbook `docs/TP3-GUIDELINES.md`.
+  layouts, staged vision) and the fork handbook `docs/TP3-GUIDELINES.md`;
+- (tag `flare-tp3-20261108.1`) one typed `TP3Config` object replaces the recipe's `FLARE_DS41_*` environment reads
+  (same variable names, validated once, recorded as `tp3-config.json` beside the package's `model.safetensors`), and
+  the dead experiment paths (BRRR prologue, QB_ATOMIC probe) are removed. Package 081024 from this tag passed the full
+  c8 qualification below and is level with the 20261108 package over 8 alternating rounds.
 
 Text speed is unchanged: 32K c1/c4/c8 ≈ 306/719/973 tok/s over four alternating rounds against the 20261107 package
 (304/720/978), 0 true decode corruptions, 2,461,184 KV tokens. The fork's experiment with wide-row restreaming in the
@@ -24,7 +28,7 @@ Weights: [deepseek-ai/DeepSeek-V4.1-Flash-1017](https://huggingface.co/deepseek-
 `1bae0e1088993b9b82de08f59de5be5a34e42170` (MIT) for all dense and expert weights; the two Engram tables in MXFP4
 from [nvidia/DeepSeek-V4.1-Flash-1017-NVFP4](https://huggingface.co/nvidia/DeepSeek-V4.1-Flash-1017-NVFP4) (MIT).
 Runtime: [NVIDIA Flare](https://github.com/NVIDIA/flare-local-inference) `main` @ `972e28e4` plus this fork
-(`source.patch`, branch `ds41-tp3-v3`; the same code is the public fork https://github.com/AzallazA/spark-local-inference at tag `flare-tp3-20261108`), FlashInfer @ `1f8ed8a3` (upstream's pin) plus four patches in `tp3-patches/`.
+(`source.patch`, branch `ds41-tp3-v3`; the same code is the public fork https://github.com/AzallazA/spark-local-inference at tag `flare-tp3-20261108.1`), FlashInfer @ `1f8ed8a3` (upstream's pin) plus four patches in `tp3-patches/`.
 The fused layer tail is adapted from [fraserprice/DeepSeek-4.1-Flash-1017-BRRR](https://huggingface.co/fraserprice/DeepSeek-4.1-Flash-1017-BRRR) (Apache-2.0).
 
 **How to get it:** build the package yourself; there is no prebuilt download. [EXPORT.md](EXPORT.md) walks through
@@ -204,6 +208,27 @@ The same protocol as the vLLM Kraken TP3 releases ([qualification/](qualificatio
 | Corruption check (teacher-forced comparison, 10 runs) | 0 true corruptions |
 | Vision (60-image set and hard set, both temperatures) | 60/60 and 58-59/60, same as vLLM `.11` (measured on the pre-rebase fork with the same host-RAM vision tower; ~3 s slower per image) |
 
+### Qualification of this folder's packages (2026-11-08, c8, 450 W, k5, alpha 0.8, balanced, cap 24, 32G prefix cache)
+
+Same suite as the 20261107 folder (`qualification/qual_all.sh`), run against the served package; raw results in
+`qualification/results/run-20261108-c8/` (package 080909, tag `flare-tp3-20261108`) and
+`qualification/results/run-20261108.1-c8/` (package 081024, tag `flare-tp3-20261108.1`).
+
+| Test | 080909 | 081024 |
+| --- | --- | --- |
+| 43-question eval, thinking off | 43/43 | 43/43 |
+| Tool calls, 60 prompts at c8 | 60/60, 0 wrong tool | 60/60, 0 wrong tool |
+| lavd, 30 runs at c8 | 30 exact | 30 exact |
+| hotel-lights, 30 runs at c8 | 30 exact | 30 exact |
+| Long retrieval, 128K / 900K | pass / pass | pass / pass |
+| Long generation after a 581K-token conversation, 4 seeds | 4/4, worst 8-gram repeat 0.0006 | 4/4, worst 0.0008 |
+| Decode bench with natural EOS, 32K c1/c4/c8 (tok/s) | 293 / 717 / 964, 0 loops | 290 / 717 / 963, 0 loops |
+| LiveBench coding (2024-11-25, 32K budget, temperature 1) | 83.9 | 81.6 |
+| KV stress at c8 (2 waves x 8 x ~530K unique prompts + pinger, KV oversubscribed) | PASS, 16/16, pinger 120/120, 9.5M prompt tokens | PASS, 16/16, pinger 117/117, 9.5M prompt tokens |
+
+LiveBench moves by a question or two between runs at temperature 1 (81.5-84.2 across our MXFP4 runs); the two
+scores above bracket the 20261107 package's 82.2.
+
 ## Measured and not adopted
 
 | Idea | Result |
@@ -276,7 +301,7 @@ The model name is the checkpoint directory's name: this view exports as `ds41-10
 | `ENGRAM-PRECISION.md` | MXFP4 vs FP8 Engram tables: every quality score we have for each, from the vLLM and Flare releases |
 | `serve.sh` / `export.sh` | serve the package / export it from a checkpoint view |
 | `make_checkpoint_view.sh`, `checkpoint/` | build the checkpoint from the two public releases (config + corrected index) |
-| `source.patch` | the fork's changes against Flare `972e28e4`, generated from fork tag `flare-tp3-20261108` (86 files, 45 new: the adapted `brrr/` kernels, vision staging, the Engram and KV-planning changes in Helios, GPU equivalence tests, the fork handbook `docs/TP3-GUIDELINES.md`; see the update notes in EXPORT.md) |
+| `source.patch` | the fork's changes against Flare `972e28e4`, generated from fork tag `flare-tp3-20261108.1` (149 files, 103 new: the adapted `brrr/` kernels, vision staging, the Engram and KV-planning changes in Helios, GPU equivalence tests, the fork handbook `docs/TP3-GUIDELINES.md`; see the update notes in EXPORT.md) |
 | `expert-order/` | per-layer route counts that set the hot-expert placement |
 | `tp3-patches/` | the four FlashInfer patches |
 | `tools/` | `bench_steps.py` (steps/s from a bench JSON), `verify_fix.py` (corruption check), `llm-bench-flare-steps.patch` (optional, for `llm-inference-bench` v0.9.1); the tool-call test is `qualification/tool_calls.py` |

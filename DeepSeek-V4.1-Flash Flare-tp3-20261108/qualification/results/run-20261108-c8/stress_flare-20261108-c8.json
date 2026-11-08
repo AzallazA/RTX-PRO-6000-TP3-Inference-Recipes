@@ -1,0 +1,14 @@
+{
+ "preset": "flare-20261108-c8",
+ "capacity": 2461184,
+ "verdict": "PASS",
+ "waves": 2,
+ "long_ok": 16,
+ "long_total": 16,
+ "ping_ok": 120,
+ "ping_total": 120,
+ "prompt_tokens": 9510861,
+ "min_free_mib": 78,
+ "bad_log_lines": [],
+ "wall_min": 14.201583115259806
+}
