@@ -40,9 +40,9 @@ unless marked 350 W. Every measurement, including the settings sweeps, is in [ME
 
 ## Headline numbers
 
-| | this build, 450 W | this build, 350 W | 20261105, 350 W | vLLM Kraken TP3 `.11` |
+| | 20261107 and this build (level), 450 W | same, 350 W | 20261105, 350 W | vLLM Kraken TP3 `.11` |
 | --- | --- | --- | --- | --- |
-| KV cache | **2,373,760 tokens** (2.37 × 1M) | same | 2,991,488 | 2,185,581 |
+| KV cache | **2,373,760 tokens** at 16G prefix cache, 2,461,184 at the default 32G (2.4 × 1M) | same | 2,991,488 | 2,185,581 |
 | Decode 32K, c1 / c4 / c8 (tok/s) | **298-305 / 716-738 / 957-975** | 275 / 644 / 850 | ~254 / ~595 / ~805 | 231-260 / 470-490 / ~790 |
 | Decode 32K, c1 engine steps/s | ~114-122 | ~110 | ~94 | ~97 |
 | Decode 128K, c1 / c4 / c8 | 296 / 708 / 956 | 253 / 627 / 817 | — | — |
@@ -61,10 +61,10 @@ speed with draft acceptance divided out; tok/s also depends on how predictable t
 
 ## Contents
 
-1. [Test system](#test-system) · [What changed](#what-changed-since-20261105) · [How it fits in 3 × 96 GB](#how-it-fits-in-3--96-gb)
+1. [Test system](#test-system) · [What this build contains](#what-this-build-contains) · [How it fits in 3 × 96 GB](#how-it-fits-in-3--96-gb)
 2. [More KV: fewer hot experts](#more-kv-fewer-hot-experts) · [Which settings for me](#which-settings-for-me) · [Engram on disk (less RAM)](#engram-on-disk-less-ram) · [Memory](#memory)
 3. [Quality and long context](#quality-and-long-context) · [Measured and not adopted](#measured-and-not-adopted) · [Known limitations](#known-limitations)
-4. [Coming from 20261105](#coming-from-20261105) · [Building the package](#building-the-package) ([EXPORT.md](EXPORT.md)) · [Files](#files) · [Licenses](#licenses) · [Credits](#credits)
+4. [Coming from 20261107 or 20261105](#coming-from-20261107-or-20261105) · [Building the package](#building-the-package) ([EXPORT.md](EXPORT.md)) · [Files](#files) · [Licenses](#licenses) · [Credits](#credits)
 
 ## Test system
 
@@ -90,7 +90,10 @@ What matters most for speed, in our measurements:
   stream from host RAM over PCIe. Gen5 x16 per GPU on one CPU root complex is the tested setup.
 - **Host RAM.** With Engram in RAM the server uses ~148 GiB. With less RAM, see [Engram on disk](#engram-on-disk-less-ram).
 
-## What changed since 20261105
+## What this build contains
+
+Cumulative description of the fork's features (the step from 20261105 to 20261107 is explained in the
+[20261107 folder](../DeepSeek-V4.1-Flash%20Flare-tp3-20261107/README.md#what-changed-since-20261105); the changes since 20261107 are listed at the top).
 
 | Change | Effect |
 | --- | --- |
@@ -225,7 +228,13 @@ The same protocol as the vLLM Kraken TP3 releases ([qualification/](qualificatio
 - Not upstreamable as written: Flare's contribution rules exclude model-specific offload policy and AI-authored
   GPU-execution changes. This is a personal fork.
 
-## Coming from 20261105
+## Coming from 20261107 or 20261105
+
+**From 20261107:** drop-in. Same base commit `972e28e4`, same checkpoint view, same serve flags; apply this folder's
+`source.patch` on a clean checkout (or fetch fork tag `flare-tp3-20261108`), export once, serve. Image requests get the
+staged vision tower automatically; the `tp3-tools/` and `docs/tp3/` additions need nothing from you.
+
+**From 20261105:**
 
 - **New base commit.** The fork now sits on upstream `972e28e4` (20261105: `78b18b1c`) and the old `source.patch`
   conflicts with it. Make a fresh clone, or in the existing checkout drop the old patch (`git checkout -- . && git clean -fd`)
