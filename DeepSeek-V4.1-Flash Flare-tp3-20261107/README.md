@@ -18,7 +18,7 @@ Weights: [deepseek-ai/DeepSeek-V4.1-Flash-1017](https://huggingface.co/deepseek-
 `1bae0e1088993b9b82de08f59de5be5a34e42170` (MIT) for all dense and expert weights; the two Engram tables in MXFP4
 from [nvidia/DeepSeek-V4.1-Flash-1017-NVFP4](https://huggingface.co/nvidia/DeepSeek-V4.1-Flash-1017-NVFP4) (MIT).
 Runtime: [NVIDIA Flare](https://github.com/NVIDIA/flare-local-inference) `main` @ `972e28e4` plus this fork
-(`source.patch`, branch `ds41-tp3-v3`), FlashInfer @ `1f8ed8a3` (upstream's pin) plus four patches in `tp3-patches/`.
+(`source.patch`, branch `ds41-tp3-v3`; the same code is the public fork https://github.com/AzallazA/spark-local-inference at tag `flare-tp3-20261108`), FlashInfer @ `1f8ed8a3` (upstream's pin) plus four patches in `tp3-patches/`.
 The fused layer tail is adapted from [fraserprice/DeepSeek-4.1-Flash-1017-BRRR](https://huggingface.co/fraserprice/DeepSeek-4.1-Flash-1017-BRRR) (Apache-2.0).
 
 **How to get it:** build the package yourself; there is no prebuilt download. [EXPORT.md](EXPORT.md) walks through
@@ -261,7 +261,7 @@ The model name is the checkpoint directory's name: this view exports as `ds41-10
 | `ENGRAM-PRECISION.md` | MXFP4 vs FP8 Engram tables: every quality score we have for each, from the vLLM and Flare releases |
 | `serve.sh` / `export.sh` | serve the package / export it from a checkpoint view |
 | `make_checkpoint_view.sh`, `checkpoint/` | build the checkpoint from the two public releases (config + corrected index) |
-| `source.patch` | the fork's changes against Flare `972e28e4` (86 files, 45 new: the adapted `brrr/` kernels, vision staging, the Engram and KV-planning changes in Helios, GPU equivalence tests, the fork handbook `docs/TP3-GUIDELINES.md`; see the update notes in EXPORT.md) |
+| `source.patch` | the fork's changes against Flare `972e28e4`, generated from fork tag `flare-tp3-20261108` (86 files, 45 new: the adapted `brrr/` kernels, vision staging, the Engram and KV-planning changes in Helios, GPU equivalence tests, the fork handbook `docs/TP3-GUIDELINES.md`; see the update notes in EXPORT.md) |
 | `expert-order/` | per-layer route counts that set the hot-expert placement |
 | `tp3-patches/` | the four FlashInfer patches |
 | `tools/` | `bench_steps.py` (steps/s from a bench JSON), `verify_fix.py` (corruption check), `llm-bench-flare-steps.patch` (optional, for `llm-inference-bench` v0.9.1); the tool-call test is `qualification/tool_calls.py` |
