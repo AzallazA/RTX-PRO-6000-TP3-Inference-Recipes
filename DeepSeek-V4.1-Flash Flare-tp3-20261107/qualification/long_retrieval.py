@@ -4,12 +4,13 @@ import argparse
 import json
 import re
 from pathlib import Path
+import os
 import subprocess
 import urllib.request
 
 HERE = Path(__file__).resolve().parent
-OUT = HERE / 'long-retrieval'
-OUT.mkdir(exist_ok=True)
+OUT = Path(os.environ.get('QUAL_OUT', HERE)) / 'long-retrieval'
+OUT.mkdir(parents=True, exist_ok=True)
 URL = 'http://127.0.0.1:15015'
 unit = 'This ordinary archived entry contains no requested marker.\n'
 expected = {'A': 'ALPHA-R34-7K2M9Q', 'B': 'BETA-R34-8P6V3X', 'C': 'GAMMA-R34-4T9N2Z'}

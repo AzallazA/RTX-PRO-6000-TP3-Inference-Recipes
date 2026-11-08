@@ -62,8 +62,8 @@
   "startup_diagnostics": {
     "version": "0.8.0",
     "server_url": "http://localhost:15015",
-    "hostname": "threadripper",
-    "uname": "Linux threadripper 7.0.0-38-generic #38-Ubuntu SMP PREEMPT_DYNAMIC Fri Sep  4 09:10:14 UTC 2026 x86_64 GNU/Linux",
+    "hostname": "host",
+    "uname": "Linux host 7.0.0-38-generic x86_64 GNU/Linux",
     "env": {},
     "args": {
       "concurrency": "1,4,8",

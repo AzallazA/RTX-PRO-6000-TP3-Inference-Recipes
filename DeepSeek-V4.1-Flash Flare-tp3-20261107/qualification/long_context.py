@@ -8,8 +8,8 @@ import subprocess
 import time
 import urllib.request
 
-HERE = Path(__file__).resolve().parent / 'outputs'
-HERE.mkdir(exist_ok=True)
+HERE = Path(os.environ.get('QUAL_OUT', Path(__file__).resolve().parent)) / 'outputs'
+HERE.mkdir(parents=True, exist_ok=True)
 ROOT = Path(__file__).resolve().parent
 spec = importlib.util.spec_from_file_location(
     "quality", ROOT / "analyze_quality.py")
@@ -68,9 +68,6 @@ def main():
            '(4) unresolved issues and concrete next steps, and '
            '(5) lessons learned. Use detailed prose with headed sections. Be '
            'thorough and specific; do not summarise briefly.')
-    if a.prompt == 'audit':
-        ask = json.loads((ROOT.parent / 'r30-port/results/long-context/manifest.json')
-                         .read_text())['appended_instruction']
     body['messages'] = (body['messages'] if a.context == 'full' else []) + [
         {'role': 'user', 'content': ask}]
     body.update(model='DeepSeek-V4.1-Flash', temperature=a.temperature, top_p=a.top_p,

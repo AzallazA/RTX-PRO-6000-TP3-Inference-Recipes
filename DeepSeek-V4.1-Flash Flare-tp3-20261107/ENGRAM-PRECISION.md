@@ -3,7 +3,7 @@
 DeepSeek-V4.1-Flash-1017 has two Engram n-gram tables (layers 1 and 14). DeepSeek ships them in FP8 (94.4 GiB each,
 189 GiB total). NVIDIA's [DeepSeek-V4.1-Flash-1017-NVFP4](https://huggingface.co/nvidia/DeepSeek-V4.1-Flash-1017-NVFP4)
 release carries them in MXFP4 (48.6 GiB each, 97 GiB total). That format is lossy: packed E2M1 values with E8M0 block
-scales recomputed per 32 values). This page collects every measurement we have of the two side by side: a direct
+scales recomputed per 32 values. This page collects every measurement we have of the two side by side: a direct
 A/B on one build, then the scores of each release (vLLM Kraken `20261019.4` and later, served with the
 `engram-nvidia` weights, and both Flare releases use MXFP4). The release scores compare different builds, so read
 them as a record, not a controlled study.

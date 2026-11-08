@@ -1,21 +1,16 @@
 #!/usr/bin/env python3
-"""A/B eval for the DS41 uncensored variants on :15015 — intelligence + refusals.
+"""43-question eval (intelligence + refusals) against the Flare server on :15015.
 
-Run ONCE PER MODEL (swap MODEL in .env + `docker compose up -d`, wait healthy):
-    python3 compare_models.py abliterated
-    python3 compare_models.py dealignai
-    python3 compare_models.py base          # optional: stock as the intelligence ceiling
-Then compare:
-    python3 compare_models.py --compare abliterated dealignai base
+    python3 compare_models.py <label>                 # one run; writes eval_<label>.json into $QUAL_OUT (default: this folder)
+    python3 compare_models.py --compare <label> ...   # side-by-side of saved runs
 
-Writes ~/ds41-tp3/eval_<label>.json (per-item responses kept for eyeballing).
-thinking OFF, temperature 0 -> deterministic + comparable. Served model name is
-always 'DeepSeek-V4.1-Flash'; the label is just how you tag the run.
+Thinking OFF. Flare fixes DeepSeek's temperature at 1.0 (the request's temperature 0 is clamped), so repeated runs
+can differ on borderline items; the served model name is always 'DeepSeek-V4.1-Flash', the label only tags the run.
 """
 import json, re, sys, time, urllib.request, concurrent.futures, os
 
 BASE = "http://127.0.0.1:15015"
-OUT = os.path.dirname(os.path.abspath(__file__))
+OUT = os.environ.get('QUAL_OUT', os.path.dirname(os.path.abspath(__file__)))
 
 # ---- intelligence: (prompt, accepted-answer substrings [case-insensitive]) ----
 IQ = [

@@ -7,7 +7,8 @@ present with the right JSON types and enum values. A second turn returns the too
 with a non-empty assistant answer.
 usage: tool_calls.py [N=60] [C=4]
 """
-import json, random, sys, time, urllib.error, urllib.request
+import json
+import os, random, sys, time, urllib.error, urllib.request
 from concurrent.futures import ThreadPoolExecutor
 
 URL = "http://127.0.0.1:15015/v1/chat/completions"
@@ -120,4 +121,4 @@ for r in results:
         print("  FAIL", r[0], r[2])
 print(f"tool calls: {ok}/{N} OK ({len(odd)} chose a different tool), concurrency {C}, {time.time() - t0:.0f} s")
 json.dump([dict(index=i, status=s, detail=d) for i, s, d in results],
-          open(__file__.replace(".py", ".json"), "w"), indent=2)
+          open(os.path.join(os.environ.get("QUAL_OUT", os.path.dirname(os.path.abspath(__file__))), "tool_calls.json"), "w"), indent=2)

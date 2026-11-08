@@ -23,4 +23,7 @@ LiveBench runs at temperature 1.0, so scores vary by about ±1 between runs. Raw
 runs keep their full texts).
 
 Running it: start the server, then `FLARE_LOG=<server log> CKPT=<checkpoint view> ./qual_all.sh` (or name stages:
-`./qual_all.sh eval tools`). LiveBench and `llm-inference-bench` are expected in `~/LiveBench` and `~/llm-inference-bench`.
+`./qual_all.sh eval tools`). Every output lands in a fresh `run-<date>/` directory next to the script (`QUAL_OUT` overrides
+it); the shipped `results/` and this file are never written. The long-generation stage replays `captured-request.san.json`
+(the sanitized 581K-token conversation, shipped here). LiveBench and `llm-inference-bench` are expected in
+`~/LiveBench` and `~/llm-inference-bench`.

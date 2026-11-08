@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""KV-pool stress for a kraken preset: fill and oversubscribe the KV cache with UNIQUE
-long prompts (no shared prefix -> no prefix-cache hits), 4 concurrent (= max-num-seqs),
-in waves until >= 1.15x the pool capacity has been pushed through, while a short-prompt
-pinger runs concurrently (prefill-during-decode). Samples GPU free memory, then scans the
-container log for OOM / mapping-failure / preemption lines.
-usage: stress_kv.py <preset> <capacity_tokens> [prompt_tok=600000] [conc=4] [max_out=200]
+"""KV-pool stress for the running Flare server: fill and oversubscribe the KV cache with UNIQUE long prompts
+(no shared prefix -> no prefix-cache hits), <conc> concurrent (the release uses 8 = the package's slots), in waves
+until >= 1.15x the pool capacity has been pushed through, while a short-prompt pinger runs concurrently
+(prefill-during-decode). Samples GPU free memory, then scans the server log ($FLARE_LOG) for OOM / mapping-failure /
+preemption lines. Writes stress_<preset>.json into $QUAL_OUT (default: this folder).
+usage: FLARE_LOG=<server log> stress_kv.py <preset> <capacity_tokens> [prompt_tok=600000] [conc=4] [max_out=200]
 """
 import json, sys, time, subprocess, threading, concurrent.futures, urllib.request, math, random
 BASE="http://127.0.0.1:15015"
@@ -17,7 +17,7 @@ WORDS=["ledger","berth","dispatch","archive","repeater","cooling","manifest","qu
        "procurement","safety","shelter","overnight","summary","handoff","schedule","memo","audit","beacon"]
 TOK_PER_WORD=None
 def _calibrate():
-    """Measure tok/word for our synthetic text once via /tokenize."""
+    """Measure tok/word for our synthetic text once via /v1/messages/count_tokens."""
     global TOK_PER_WORD
     rng=random.Random(1); sample=" ".join(rng.choice(WORDS) for _ in range(5000))
     # Flare: no /tokenize; count via the Anthropic endpoint (includes a few template tokens).
@@ -60,7 +60,7 @@ def pinger():
 threading.Thread(target=monitor,daemon=True).start(); threading.Thread(target=pinger,daemon=True).start()
 t0=time.time()
 import os as _os0
-_LOG_START=_os0.path.getsize(_os0.environ.get('FLARE_LOG','~/flare-up/serve-best.log')); print(f"[{PRESET}] capacity={CAP:,} tok -> {WAVES} waves x {CONC} x ~{PTOK:,} tok unique prompts (+ pinger)", flush=True)
+_LOG_START=_os0.path.getsize(_os0.environ['FLARE_LOG']); print(f"[{PRESET}] capacity={CAP:,} tok -> {WAVES} waves x {CONC} x ~{PTOK:,} tok unique prompts (+ pinger)", flush=True)
 results=[]
 for w in range(WAVES):
     seeds=[(hash((PRESET,w,i,time.time()))&0xffffffff) for i in range(CONC)]
@@ -74,7 +74,7 @@ for w in range(WAVES):
 stop=True; time.sleep(3)
 health=urllib.request.urlopen(f"{BASE}/health",timeout=10).status
 import os as _os
-_logf=_os.environ.get("FLARE_LOG","~/flare-up/serve-best.log")
+_logf=_os.environ["FLARE_LOG"]
 log=open(_logf,errors="replace").read()[_LOG_START:]
 bad=[l for l in log.splitlines() if any(k in l.lower() for k in ("mapping failed","out of memory","cuda error","cublas","traceback","oom","server_error","device error","panic"))]
 preempt=[l for l in log.splitlines() if "preempt" in l.lower()]
@@ -86,4 +86,4 @@ print(f"[{PRESET}] {verdict}: {total_ok}/{total} long requests ok, pinger {pok}/
 for l in bad[:8]: print("   LOG:", l[:200])
 json.dump({"preset":PRESET,"capacity":CAP,"verdict":verdict,"waves":WAVES,"long_ok":total_ok,"long_total":total,"ping_ok":pok,"ping_total":len(pings),
            "prompt_tokens":sum(r[1] for r in results),"min_free_mib":minfree[0],"bad_log_lines":bad[:20],"wall_min":(time.time()-t0)/60},
-          open(f"~/ds41-tp3/stress/result_{PRESET}.json","w"),indent=1)
+          open(_os.path.join(_os.environ.get("QUAL_OUT", _os.path.dirname(_os.path.abspath(__file__))), f"stress_{PRESET}.json"),"w"),indent=1)

@@ -30,7 +30,7 @@ The fork is upstream NVIDIA Flare at `972e28e4` plus `source.patch` from this fo
 git clone https://github.com/NVIDIA/flare-local-inference.git flare
 cd flare
 git checkout 972e28e44781d8d0c84d70ae434db92c36076a43
-git apply /path/to/this-folder/source.patch           # 45 files (15 new, including brrr/); applies cleanly to 972e28e4
+git apply /path/to/this-folder/source.patch           # 49 files (17 new, including brrr/); applies cleanly to 972e28e4
 
 uv sync --locked --extra prepare --extra test         # Python environment in .venv (pulls FlashInfer @ 1f8ed8a3)
 uv run --locked --extra prepare python -m ignition.patches   # Flare's torch/Triton patches; re-run after every uv sync
@@ -57,6 +57,19 @@ Check the build:
 flare/target/release/flare --version
 .venv/bin/ignition export --help | head -3
 ```
+
+**Update 2026-11-07 (review pass).** `source.patch` now also carries the fixes from a code review of this release. None of
+them change the exported package or its numbers; they matter for serving and for other setups:
+
+| Fix | Effect |
+| --- | --- |
+| Helios counted the TP3 merged expert banks (VRAM prefix + host tail) as all-VRAM in its GPU admission check and in `flare models describe` | the check could reject a package that fits by a few GiB; fixed in all six accounting sites |
+| `FLARE_ENGRAM_RAM_TABLES` tables were not counted toward `--memory-limit` host accounting, and the disk row-cache budget was split across tables no longer on disk | correct host accounting; disk tables get the whole cache budget |
+| `--history-drafts` inputs were advertised for every DeepSeek export but only consumed under vocabulary-parallel sampling | TP4 exports behave like upstream again (TP3 unchanged) |
+| Guards: the BRRR tail checks its attention-output dtype and RoPE table; the parked-layer gate requires an actual host tail; the export fails loudly if b12x ever re-materialises host-parked experts (TP4-style tiling would) | no silent garbage or VRAM over-commit on future changes |
+| Three opt-in experiments measured level and left switched off (`FLARE_DS41_BRRR_SPARSE`, `FLARE_DS41_FUSED_QKV_NORM`, `FLARE_DS41_QB_ATOMIC`; `tp3-patches/flashinfer-dense-splitk-deferral.patch` and `flashinfer-tuning-route-reuse.patch` belong to them and are **not** needed) | default build untouched; see MEASUREMENTS.md |
+
+A `flare` binary built from the updated patch serves the published package as before (checked: same KV count, corruption check clean).
 
 ## 3. Build the checkpoint
 

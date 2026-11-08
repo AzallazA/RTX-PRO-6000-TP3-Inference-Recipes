@@ -37,7 +37,7 @@ unless marked 350 W. Every measurement, including the settings sweeps, is in [ME
 | --- | --- | --- | --- | --- |
 | KV cache | **2,373,760 tokens** (2.37 × 1M) | same | 2,991,488 | 2,185,581 |
 | Decode 32K, c1 / c4 / c8 (tok/s) | **298-305 / 716-738 / 957-975** | 275 / 644 / 850 | ~254 / ~595 / ~805 | 231-260 / 470-490 / ~790 |
-| Decode 32K, c1 engine steps/s | ~114-119 | ~110 | ~94 | ~97 |
+| Decode 32K, c1 engine steps/s | ~114-122 | ~110 | ~94 | ~97 |
 | Decode 128K, c1 / c4 / c8 | 296 / 708 / 956 | 253 / 627 / 817 | — | — |
 | Decode 512K, c1 / c4 | 275 / 657 | 262 / 540 | — | — |
 | Prefill 32K / 128K (tok/s) | **14,507-14,805 / 14,619-14,645** | 12,931 / 12,844 | 12,548 / 12,160 | 14,195 / 12,716 |
@@ -91,7 +91,7 @@ What matters most for speed, in our measurements:
 | **BRRR fused layer tail** on all 40 layers (`ignition/recipes/deepseek41/brrr.py`, `brrr/kernels/decoder.cu`): one kernel for each layer's post-attention work. It reads Flare's own weights: the CSF expert scales are decoded in-kernel, and the dense FP8 weights match the checkpoint byte for byte, so no VRAM is spent on repacked copies. Parked layers (20-33) use it only in graphs of ≤12 rows; wider steps are relatively costlier there | c1 +6%, c4 +3%, c8 level (natural-EOS A/B vs the 20261105 layout at the same hot-expert count) |
 | Token embedding (1.23 GiB/GPU) and vision tower (`FLARE_DS41_EMBED_HOST`, `FLARE_DS41_VISION_HOST`) in device-visible host RAM | VRAM back to KV and hot experts; text speed unchanged; an image costs ~3 s more (its GEMMs read weights over PCIe) |
 | Prefill all-reduce runtime sized for 1024 rows instead of the 4096-row chunk (`FLARE_DS41_AR_ROWS`) | ~600 MiB/GPU back, prefill unchanged |
-| 342 hot experts per parked layer instead of 300 | c1/c4/c8 +4-5%, coding +6%, at 2.37M KV |
+| 342 hot experts per parked layer instead of 300 | +7% / +4% / +5% at c1 / c4 / c8 (natural EOS, 350 W, same session; MEASUREMENTS.md), at 2.37M KV instead of 6.25M |
 | Adaptive-verification alpha 0.8 instead of 0.6 | within noise of 0.6 (sweep in MEASUREMENTS.md) |
 | Verification row cap 24 (`--mtp-max-verification-token-budget 24`, was 128 = no cap) | 4-run A/B: c1 +1.7%, c4 +0.4%, c8 +2.4%, coding +1%; output unchanged (only how many drafts are checked per step) |
 
@@ -153,7 +153,7 @@ will cost more, mostly in prefill.
 | Per GPU | |
 | --- | --- |
 | Loaded (weights, graphs, scratch) | ~92.3 GiB |
-| KV cache | 6.3 GiB → 2,373,760 tokens |
+| KV cache | 2.1 GiB (6.3 GiB over the 3 GPUs) → 2,373,760 tokens |
 
 Host RAM: Engram tables ~97 GiB, host model memory (cold experts, embedding, vision) 16 GiB, prefix cache 16 GiB
 (`PREFIX_CACHE=32G` or `48G` costs only RAM; no speed change measured).
@@ -205,9 +205,12 @@ The same protocol as the vLLM Kraken TP3 releases ([qualification/](qualificatio
 Full guide: **[EXPORT.md](EXPORT.md)**. In short:
 
 ```bash
-./make_checkpoint_view.sh <deepseek snapshot> <nvidia NVFP4 snapshot> ckpt/   # 307 GB + 105 GB of downloads
-CKPT=ckpt/ HOT=300 ./export.sh   # warms the kernel tuning cache (a cold cache runs out of memory at HOT=342)
-CKPT=ckpt/ ./export.sh           # the release build, HOT=342
+# from this folder
+./make_checkpoint_view.sh <deepseek snapshot> <nvidia NVFP4 snapshot> ~/ds41-flare-ckpt   # 307 GB + 105 GB of downloads
+# from the fork checkout (export.sh uses its .venv)
+cd <fork>
+CKPT=~/ds41-flare-ckpt HOT=300 /path/to/this-folder/export.sh   # warms the kernel tuning cache (a cold cache runs out of memory at HOT=342)
+CKPT=~/ds41-flare-ckpt /path/to/this-folder/export.sh           # the release build, HOT=342
 ```
 
 ## Files
@@ -219,7 +222,7 @@ CKPT=ckpt/ ./export.sh           # the release build, HOT=342
 | `ENGRAM-PRECISION.md` | MXFP4 vs FP8 Engram tables: every quality score we have for each, from the vLLM and Flare releases |
 | `serve.sh` / `export.sh` | serve the package / export it from a checkpoint view |
 | `make_checkpoint_view.sh`, `checkpoint/` | build the checkpoint from the two public releases (config + corrected index) |
-| `source.patch` | the fork's changes against Flare `972e28e4` (45 files, including the adapted `brrr/` kernels) |
+| `source.patch` | the fork's changes against Flare `972e28e4` (49 files, including the adapted `brrr/` kernels; see the update note in EXPORT.md) |
 | `expert-order/` | per-layer route counts that set the hot-expert placement |
 | `tp3-patches/` | the four FlashInfer patches |
 | `tools/` | `bench_steps.py`, `verify_fix.py` (corruption check), `tool_calls.py`, `llm-bench-flare-steps.patch` |

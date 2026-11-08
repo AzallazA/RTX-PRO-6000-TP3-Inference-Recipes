@@ -9,10 +9,12 @@ the model card and the server):
   - long retrieval: three exact markers in 128K- and 900K-token prompts
   - long generation after the captured 581,537-token conversation, seeds 201-204,
     natural EOS, 65,536-token cap, scored for 8-gram repetition
-Writes RESULTS.md and the raw outputs next to this file.
+Writes RESULTS.md and the raw outputs into $QUAL_OUT (qual_all.sh sets run-<date>/ next to this file).
 """
 import datetime, json, os, pathlib, subprocess, sys
-D = pathlib.Path(__file__).resolve().parent
+HERE = pathlib.Path(__file__).resolve().parent
+D = pathlib.Path(os.environ.get('QUAL_OUT', HERE / f'run-{datetime.datetime.now():%Y%m%d-%H%M}'))
+D.mkdir(parents=True, exist_ok=True)
 # llm-inference-bench checkout (https://github.com/local-inference-lab/llm-inference-bench).
 BENCH = os.environ.get('LLM_BENCH', str(pathlib.Path.home() / 'llm-inference-bench/llm_decode_bench.py'))
 PY = sys.executable
@@ -56,7 +58,7 @@ if 'hotel-lights' in stages:
 if 'retrieval' in stages:
     note('START long retrieval 128K/900K')
     with (D / 'long-retrieval.log').open('w') as f:
-        rc = subprocess.run([PY, str(D / 'long_retrieval.py'), '--label', 'release', '--top-p', TOP_P], stdout=f,
+        rc = subprocess.run([PY, str(HERE / 'long_retrieval.py'), '--label', 'release', '--top-p', TOP_P], stdout=f,
                             stderr=subprocess.STDOUT, timeout=7200).returncode
     note(f'DONE long retrieval rc={rc}: ' + ' '.join(l.split(' {')[0] + (' pass' if '"passed": true' in l else ' FAIL')
          for l in (D / 'long-retrieval.log').read_text().splitlines() if l.startswith('DONE')))
@@ -65,7 +67,7 @@ if 'longgen' in stages:
     for seed in (201, 202, 203, 204):
         tag = f'longgen-{seed}'
         with (D / f'{tag}.log').open('w') as f:
-            rc = subprocess.run([PY, str(D / 'long_context.py'), '--label', tag, '--natural-eos',
+            rc = subprocess.run([PY, str(HERE / 'long_context.py'), '--label', tag, '--natural-eos',
                                  '--top-p', TOP_P, '--seed', str(seed), '--tokens', '65536'],
                                 stdout=f, stderr=subprocess.STDOUT, timeout=5400).returncode
         if rc:
