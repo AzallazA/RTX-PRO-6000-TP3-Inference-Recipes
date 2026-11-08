@@ -1,21 +1,24 @@
 # DeepSeek-V4.1-Flash-1017 on NVIDIA Flare at TP3 — 20261108
 
-> **2026-11-08 folder.** Same settings and the same checkpoint view as the 20261107 folder; this folder adds the BRRR kernel hygiene pass, vision weight staging (export default), the Engram per-table storage change and `flare run --dry-run`, all from fork tag `flare-tp3-20261108`. The 20261107 folder is kept as published on 2026-11-07.
-
-
 DeepSeek-V4.1-Flash-1017 served by **NVIDIA Flare at tensor parallel 3 with the full 1M-token context** on three
-96 GB RTX PRO 6000 Blackwell cards. This build supersedes [Flare-tp3-20261105](../DeepSeek-V4.1-Flash%20Flare-tp3-20261105/README.md).
-Changes since then:
+96 GB RTX PRO 6000 Blackwell cards. This build supersedes [Flare-tp3-20261107](../DeepSeek-V4.1-Flash%20Flare-tp3-20261107/README.md)
+(same settings, same checkpoint view, same KV: a drop-in replacement). Changes since then:
 
-- the fork is rebased onto current upstream Flare;
-- BRRR's fused decoder layer tail is ported into Flare;
-- the token embedding and vision tower move to host RAM;
-- 42 more hot experts in VRAM;
-- the speculation settings were re-tuned.
+- the BRRR fused layer tail got a hygiene pass: host (cold) expert jobs first in parked layers, per-chunk attention
+  flags, a kernel/config constants contract checked at export, a cross-rank agreement check (a mismatch would deadlock
+  the in-kernel all-reduce);
+- vision weight staging (`FLARE_DS41_VISION_STAGE=1`, the new export default): the host-parked vision tower's weights
+  are copied block by block through two VRAM slots on a side stream, so a cold image takes 0.11 s instead of 1.70 s,
+  with no KV cost and the same 60-image accuracy;
+- Helios resolves Engram table storage (RAM or disk, per table) in one place; `flare run ... --dry-run` prints the
+  memory plan and KV capacity of a package without touching the GPUs;
+- three GPU equivalence tests (fused layer tail vs Flare's stock path with FP64 per-operator bounds, expert parking
+  layouts, staged vision) and the fork handbook `docs/TP3-GUIDELINES.md`.
 
-At the same 350 W it is **+6-8% faster in decode** and +3-6% in prefill. The KV cache holds 2.37M tokens: two
-simultaneous 1M-token sessions. If you need more KV, export with fewer hot experts; the speed cost is measured
-below.
+Text speed is unchanged: 32K c1/c4/c8 ≈ 306/719/973 tok/s over four alternating rounds against the 20261107 package
+(304/720/978), 0 true decode corruptions, 2,461,184 KV tokens. The fork's experiment with wide-row restreaming in the
+fused kernel (stage 2) measured -5% at c4 and is not included. Full numbers in [MEASUREMENTS.md](MEASUREMENTS.md)
+("2026-11-08").
 
 Weights: [deepseek-ai/DeepSeek-V4.1-Flash-1017](https://huggingface.co/deepseek-ai/DeepSeek-V4.1-Flash-1017) @
 `1bae0e1088993b9b82de08f59de5be5a34e42170` (MIT) for all dense and expert weights; the two Engram tables in MXFP4
