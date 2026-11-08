@@ -1,0 +1,8 @@
+# fetched from https://sql-benchmark.nicklothian.com/ at run time (not redistributed)
+data/
+questions.json
+# local
+runs/
+.venv/
+__pycache__/
+*.log

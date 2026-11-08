@@ -14,3 +14,7 @@ image or export recipe, launch files, measurements and the source changes.
 | [GLM-5.3-Flash Kraken-tp3](GLM-5.3-Flash%20Kraken-tp3/glm-5.3-flash-tp3-kraken.md) | GLM-5.3-Flash | see folder |
 | [GLM-5.3-Flash Kraken tp3 experimental](GLM-5.3-Flash%20Kraken%20tp3%20experimental/glm-5.3-flash-tp3-kraken.md) | GLM-5.3-Flash (experiments) | see folder |
 | GLM-5.3-Flash Jovian r34, r34-v2, r34-v3 | GLM-5.3-Flash on the Jovian image | see folders |
+
+## Tools
+
+- [tools/sqlbench](tools/sqlbench/README.md): local replay of Nick Lothian's SQL benchmark (same requests, tool loop and grader as the site, fetched at run time) with per-answer truncation / tool-call / SQL-error accounting. Used for the DeepSeek V4.1 Flash TP3 investigation in [issue 1](https://github.com/AzallazA/RTX-PRO-6000-TP3-Inference-Recipes/issues/1).
