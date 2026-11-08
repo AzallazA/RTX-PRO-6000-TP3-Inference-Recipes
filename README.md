@@ -5,6 +5,7 @@ image or export recipe, launch files, measurements and the source changes.
 
 | Folder | Model | Get it |
 | --- | --- | --- |
+| [DeepSeek-V4.1-Flash Flare-tp3-20261108](DeepSeek-V4.1-Flash%20Flare-tp3-20261108/README.md) | DeepSeek-V4.1-Flash-1017 on NVIDIA Flare, fork tag `flare-tp3-20261108`: 20261107 plus BRRR kernel hygiene, vision weight staging (0.11 s per image instead of 1.70 s), Engram per-table storage, `flare run --dry-run`; same settings, 2.46M KV, 32K c1/c4/c8 ~306/719/973 tok/s at 450 W | export it yourself ([EXPORT.md](DeepSeek-V4.1-Flash%20Flare-tp3-20261108/EXPORT.md)) |
 | [DeepSeek-V4.1-Flash Flare-tp3-20261107](DeepSeek-V4.1-Flash%20Flare-tp3-20261107/README.md) | DeepSeek-V4.1-Flash-1017 on NVIDIA Flare, rebased on upstream, BRRR fused layer tail; 1M context, 8 slots, 2.37M KV (6.25M variant), Engram in RAM or on disk. Supersedes 20261105: 32K c1/c4/c8 ~305/738/975 tok/s at 450 W | export it yourself ([EXPORT.md](DeepSeek-V4.1-Flash%20Flare-tp3-20261107/EXPORT.md)) |
 | [DeepSeek-V4.1-Flash Flare-tp3-20261105](DeepSeek-V4.1-Flash%20Flare-tp3-20261105/README.md) | DeepSeek-V4.1-Flash-1017 on NVIDIA Flare (original weights + NVIDIA MXFP4 Engram tables in RAM), 1M context, 8 slots, 2.99M KV | export it yourself ([EXPORT.md](DeepSeek-V4.1-Flash%20Flare-tp3-20261105/EXPORT.md)) |
 | [DeepSeek-V4.1-Flash Kraken-tp3-20261019](DeepSeek-V4.1-Flash%20Kraken-tp3-20261019/README.md) | DeepSeek-V4.1-Flash-1017 (original weights + NVIDIA 4-bit Engram tables), 1M context, 8 slots | `azallaza/ds41-kraken-tp3:20261019.11` |

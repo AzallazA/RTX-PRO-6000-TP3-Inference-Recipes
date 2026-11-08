@@ -18,7 +18,7 @@ Weights: [deepseek-ai/DeepSeek-V4.1-Flash-1017](https://huggingface.co/deepseek-
 `1bae0e1088993b9b82de08f59de5be5a34e42170` (MIT) for all dense and expert weights; the two Engram tables in MXFP4
 from [nvidia/DeepSeek-V4.1-Flash-1017-NVFP4](https://huggingface.co/nvidia/DeepSeek-V4.1-Flash-1017-NVFP4) (MIT).
 Runtime: [NVIDIA Flare](https://github.com/NVIDIA/flare-local-inference) `main` @ `972e28e4` plus this fork
-(`source.patch`, branch `ds41-tp3-v3`; the same code is the public fork https://github.com/AzallazA/spark-local-inference at tag `flare-tp3-20261108`), FlashInfer @ `1f8ed8a3` (upstream's pin) plus four patches in `tp3-patches/`.
+(`source.patch`, branch `ds41-tp3-v3`), FlashInfer @ `1f8ed8a3` (upstream's pin) plus four patches in `tp3-patches/`.
 The fused layer tail is adapted from [fraserprice/DeepSeek-4.1-Flash-1017-BRRR](https://huggingface.co/fraserprice/DeepSeek-4.1-Flash-1017-BRRR) (Apache-2.0).
 
 **How to get it:** build the package yourself; there is no prebuilt download. [EXPORT.md](EXPORT.md) walks through
@@ -90,8 +90,7 @@ What matters most for speed, in our measurements:
 | --- | --- |
 | Rebased onto upstream Flare `972e28e4` (FlashInfer `1f8ed8a3`: attention masking fix, copy ordering, draft prefix checkpoints, top-p) | same speed as the old base (A/B within noise), +175K KV tokens on the same settings |
 | **BRRR fused layer tail** on all 40 layers (`ignition/recipes/deepseek41/brrr.py`, `brrr/kernels/decoder.cu`): one kernel for each layer's post-attention work. It reads Flare's own weights: the CSF expert scales are decoded in-kernel, and the dense FP8 weights match the checkpoint byte for byte, so no VRAM is spent on repacked copies. Parked layers (20-33) use it only in graphs of ≤12 rows; wider steps are relatively costlier there | c1 +6%, c4 +3%, c8 level (natural-EOS A/B vs the 20261105 layout at the same hot-expert count) |
-| Token embedding (1.23 GiB/GPU) and vision tower (`FLARE_DS41_EMBED_HOST`, `FLARE_DS41_VISION_HOST`) in device-visible host RAM | VRAM back to KV and hot experts; text speed unchanged |
-| Vision tower weights staged through two VRAM slots per block (`FLARE_DS41_VISION_STAGE`, 2026-11-08) | each block's weights are copied into VRAM on a side stream while the previous block computes: cold image latency 0.11 s instead of 1.70 s (single image, 1 token), 190 MiB of activation-pool slots, no KV change, same 60-image accuracy |
+| Token embedding (1.23 GiB/GPU) and vision tower (`FLARE_DS41_EMBED_HOST`, `FLARE_DS41_VISION_HOST`) in device-visible host RAM | VRAM back to KV and hot experts; text speed unchanged; an image costs ~3 s more (its GEMMs read weights over PCIe) |
 | Prefill all-reduce runtime sized for 1024 rows instead of the 4096-row chunk (`FLARE_DS41_AR_ROWS`) | ~600 MiB/GPU back, prefill unchanged |
 | 342 hot experts per parked layer instead of 300 | +7% / +4% / +5% at c1 / c4 / c8 (natural EOS, 350 W, same session; MEASUREMENTS.md), at 2.37M KV instead of 6.25M |
 | Adaptive-verification alpha 0.8 instead of 0.6 | within noise of 0.6 (sweep in MEASUREMENTS.md) |
@@ -145,7 +144,7 @@ slower because more experts stream over PCIe. Export with `HOT=<n> ./export.sh`;
 | ≤ ~128 GB RAM | defaults | `ENGRAM_RAM=0` | ~59 GiB host RAM instead of ~148; decode ~4% slower, prefill the same ([Engram on disk](#engram-on-disk-less-ram)) |
 | Six 1M-token sessions at once | `HOT=300` | defaults | 6.25M KV; decode 4-7% slower (350 W: 269 / 610 / 800 against 288 / 634 / 838 tok/s) |
 | Many long sessions you return to | defaults | `PREFIX_CACHE=32G` | ~78 warm 127K-token prompts instead of ~37; a host-cache hit answers in 0.14 s instead of ~9 s of re-prefill; 16 GiB more RAM (MEASUREMENTS.md "Reuse test") |
-| Heavy image use | defaults (`FLARE_DS41_VISION_STAGE=1`) | `FLARE_DS41_VISION_HOST=0` plus a lower `HOT` | staging already gives in-VRAM image latency (0.11 s per image) at no KV cost; the VRAM-resident tower is no longer needed |
+| Heavy image use | `FLARE_DS41_VISION_HOST=0` plus a lower `HOT` to make room for the vision tower in VRAM | defaults | images without the ~3 s host-RAM penalty; **not measured** on this fork (KV and speed cost per the `HOT` rule above) |
 | 350 W cards | defaults, exported at your power limit (tuning measures the cards as they run) | defaults | 10-14% slower: 275 / 644 / 850 tok/s at 32K, prefill 12,931 |
 
 `DRAFTS` must be the same at export and serve (default 5 in both scripts): the package is captured for one draft count.
@@ -210,9 +209,8 @@ The same protocol as the vLLM Kraken TP3 releases ([qualification/](qualificatio
 
 - **Hardware-specific package:** 3 × 96 GB SM120 (RTX PRO 6000) only, max concurrency 8. Other setups need a fresh export.
 - **top_p is fixed at 1.0** (vocabulary-parallel sampling); temperature is fixed at 1.0 by Flare's DeepSeek recipe.
-- **Images**: the vision tower lives in host RAM and its weights are staged through VRAM per block
-  (`FLARE_DS41_VISION_STAGE=1`, default since 2026-11-08): 0.11 s cold latency per image instead of 1.70 s without staging.
-  `FLARE_DS41_VISION_STAGE=0` restores the direct host-RAM reads.
+- **Images** are ~3 s slower each (vision tower in host RAM). If you rely on images, export with `FLARE_DS41_VISION_HOST=0`
+  and a lower `HOT` to make room.
 - **Bench loops:** `llm_decode_bench` decode cells use `ignore_eos`, which forces generation past the answer; a rare
   repetition loop there is a bench artifact (the model emits its end token, then invents tool output). With
   `--respect-eos` the same cells show 0 loops.
@@ -261,7 +259,7 @@ The model name is the checkpoint directory's name: this view exports as `ds41-10
 | `ENGRAM-PRECISION.md` | MXFP4 vs FP8 Engram tables: every quality score we have for each, from the vLLM and Flare releases |
 | `serve.sh` / `export.sh` | serve the package / export it from a checkpoint view |
 | `make_checkpoint_view.sh`, `checkpoint/` | build the checkpoint from the two public releases (config + corrected index) |
-| `source.patch` | the fork's changes against Flare `972e28e4`, generated from fork tag `flare-tp3-20261108` (86 files, 45 new: the adapted `brrr/` kernels, vision staging, the Engram and KV-planning changes in Helios, GPU equivalence tests, the fork handbook `docs/TP3-GUIDELINES.md`; see the update notes in EXPORT.md) |
+| `source.patch` | the fork's changes against Flare `972e28e4` (49 files, including the adapted `brrr/` kernels; see the update note in EXPORT.md) |
 | `expert-order/` | per-layer route counts that set the hot-expert placement |
 | `tp3-patches/` | the four FlashInfer patches |
 | `tools/` | `bench_steps.py` (steps/s from a bench JSON), `verify_fix.py` (corruption check), `llm-bench-flare-steps.patch` (optional, for `llm-inference-bench` v0.9.1); the tool-call test is `qualification/tool_calls.py` |

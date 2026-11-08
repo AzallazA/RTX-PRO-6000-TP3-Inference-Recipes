@@ -195,27 +195,3 @@ The run used 8 concurrent requests wherever the protocol allows (the H300 releas
 | Corruption check (`verify_fix.py 10`) | 0 true corruptions (k5 and k7) | 0 |
 
 Raw qualification outputs are in `qualification/results/`.
-
-## 2026-11-08: kernel hygiene, stage-2 wide rows, vision staging (450 W, k5, alpha 0.8, balanced, cap 24, 32G prefix cache)
-
-Three alternating rounds per build, `llm_decode_bench` 32K, 60 s per cell, tok/s. Raw results: `qualification/results/2026-11-08-ab/`.
-
-| Build | c1 | c4 | c8 | verify_fix |
-|---|---|---|---|---|
-| default `...070243` | 301, 305, 304 | 725, 723, 729 | 919*, 981, 972 | 0 true corruptions |
-| BRRR kernel hygiene (cold-first parked jobs, per-chunk attention flags, constants contract, cross-rank check) | 303, 337, 294 | 732, 717, 728 | 980, 982, 977 | 0 |
-| the same plus an extra PDL trigger at the end of the layer kernel (earlier run, 2 rounds) | 304, 299 | 711, 716 | 974, 975 | 0 |
-| stage 2: wide-row restreaming (OTOK/SPAN 48), parked gate 12 | 286, 299, 298 | 673, 704, 695 | 938, 938, 953 | 0 |
-| stage 2, parked layers ungated | 291, 285, 297 | 706, 696, 691 | 942, 954 | 0 |
-
-\* one bench cell with a loop artifact, excluded from the mean. Verdicts: the hygiene changes are level and are in `source.patch`;
-the extra PDL trigger cost ~2% at c4/c8 and was removed; stage 2 is a regression (-5% at c4) and is not shipped.
-
-Vision staging (`FLARE_DS41_VISION_STAGE=1`, now the export default): single image, one output token, fresh server, six images:
-cold 0.11 s per image (0.11-0.14) vs 1.70 s (1.68-1.72) without staging. 60-image set at both temperatures: 49/60 with and without
-staging (the 11 misses are the "grid" items answered verbosely, a parser artifact of this runner); text `verify_fix` 0 true
-corruptions; KV 2,461,184 both. Under the 4-concurrent qualification runner the median request time fell from 7.9 s to 1.6 s.
-
-KV dry run: `flare run <package> <serve flags> --dry-run` (new) reproduces the recorded "Allocate cache" lines of five packages
-exactly. It also shows that the 2,373,760 → 2,461,184 KV change between the 16G and 32G configurations was the verification
-row cap (24 drops 13 speculative graphs, ~76 MiB per rank), not the prefix cache (which costs ~10 MiB of device headroom).

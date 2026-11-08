@@ -41,7 +41,7 @@ The fork is upstream NVIDIA Flare at `972e28e4` plus `source.patch` from this fo
 git clone https://github.com/NVIDIA/flare-local-inference.git flare
 cd flare
 git checkout 972e28e44781d8d0c84d70ae434db92c36076a43
-git apply /path/to/this-folder/source.patch           # 86 files (45 new, including brrr/); applies cleanly to 972e28e4
+git apply /path/to/this-folder/source.patch           # 49 files (17 new, including brrr/); applies cleanly to 972e28e4
 
 uv sync --locked --extra prepare --extra test         # Python environment in .venv (pulls FlashInfer @ 1f8ed8a3)
 uv run --locked --extra prepare python -m ignition.patches   # Flare's torch/Triton patches; re-run after every uv sync
@@ -68,14 +68,6 @@ Check the build:
 flare/target/release/flare --version
 .venv/bin/ignition export --help | head -3
 ```
-
-**Update 2026-11-08.** `source.patch` now carries the BRRR kernel hygiene pass (cold-first parked jobs, per-chunk attention
-flags, a constants contract between kernel and config, a cross-rank agreement check), vision weight staging
-(`FLARE_DS41_VISION_STAGE=1`, the new `export.sh` default: 0.11 s per image instead of 1.70 s), one resolution point for
-Engram table storage in Helios, `flare run ... --dry-run` (KV capacity without a serve) and three GPU equivalence tests.
-It was regenerated from the fork after its history was cleaned for publication (experiment scripts removed, tools
-under `tp3-tools/`), and verified to reproduce the fork tree exactly on a clean `972e28e4` checkout. Measurements in
-MEASUREMENTS.md ("2026-11-08").
 
 **Update 2026-11-07 (review pass).** `source.patch` now also carries the fixes from a code review of this release. None of
 them change the exported package or its numbers; they matter for serving and for other setups:
@@ -146,8 +138,7 @@ CKPT=~/ds41-1017-engram-mxfp4 /path/to/this-folder/export.sh           # the rel
 | `FLARE_DS41_BRRR_LAYERS` | `0-39` | layers that use the fused BRRR layer tail (compiled from `brrr/kernels/decoder.cu` at export) |
 | `FLARE_DS41_BRRR_CKPT` | `$CKPT` | checkpoint the BRRR tail reads its weight layout from |
 | `FLARE_DS41_BRRR_PARKED_MAX_ROWS` | `12` | parked layers use the BRRR tail only in graphs of ≤12 rows |
-| `FLARE_DS41_EMBED_HOST`, `FLARE_DS41_VISION_HOST` | `1`, `1` | token embedding and vision tower in device-visible host RAM. `FLARE_DS41_VISION_HOST=0` in the environment keeps the vision tower in VRAM (pair it with a lower `HOT`; unmeasured, and unnecessary with staging) |
-| `FLARE_DS41_VISION_STAGE` | `1` | stage the host-parked vision tower's weights through two VRAM slots per block on a side stream (190 MiB from the activation pool, no KV change). Measured 2026-11-08: cold single image 0.11 s vs 1.70 s, 60-image accuracy unchanged. `0` = direct host-RAM reads. `FLARE_DS41_VISION_STAGE_COPY=kernel` swaps the memcpy for an elementwise copy if a driver mishandles memcpy from mapped host memory |
+| `FLARE_DS41_EMBED_HOST`, `FLARE_DS41_VISION_HOST` | `1`, `1` | token embedding and vision tower in device-visible host RAM. `FLARE_DS41_VISION_HOST=0` in the environment keeps the vision tower in VRAM (images ~3 s faster each; pair it with a lower `HOT`; unmeasured) |
 | `FLARE_DS41_AR_ROWS` | `1024` | size the prefill all-reduce runtime for 1024 rows (~600 MiB/GPU less than 4096) |
 | `FLARE_DS41_TP3_VOCAB_PARALLEL` | `1` | vocabulary-parallel sampling at TP3 (fixes top_p at 1.0) |
 | `FLARE_DS41_TP3_GRAPH_GIB` | `1` | the planner's graph-memory estimate for TP3 |

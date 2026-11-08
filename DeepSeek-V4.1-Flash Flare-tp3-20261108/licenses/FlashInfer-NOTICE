@@ -1,0 +1,12 @@
+FlashInfer (b12x fork used by NVIDIA Flare)
+https://github.com/local-inference-lab/flashinfer
+Revision pinned by Flare 972e28e4 and used for this release: 1f8ed8a3c46e27d03cff54e08f23e9bc50476d57
+(installed as flashinfer-python 0.7.1 by `uv sync`).
+
+Licensed under the Apache License, Version 2.0. The license text in FlashInfer-LICENSE is copied
+from the installed wheel (flashinfer_python-0.7.1.dist-info/licenses/LICENSE).
+
+This release modifies files of that package through the four patches in tp3-patches/
+(flashinfer-tiny-decode-swiglu.patch, flashinfer-dcp-a2a-world3.patch, flashinfer-tuning-world3.patch,
+flashinfer-engram-mxfp4.patch). The patches are the complete list of changes; the package itself is
+not redistributed here.
