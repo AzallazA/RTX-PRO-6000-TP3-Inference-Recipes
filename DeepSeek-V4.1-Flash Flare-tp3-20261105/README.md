@@ -117,7 +117,7 @@ Flare's adaptive verification (alpha 0.6, budget 128).
 
 | Fix | Where |
 | --- | --- |
-| FlashInfer `tiny_decode` W4A8 MoE kernel ignored `swiglu_limit`; experts above DeepSeek's SwiGLU clamp blew up a layer's output and produced one junk token mid-reply (flare#193-style). Root-caused with per-layer probes and replay | `tp3-patches/flashinfer-tiny-decode-swiglu.patch` |
+| FlashInfer `tiny_decode` W4A8 MoE kernel ignored `swiglu_limit`; experts above DeepSeek's SwiGLU clamp blew up a layer's output and produced one junk token mid-reply (same symptom as flare#193, which upstream later traced to the checkpoint itself; this kernel bug is a separate cause). Root-caused with per-layer probes and replay | `tp3-patches/flashinfer-tiny-decode-swiglu.patch` |
 | PCIe DCP all-to-all and tuning tables lacked world size 3 | `tp3-patches/flashinfer-dcp-a2a-world3.patch`, `flashinfer-tuning-world3.patch` |
 | Planner capped context at 356K because it counted parked experts as VRAM | `ignition/recipes/declaration.py` |
 | One shared PCIe all-reduce runtime for prefill and decode (hidden size 5120 is not divisible by 3, so DMA reduce-scatter cannot be used) | `ignition/recipes/deepseek41/bootstrap.py` |
