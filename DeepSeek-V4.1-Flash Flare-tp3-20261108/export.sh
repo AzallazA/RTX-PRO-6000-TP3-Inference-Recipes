@@ -2,15 +2,15 @@
 # Export the package from a checkpoint view (make_checkpoint_view.sh). Run it from the fork checkout with its .venv
 # (uv sync, ignition.patches, then re-apply tp3-patches/ to the installed FlashInfer).
 #   CKPT     checkpoint view directory (required)
-#   HOT      hot experts per parked layer (default 342 = 2.37M KV; each expert fewer adds ~92K KV tokens, see EXPORT.md)
+#   HOT      hot experts per parked layer (default 342 = 2.47M KV at serve cap 24; each expert fewer adds ~92K KV tokens, see EXPORT.md)
 #   PREFILL  prefill chunk size (default 4096)
 #   DRAFTS   DSpark drafts (default 5); serve with the same DRAFTS (serve.sh)
 #   FLARE_DS41_VISION_STAGE 1 (default) = vision tower parked in host RAM and its weights staged through VRAM slots per
 #            block (image 0.11 s instead of 1.70 s, no KV cost); 0 = no staging
 #   FLARE_DS41_VISION_HOST  1 (default) = vision tower in host RAM (implied by VISION_STAGE=1); VISION_HOST=0 together
 #            with VISION_STAGE=0 keeps the tower in VRAM, which needs a lower HOT (unmeasured, no longer useful)
-# A cold tuning cache needs more free VRAM than serving. If tuning runs out of memory, export once with HOT=300,
-# then export the target. The second export reuses the shared tuning cache.
+# A tuning cache not yet warmed by this release's code (cold, or from 20261105) needs more free VRAM than serving:
+# for any HOT above ~300, export once with HOT=300 first, then export the target. The second export reuses the shared tuning cache.
 set -euo pipefail
 : "${CKPT:?set CKPT to the checkpoint view directory}"
 HERE=$(dirname "$(readlink -f "$0")")

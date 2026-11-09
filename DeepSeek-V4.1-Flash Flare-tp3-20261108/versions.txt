@@ -1,4 +1,4 @@
-# Versions used for the 20261107 build and its measurements (README.md, MEASUREMENTS.md).
+# Versions used for the 20261108.1 build (package 081024) and its measurements (README.md, MEASUREMENTS.md).
 # Everything here is what the release was built and measured with; check_env.sh prints what your machine has.
 
 NVIDIA driver            615.71.09
@@ -11,8 +11,8 @@ rustc / cargo            1.97.0 (rustup; the fork's Cargo.toml requires >= 1.88)
 uv                       0.11.29
 
 NVIDIA Flare             main @ 972e28e44781d8d0c84d70ae434db92c36076a43 + source.patch (fork branch ds41-tp3-v3)
-Package                  ds41-1017-engram-mxfp4@gb202-tp3-202611070243 (model name = checkpoint view directory name)
-  KV tokens              2,373,760 at --prefix-cache-memory 16G (serve.sh default); 2,461,184 at 32G
+Package                  ds41-1017-engram-mxfp4@gb202-tp3-202611081024 (model name = checkpoint view directory name)
+  KV tokens              2,467,200 at --mtp-max-verification-token-budget 24, --prefix-cache-memory 32G
 Checkpoint               deepseek-ai/DeepSeek-V4.1-Flash-1017 @ 1bae0e1088993b9b82de08f59de5be5a34e42170 (shards 1-46)
                          + nvidia/DeepSeek-V4.1-Flash-1017-NVFP4 shards 47-48 (MXFP4 Engram tables)
 

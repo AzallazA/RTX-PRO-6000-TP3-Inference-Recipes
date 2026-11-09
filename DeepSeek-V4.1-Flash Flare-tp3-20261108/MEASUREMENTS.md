@@ -1,13 +1,14 @@
-# Measurements — Flare TP3 20261107
+# Measurements: Flare TP3 20261108 (tag 20261108.1)
 
-Every measurement of this release's build. The fork is rebased onto upstream Flare `972e28e4` (FlashInfer `1f8ed8a3`);
+Every measurement of this release's build. The tables below up to "2026-11-08" were measured on the 20261107 package
+`...070243` (summarised in the first table); the 2026-11-08 section covers packages 080909 and 081024. The fork is rebased onto upstream Flare `972e28e4` (FlashInfer `1f8ed8a3`);
 "v2" below is the pre-rebase fork, the base of the 20261105 release.
 
 | | |
 | --- | --- |
 | Package | `ds41-1017-engram-mxfp4@gb202-tp3-202611070243` |
 | Build | 342 hot experts per parked layer (20-33), merged VRAM/host expert bank, BRRR fused layer tail on all 40 layers (parked layers only in graphs of 12 rows or fewer), token embedding and vision tower in host RAM, all-reduce sized for 1024 rows, MXFP4 Engram, prefill chunk 4096, 8 slots, 5 DSpark drafts |
-| KV cache | 2,373,760 tokens (two 1M-token sessions) |
+| KV cache | 2,373,760 tokens at verification row cap 128 (two 1M-token sessions); 2,461,184 at cap 24; package 081024: 2,467,200 at cap 24 |
 | Serve flags | `--mtp-draft-tokens 5 --mtp-adaptive-verification --mtp-max-verification-token-budget 24 --mtp-adaptive-verification-alpha 0.8 --scheduler-policy balanced --prefix-cache-memory 16G`, `FLARE_ENGRAM_RAM_TABLES=0` (both Engram tables in RAM) |
 | Hardware | 3 × RTX PRO 6000 Blackwell Workstation, 256 GB DDR5-6000, PCIe Gen5 NVMe |
 
@@ -217,8 +218,9 @@ staging (the 11 misses are the "grid" items answered verbosely, a parser artifac
 corruptions; KV 2,461,184 both. Under the 4-concurrent qualification runner the median request time fell from 7.9 s to 1.6 s.
 
 KV dry run: `flare run <package> <serve flags> --dry-run` (new) reproduces the recorded "Allocate cache" lines of five packages
-exactly. It also shows that the 2,373,760 → 2,461,184 KV change between the 16G and 32G configurations was the verification
+exactly. It also shows that the 2,373,760 → 2,461,184 KV change (~87K tokens) between the 16G and 32G configurations was the verification
 row cap (24 drops 13 speculative graphs, ~76 MiB per rank), not the prefix cache (which costs ~10 MiB of device headroom).
+The dry run allocates no GPU memory and creates no CUDA context, but needs the NVIDIA driver and the GPUs visible.
 
 ### Qualification, 2026-11-08 (c8, both packages)
 

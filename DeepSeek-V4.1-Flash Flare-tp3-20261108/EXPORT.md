@@ -79,7 +79,8 @@ prologue scratch buffers (2,467,200 at 32G prefix cache). Full c8 qualification 
 **Update 2026-11-08.** `source.patch` now carries the BRRR kernel hygiene pass (cold-first parked jobs, per-chunk attention
 flags, a constants contract between kernel and config, a cross-rank agreement check), vision weight staging
 (`FLARE_DS41_VISION_STAGE=1`, the new `export.sh` default: 0.11 s per image instead of 1.70 s), one resolution point for
-Engram table storage in Helios, `flare run ... --dry-run` (KV capacity without a serve) and three GPU equivalence tests.
+Engram table storage in Helios, `flare run ... --dry-run` (KV capacity without a serve; no GPU memory or CUDA context,
+but it needs the NVIDIA driver and the GPUs visible) and three GPU equivalence tests.
 It was regenerated from the fork after its history was cleaned for publication (experiment scripts removed, tools
 under `tp3-tools/`), and verified to reproduce the fork tree exactly on a clean `972e28e4` checkout. Measurements in
 MEASUREMENTS.md ("2026-11-08").
@@ -131,8 +132,8 @@ actual tensor bytes; the uncorrected value makes the export stop at "index total
 
 ## 4. Export
 
-From the fork checkout, with GPUs idle (stop any server first). **Export twice on a fresh machine:** with a cold
-kernel tuning cache, tuning at `HOT=342` runs out of VRAM. A `HOT=300` export first fills the shared cache, and the
+From the fork checkout, with GPUs idle (stop any server first). **Export twice on a fresh machine:** with a tuning
+cache not yet warmed by this release's code (cold, or from 20261105), tuning at any `HOT` above ~300 runs out of VRAM. A `HOT=300` export first fills the shared cache, and the
 second export reuses it:
 
 ```bash
@@ -195,8 +196,9 @@ stages and the final clean-up. Second-export log, `<home>` = your home directory
 Exported cache entry: <home>/.cache/flare/packages/models/ds41-1017-engram-mxfp4/gb202-tp3-202611070243
 ```
 
-When you then serve it (step 5), the server log should show this for `HOT=342` at the default `PREFIX_CACHE=16G`
-(2,461,184 tokens at `32G`; `HOT=300` gives 6,247,680):
+When you then serve it (step 5), the server log shows an `Allocate cache` line like this one, recorded for the 20261107
+package at verification row cap 128. At the default cap 24 a package from tag `flare-tp3-20261108.1` reports
+**2,467,200** tokens (measured at `PREFIX_CACHE=32G`); `HOT=300` gave 6,247,680 at cap 128:
 
 ```text
 [    OK    ] Allocate cache.  6.3 GiB · 2373760 KV tokens · 225 shared snapshot slots · limited by memory  0.1s
@@ -210,10 +212,10 @@ about **92K KV tokens**. Decode gets slower because more experts stream over PCI
 
 | `HOT` | KV tokens | Measured (350 W, natural EOS, 32K c1 / c4 / c8) |
 | --- | --- | --- |
-| **342** | **2,373,760** | 288 / 634 / 838 tok/s (**this release**; 298-305 / 716-738 / 957-975 at 450 W, user command) |
-| 300 | 6,247,680 | 269 / 610 / 800 tok/s: 4-7% slower, corruption check clean |
+| **342** | **2,467,200** (2,373,760 at cap 128) | 288 / 634 / 838 tok/s (**this release**; 298-305 / 716-738 / 957-975 at 450 W, user command) |
+| 300 | 6,247,680 (cap 128) | 269 / 610 / 800 tok/s: 4-7% slower, corruption check clean |
 
-> **Disclaimer.** Other values were not measured on this fork. Expect KV ≈ 2.37M + (342 − HOT) × 92K tokens, and a
+> **Disclaimer.** Other values were not measured on this fork. Expect KV ≈ 2,467,200 + (342 − HOT) × 92K tokens at verification row cap 24, and a
 > decode cost that grows as more of your traffic routes to cold experts (roughly 1% per 6-10 experts in our
 > measurements). Check the `Allocate cache` line and bench your own export before relying on it.
 
@@ -234,7 +236,8 @@ few thousand tokens (the excerpt in step 4 shows the expected line).
 
 **Less host RAM:** `ENGRAM_RAM=0 ./serve.sh` reads both Engram tables from disk with direct I/O. The server then
 uses ~59 GiB of host RAM instead of ~148 GiB, with decode ~4% slower and prefill unchanged on Gen5 NVMe. See the
-README for the numbers.
+README for the numbers. Disk mode reads the tables from the exported checkpoint files, so the checkpoint view and the
+Hugging Face cache files its symlinks point to must stay at the same absolute paths as at export.
 
 Then run the corruption check, which compares sampled decode tokens against a teacher-forced prefill and must
 report `TRUE corruptions 0`, and a benchmark:
@@ -254,12 +257,13 @@ table for Flare, computed from Flare's draft-round counters.
 
 | Symptom | Cause and fix |
 | --- | --- |
-| Tuning fails with `OutOfMemoryError ... failed to prepare with configuration` | A **cold tuning cache** needs more free VRAM than serving. Export with `HOT=300` first, then the target: the tuning cache in `~/.cache/flare/kernels` is shared and the second export reuses it. A new draft count (`DRAFTS=7`) needs its own warm-up export |
+| Tuning fails with `OutOfMemoryError ... failed to prepare with configuration` | A tuning cache **not yet warmed by this release's code** (cold, or from 20261105) needs more free VRAM than serving at any `HOT` above ~300. Export with `HOT=300` first, then the target: the tuning cache in `~/.cache/flare/kernels` is shared and the second export reuses it. A new draft count (`DRAFTS=7`) needs its own warm-up export |
 | Export stops at `KeyError: 'FLARE_DS41_BRRR_CKPT'` | you ran `ignition export` directly; use `export.sh` or set `FLARE_DS41_BRRR_CKPT` to the checkpoint view |
 | BRRR kernel compile fails (`nvcc`, `ninja`) | `CUDA_HOME` must point at CUDA 13.1 (`nvcc` with `sm_120a`); `ninja` comes with `uv sync`. Compiled kernels are cached in `.brrr-ext/` in the checkout |
 | `index total_size does not match tensor payload bytes` | use this folder's `model.safetensors.index.json` (step 3) |
 | Export dies on `Cannot patch imported module triton.runtime.build` | Flare's torch/Triton patches are missing: run `uv run --locked --extra prepare python -m ignition.patches` after `uv sync` |
 | Chat requests return 400 for `thinking` / `clear_thinking` | Flare's thinking toggle is `chat_template_kwargs: {"enable_thinking": true}` (or `false`); vLLM's `thinking` / `clear_thinking` fields are rejected |
+| Chat requests return 400 for `reasoning_effort` | accepted values are `low`, `high`, `xhigh`, `max` or an integer from 1 through 100; `"medium"` is rejected |
 | The command does nothing and exits 0 | your shell's `env` is not `/usr/bin/env` (uv installs one at `~/.local/bin/env`); the scripts here call `/usr/bin/env` explicitly |
 | Corruption check reports true corruptions | `flashinfer-tiny-decode-swiglu.patch` is not applied in `.venv` |
 | `serve.sh` fails because `ds41-1017-engram-mxfp4` is not found | the checkpoint view had another directory name, and the model name follows it (step 3). `flare models list` shows the name; serve with `PACKAGE=<name>` or the package path |

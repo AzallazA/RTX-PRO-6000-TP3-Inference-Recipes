@@ -11,7 +11,9 @@ DeepSeek-V4.1-Flash-1017 served by **NVIDIA Flare at tensor parallel 3 with the 
   are copied block by block through two VRAM slots on a side stream, so a cold image takes 0.11 s instead of 1.70 s,
   with no KV cost and the same 60-image accuracy;
 - Helios resolves Engram table storage (RAM or disk, per table) in one place; `flare run ... --dry-run` prints the
-  memory plan and KV capacity of a package without touching the GPUs;
+  memory plan and KV capacity of a package without allocating GPU memory or creating a CUDA context (it still needs
+  the NVIDIA driver and the GPUs visible: it reads each card's total memory from the driver); it matched the served
+  KV count exactly on five recorded loads;
 - three GPU equivalence tests (fused layer tail vs Flare's stock path with FP64 per-operator bounds, expert parking
   layouts, staged vision) and the fork handbook `docs/TP3-GUIDELINES.md`;
 - (tag `flare-tp3-20261108.1`) one typed `TP3Config` object replaces the recipe's `FLARE_DS41_*` environment reads
@@ -20,9 +22,16 @@ DeepSeek-V4.1-Flash-1017 served by **NVIDIA Flare at tensor parallel 3 with the 
   c8 qualification below and is level with the 20261108 package over 8 alternating rounds.
 
 Text speed is unchanged: 32K c1/c4/c8 ≈ 306/719/973 tok/s over four alternating rounds against the 20261107 package
-(304/720/978), 0 true decode corruptions, 2,461,184 KV tokens. The fork's experiment with wide-row restreaming in the
+(304/720/978), 0 true decode corruptions, 2,461,184 KV tokens (2,467,200 for package 081024 from tag `.1`). The fork's experiment with wide-row restreaming in the
 fused kernel (stage 2) measured -5% at c4 and is not included. Full numbers in [MEASUREMENTS.md](MEASUREMENTS.md)
 ("2026-11-08").
+
+**Doc corrections 2026-11-08.** KV figures now use the served count of package 081024 (2,467,200 at verification row
+cap 24); the older 2,373,760 was measured at cap 128, and the difference had been wrongly attributed to the prefix-cache
+size. The `--dry-run` wording now states that it needs the driver and visible GPUs. The 20261105 upgrade notes no longer
+suggest that an old tuning cache makes the `HOT=300` warm-up export unnecessary. Known limitations list the accepted
+`reasoning_effort` values, disk-mode Engram notes that the checkpoint must stay at its export path, and `versions.txt` and
+the MEASUREMENTS.md title now name this release.
 
 Weights: [deepseek-ai/DeepSeek-V4.1-Flash-1017](https://huggingface.co/deepseek-ai/DeepSeek-V4.1-Flash-1017) @
 `1bae0e1088993b9b82de08f59de5be5a34e42170` (MIT) for all dense and expert weights; the two Engram tables in MXFP4
@@ -46,7 +55,7 @@ unless marked 350 W. Every measurement, including the settings sweeps, is in [ME
 
 | | 20261107 and this build (level), 450 W | same, 350 W | 20261105, 350 W | vLLM Kraken TP3 `.11` |
 | --- | --- | --- | --- | --- |
-| KV cache | **2,373,760 tokens** at 16G prefix cache, 2,461,184 at the default 32G (2.4 × 1M) | same | 2,991,488 | 2,185,581 |
+| KV cache | **2,467,200 tokens** (package 081024, verification row cap 24, 32G prefix cache; 2.4 × 1M) | same | 2,991,488 | 2,185,581 |
 | Decode 32K, c1 / c4 / c8 (tok/s) | **298-305 / 716-738 / 957-975** | 275 / 644 / 850 | ~254 / ~595 / ~805 | 231-260 / 470-490 / ~790 |
 | Decode 32K, c1 engine steps/s | ~114-122 | ~110 | ~94 | ~97 |
 | Decode 128K, c1 / c4 / c8 | 296 / 708 / 956 | 253 / 627 / 817 | — | — |
@@ -106,7 +115,7 @@ Cumulative description of the fork's features (the step from 20261105 to 2026110
 | Token embedding (1.23 GiB/GPU) and vision tower (`FLARE_DS41_EMBED_HOST`, `FLARE_DS41_VISION_HOST`) in device-visible host RAM | VRAM back to KV and hot experts; text speed unchanged |
 | Vision tower weights staged through two VRAM slots per block (`FLARE_DS41_VISION_STAGE`, 2026-11-08) | each block's weights are copied into VRAM on a side stream while the previous block computes: cold image latency 0.11 s instead of 1.70 s (single image, 1 token), 190 MiB of activation-pool slots, no KV change, same 60-image accuracy |
 | Prefill all-reduce runtime sized for 1024 rows instead of the 4096-row chunk (`FLARE_DS41_AR_ROWS`) | ~600 MiB/GPU back, prefill unchanged |
-| 342 hot experts per parked layer instead of 300 | +7% / +4% / +5% at c1 / c4 / c8 (natural EOS, 350 W, same session; MEASUREMENTS.md), at 2.37M KV instead of 6.25M |
+| 342 hot experts per parked layer instead of 300 | +7% / +4% / +5% at c1 / c4 / c8 (natural EOS, 350 W, same session; MEASUREMENTS.md), at 2.37M KV instead of 6.25M (both at the then verification cap 128) |
 | Adaptive-verification alpha 0.8 instead of 0.6 | within noise of 0.6 (sweep in MEASUREMENTS.md) |
 | Verification row cap 24 (`--mtp-max-verification-token-budget 24`, was 128 = no cap) | 4-run A/B: c1 +1.7%, c4 +0.4%, c8 +2.4%, coding +1%; output unchanged (only how many drafts are checked per step) |
 
@@ -143,10 +152,11 @@ slower because more experts stream over PCIe. Export with `HOT=<n> ./export.sh`;
 
 | `HOT` | KV tokens | Measured | Use it for |
 | --- | --- | --- | --- |
-| **342** | **2.37M** | **this release** (numbers above) | two 1M-token sessions |
-| 300 | 6.25M | 350 W, natural EOS, 32K: 269 / 610 / 800 tok/s against 288 / 634 / 838 for 342 in the same session: 4-7% slower | six 1M-token sessions |
+| **342** | **2.47M** | **this release** (numbers above) | two 1M-token sessions |
+| 300 | 6.25M at cap 128 (cap 24 adds ~87K) | 350 W, natural EOS, 32K: 269 / 610 / 800 tok/s against 288 / 634 / 838 for 342 in the same session: 4-7% slower | six 1M-token sessions |
 
-> **Approximate.** KV count ≈ 2.37M + (342 − HOT) × 92K tokens (measured: 92.2K); only 342 and 300 were measured on this fork.
+> **Approximate.** KV count ≈ 2,467,200 + (342 − HOT) × 92K tokens (measured: 92.2K) for package 081024's code at the
+> default verification row cap 24 (cap 128 gives ~87K fewer); only 342 and 300 were measured on this fork.
 > The speed cost depends on how often your traffic routes to the experts that became cold. Measure your own export
 > (`Allocate cache` in the server log prints the KV count; [EXPORT.md](EXPORT.md) has the bench command).
 
@@ -154,9 +164,9 @@ slower because more experts stream over PCIe. Export with `HOT=<n> ./export.sh`;
 
 | Your situation | Export (`export.sh`) | Serve (`serve.sh`) | Expect |
 | --- | --- | --- | --- |
-| 256 GB RAM, up to two 1M-token sessions (the tested setup) | defaults (`HOT=342`) | defaults | the numbers above: 2.37M KV, ~305 / 738 / 975 tok/s at 32K c1 / c4 / c8, 450 W |
+| 256 GB RAM, up to two 1M-token sessions (the tested setup) | defaults (`HOT=342`) | defaults | the numbers above: 2.47M KV, ~305 / 738 / 975 tok/s at 32K c1 / c4 / c8, 450 W |
 | ≤ ~128 GB RAM | defaults | `ENGRAM_RAM=0` | ~59 GiB host RAM instead of ~148; decode ~4% slower, prefill the same ([Engram on disk](#engram-on-disk-less-ram)) |
-| Six 1M-token sessions at once | `HOT=300` | defaults | 6.25M KV; decode 4-7% slower (350 W: 269 / 610 / 800 against 288 / 634 / 838 tok/s) |
+| Six 1M-token sessions at once | `HOT=300` | defaults | ~6.3M KV (6.25M measured at cap 128); decode 4-7% slower (350 W: 269 / 610 / 800 against 288 / 634 / 838 tok/s) |
 | Many long sessions you return to | defaults | `PREFIX_CACHE=32G` | ~78 warm 127K-token prompts instead of ~37; a host-cache hit answers in 0.14 s instead of ~9 s of re-prefill; 16 GiB more RAM (MEASUREMENTS.md "Reuse test") |
 | Heavy image use | defaults (`FLARE_DS41_VISION_STAGE=1`) | `FLARE_DS41_VISION_HOST=0` plus a lower `HOT` | staging already gives in-VRAM image latency (0.11 s per image) at no KV cost; the VRAM-resident tower is no longer needed |
 | 350 W cards | defaults, exported at your power limit (tuning measures the cards as they run) | defaults | 10-14% slower: 275 / 644 / 850 tok/s at 32K, prefill 12,931 |
@@ -179,12 +189,16 @@ The Engram row cache (`--embedding-table-cache-size`, default 4 GiB) answered 64
 speed, because the misses are rows seen for the first time. This is measured on Gen5 NVMe (12 GB/s); slower drives
 will cost more, mostly in prefill.
 
+Disk mode reads the tables from the checkpoint files the package was exported from, so the checkpoint must be at the
+same absolute path at serve time as at export. For the view from EXPORT.md that includes the Hugging Face cache files
+its symlinks point to: moving or pruning that cache breaks disk serving.
+
 ## Memory
 
 | Per GPU | |
 | --- | --- |
 | Loaded (weights, graphs, scratch) | ~92.3 GiB |
-| KV cache | 2.1 GiB (6.3 GiB over the 3 GPUs) → 2,373,760 tokens |
+| KV cache | 2.2 GiB (6.6 GiB over the 3 GPUs, the served `Allocate cache` line) → 2,467,200 tokens (package 081024, cap 24) |
 
 Host RAM: Engram tables ~97 GiB, host model memory (cold experts, embedding, vision) 16 GiB, prefix cache 16 GiB
 (`PREFIX_CACHE=32G` or `48G` costs only RAM; no speed change measured).
@@ -244,6 +258,8 @@ scores above bracket the 20261107 package's 82.2.
 
 - **Hardware-specific package:** 3 × 96 GB SM120 (RTX PRO 6000) only, max concurrency 8. Other setups need a fresh export.
 - **top_p is fixed at 1.0** (vocabulary-parallel sampling); temperature is fixed at 1.0 by Flare's DeepSeek recipe.
+- **`reasoning_effort`** in chat requests accepts `low`, `high`, `xhigh`, `max` or an integer from 1 through 100;
+  other values, including vLLM's `"medium"`, are rejected with HTTP 400.
 - **Images**: the vision tower lives in host RAM and its weights are staged through VRAM per block
   (`FLARE_DS41_VISION_STAGE=1`, default since 2026-11-08): 0.11 s cold latency per image instead of 1.70 s without staging.
   `FLARE_DS41_VISION_STAGE=0` restores the direct host-RAM reads.
@@ -267,7 +283,9 @@ staged vision tower automatically; the `tp3-tools/` and `docs/tp3/` additions ne
 - Re-run `uv sync --locked --extra prepare --extra test`, then `uv run --locked --extra prepare python -m ignition.patches`
   (a step the 20261105 guide did not have) and the four FlashInfer patches in `tp3-patches/` (unchanged since 20261105,
   but `uv sync` reinstalls FlashInfer). `./check_env.sh <fork>` confirms the state.
-- The kernel tuning cache in `~/.cache/flare/kernels` carries over and shortens the warm-up export; keep it.
+- The kernel tuning cache in `~/.cache/flare/kernels` can be kept, but it does not replace the warm-up: for any `HOT`
+  above ~300, run the `HOT=300` export first on a cache not yet warmed by this release's code (tuning at `HOT=336` has
+  run out of memory with a 20261105 cache).
 - Old packages coexist with the new one (same model name `ds41-1017-engram-mxfp4`, new version). Remove one with
   `flare models remove ds41-1017-engram-mxfp4@gb202-tp3-<timestamp>`, then `flare models gc` to free the space.
 - Serve flags changed: verification row cap 24 instead of 128 (`BUDGET`) and alpha 0.8 instead of 0.6 (`ALPHA`). The
@@ -283,7 +301,7 @@ Full guide: **[EXPORT.md](EXPORT.md)**. In short:
 ./make_checkpoint_view.sh <deepseek snapshot> <nvidia NVFP4 snapshot> ~/ds41-1017-engram-mxfp4   # 307 GB + 105 GB of downloads
 # from the fork checkout (export.sh uses its .venv)
 cd <fork>
-CKPT=~/ds41-1017-engram-mxfp4 HOT=300 /path/to/this-folder/export.sh   # warms the kernel tuning cache (a cold cache runs out of memory at HOT=342)
+CKPT=~/ds41-1017-engram-mxfp4 HOT=300 /path/to/this-folder/export.sh   # warms the kernel tuning cache (needed before any HOT above ~300; also with a 20261105 cache)
 CKPT=~/ds41-1017-engram-mxfp4 /path/to/this-folder/export.sh           # the release build, HOT=342
 ```
 
