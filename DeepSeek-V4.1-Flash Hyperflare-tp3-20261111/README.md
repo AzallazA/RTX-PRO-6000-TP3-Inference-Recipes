@@ -172,6 +172,7 @@ slower because more experts stream over PCIe. Export with `HOT=<n> ./export.sh`;
 | Six 1M-token sessions at once | `HOT=300` | defaults | ~6.9M KV estimated (graph scratch not measured at 300); decode 4-7% slower (350 W, before graph scratch: 269 / 610 / 800 against 288 / 634 / 838 tok/s) |
 | Many long sessions you return to | defaults | `PREFIX_CACHE=32G` | ~78 warm 127K-token prompts instead of ~37; a host-cache hit answers in 0.14 s instead of ~9 s of re-prefill; 16 GiB more RAM (MEASUREMENTS.md "Reuse test") |
 | Heavy image use | defaults (`FLARE_DS41_VISION_STAGE=1`) | `FLARE_DS41_VISION_HOST=0` plus a lower `HOT` | staging already gives in-VRAM image latency (0.11 s per image) at no KV cost; the VRAM-resident tower is no longer needed |
+| Max-Q cards (report ~95.0 GiB, about 0.56 GiB less than the 97,887 MiB tested here) | `HOT=290` first (warms the tuning cache; a user's 20261105 tuning at `HOT=300` ran out of memory on these cards), then try the default or a lower `HOT` | defaults | **not tested here**; expect fewer KV tokens or a lower `HOT`. Check `Allocate cache` in the server log |
 | 350 W cards | defaults, exported at your power limit (tuning measures the cards as they run) | defaults | 10-14% slower: 275 / 644 / 850 tok/s at 32K, prefill 12,931 |
 
 `DRAFTS` must be the same at export and serve (default 5 in both scripts): the package is captured for one draft count.
@@ -290,6 +291,10 @@ check 0, eval 42/43, tools 60/60, lavd 30/30, hotel-lights 29/30, c8 stress PASS
   slower while a new prompt is prefilled (c4: 190 instead of ~600 tok/s for those steps; largest inter-token gap
   0.30-0.31 s instead of 0.25 s); averaged over a run their throughput is level. `SCHEDULER=balanced` restores the old
   order ([Scheduler trade-off](#scheduler-trade-off-first-token-vs-running-streams)).
+- **One-stream agent traffic is not re-measured.** The agent-replay report above also showed decode after the first
+  token 15% slower than vLLM `.11` at 1 stream (20261105, Max-Q at 300 W). One-stream decode has grown since
+  (`llm_decode_bench` 32K c1: ~254 tok/s on 20261105, 301 on this build, both 450 W), but we have not repeated a
+  one-stream agent replay against vLLM.
 - **Max concurrency 8** is the qualified package. `MAXC=16` exports a 16-slot package (more graphs, fewer KV tokens);
   it is not part of this release's qualification.
 - **top_p is fixed at 1.0** (vocabulary-parallel sampling); temperature is fixed at 1.0 by Hyperflare's DeepSeek recipe.
