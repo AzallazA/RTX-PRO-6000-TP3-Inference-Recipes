@@ -1,0 +1,23 @@
+Using the latest cached version of the dataset since livebench/coding couldn't be found on the Hugging Face Hub (offline mode is enabled).
+Using release 2024-11-25
+WARNING:datasets.load:Using the latest cached version of the dataset since livebench/coding couldn't be found on the Hugging Face Hub (offline mode is enabled).
+Found the latest cached dataset configuration 'default' at <disk> (last modified on Wed Oct 28 19:38:35 2026).
+WARNING:datasets.packaged_modules.cache.cache:Found the latest cached dataset configuration 'default' at <disk> (last modified on Wed Oct 28 19:38:35 2026).
+<LiveBench>/livebench/show_livebench_result.py:334: Pandas4Warning: The inplace keyword in DataFrame.dropna is deprecated and will be removed in a future version (PDEP-8).
+See https://pandas.pydata.org/docs/dev/whatsnew/v3.1.0.html#deprecation-inplace for more details.
+  df_1 = df_1.dropna(inplace=False)
+<LiveBench>/livebench/show_livebench_result.py:348: Pandas4Warning: The inplace keyword in DataFrame.dropna is deprecated and will be removed in a future version (PDEP-8).
+See https://pandas.pydata.org/docs/dev/whatsnew/v3.1.0.html#deprecation-inplace for more details.
+  df_1 = df_1.dropna(inplace=False)
+{'coding': ['LCB_generation', 'coding_completion']}
+loaded  128  questions
+
+########## All Tasks ##########
+task                                                LCB_generation  coding_completion
+model                                                                                
+deepseek-v4.1-flash-hyperflare-202611111227-111...          73.077               94.0
+
+########## All Groups ##########
+category                                            coding
+model                                                     
+deepseek-v4.1-flash-hyperflare-202611111227-111...    83.5

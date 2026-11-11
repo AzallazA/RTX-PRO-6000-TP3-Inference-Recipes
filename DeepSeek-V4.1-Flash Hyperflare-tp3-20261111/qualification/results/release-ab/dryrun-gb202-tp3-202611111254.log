@@ -1,0 +1,49 @@
+[ PENDING  ] Verify package.  0.0s
+[    OK    ] Verify package.  signatures  0.3s
+[ PENDING  ] Verify stored data.  0.0s
+[    OK    ] Verify stored data.  0.0 GiB  0.0s
+Memory dry run: no CUDA context was created, no GPU memory was allocated, and no weights were read.
+Assumed free memory per GPU: the CUDA driver's device total minus 606.0 MiB for the CUDA context, driver, and display; --dry-run-free-memory overrides it.
+Kernel and graph memory is an estimate from the selected module and graph node counts; fixed allocations, cache geometry, headroom, and the prefix cache's device share are exact.
+
+GPU 0 · 95.06 GiB total · 94.47 GiB assumed free
+  weights, execution state, and scratch (fixed device allocations)           91.19 GiB
+  kernels and graphs (estimate: 6,137 modules, 86,065 graph nodes)           529.5 MiB
+  headroom left free (reserve and engine)                                     64.0 MiB
+  host prefix cache transfer streams and intake                               34.8 MiB
+  cache budget                                                                2.66 GiB
+  cache planned (49 execution rows + 23,665 KV pages)                         2.66 GiB
+  mixed expert banks, host part                                               3.20 GiB
+  mapped host allocations                                                     2.14 GiB
+
+GPU 1 · 95.06 GiB total · 94.47 GiB assumed free
+  weights, execution state, and scratch (fixed device allocations)           91.19 GiB
+  kernels and graphs (estimate: 6,137 modules, 86,065 graph nodes)           529.5 MiB
+  headroom left free (reserve and engine)                                     64.0 MiB
+  host prefix cache transfer streams and intake                               34.8 MiB
+  cache budget                                                                2.66 GiB
+  cache planned (49 execution rows + 23,665 KV pages)                         2.66 GiB
+  mixed expert banks, host part                                               3.20 GiB
+  mapped host allocations                                                     2.14 GiB
+
+GPU 2 · 95.06 GiB total · 94.47 GiB assumed free
+  weights, execution state, and scratch (fixed device allocations)           91.19 GiB
+  kernels and graphs (estimate: 6,137 modules, 86,065 graph nodes)           529.5 MiB
+  headroom left free (reserve and engine)                                     64.0 MiB
+  host prefix cache transfer streams and intake                               34.8 MiB
+  cache budget                                                                2.67 GiB
+  cache planned (49 execution rows + 23,665 KV pages)                         2.66 GiB
+  mixed expert banks, host part                                               3.20 GiB
+  mapped host allocations                                                     2.14 GiB
+
+Allocate cache: 8.0 GiB · 3,029,120 KV tokens · 287 shared snapshot slots · limited by memory
+  concurrency 8 · 6 continuation rows per request · 128 tokens per page · KV cache limit memory
+
+Host RAM committed by the load
+  mixed expert banks, host part, all ranks                                    9.60 GiB
+  mapped host allocations, all ranks                                          6.42 GiB
+  embedding table planes resident in RAM                                     97.28 GiB
+  embedding gather staging                                                    51.0 MiB
+  embedding row cache                                                              0 B
+  host prefix cache (32.00 GiB configured plus intake, input staging, and index)     32.21 GiB
+  prepared image inputs                                                       20.9 MiB

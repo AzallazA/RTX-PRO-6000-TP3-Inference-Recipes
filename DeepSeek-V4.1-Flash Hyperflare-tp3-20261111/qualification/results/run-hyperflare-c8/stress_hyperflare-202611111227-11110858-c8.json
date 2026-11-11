@@ -1,0 +1,14 @@
+{
+ "preset": "hyperflare-202611111227-11110858-c8",
+ "capacity": 3014656,
+ "verdict": "PASS",
+ "waves": 2,
+ "long_ok": 16,
+ "long_total": 16,
+ "ping_ok": 68,
+ "ping_total": 68,
+ "prompt_tokens": 9511557,
+ "min_free_mib": 82,
+ "bad_log_lines": [],
+ "wall_min": 14.18058755795161
+}

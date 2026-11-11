@@ -1,0 +1,14 @@
+{
+ "preset": "graph-scratch-1108-c8",
+ "capacity": 3014656,
+ "verdict": "PASS",
+ "waves": 2,
+ "long_ok": 16,
+ "long_total": 16,
+ "ping_ok": 115,
+ "ping_total": 115,
+ "prompt_tokens": 9512626,
+ "min_free_mib": 82,
+ "bad_log_lines": [],
+ "wall_min": 13.840665586789449
+}

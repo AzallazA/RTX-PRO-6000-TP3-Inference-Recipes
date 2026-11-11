@@ -1,0 +1,24 @@
+# Versions used for the Hyperflare-tp3-20261111 build (package 202611111227) and its measurements (README.md, MEASUREMENTS.md).
+# Everything here is what the release was built and measured with; check_env.sh prints what your machine has.
+
+NVIDIA driver            615.71.09
+CUDA toolkit             13.1 (nvcc 13.1.115, /usr/local/cuda-13.1); any driver supporting CUDA 13.1 works
+Python (fork .venv)      3.12.13 (uv-managed)
+torch                    2.14.1+cu132  (pinned by Flare's uv.lock; the cu132 wheel on the 13.1 toolkit is expected)
+triton                   3.8.0         (pinned by Flare's uv.lock)
+flashinfer-python        0.7.1         = FlashInfer/b12x @ 1f8ed8a3c46e27d03cff54e08f23e9bc50476d57 (upstream Flare's pin), plus tp3-patches/
+rustc / cargo            1.97.0 (rustup; the fork's Cargo.toml requires >= 1.88)
+uv                       0.11.29
+
+NVIDIA Hyperflare        main @ 972e28e44781d8d0c84d70ae434db92c36076a43 (pre-rename Flare) + source.patch (fork tag hyperflare-tp3-20261111)
+Package                  ds41-1017-engram-mxfp4@gb202-tp3-202611111227 (model name = checkpoint view directory name)
+  KV tokens              3,014,656 at --mtp-max-verification-token-budget 24, --prefix-cache-memory 32G, --scheduler-policy interactive
+Checkpoint               deepseek-ai/DeepSeek-V4.1-Flash-1017 @ 1bae0e1088993b9b82de08f59de5be5a34e42170 (shards 1-46)
+                         + nvidia/DeepSeek-V4.1-Flash-1017-NVFP4 shards 47-48 (MXFP4 Engram tables)
+
+GPU settings             3 x RTX PRO 6000 Blackwell Workstation, 450 W power limit, +75 MHz core offset, +6000 MHz memory offset
+                         (memory clock 16,365 MHz), ECC off, persistence mode on
+
+Benchmarks
+  llm-inference-bench    v0.9.1 (local-inference-lab/llm-inference-bench; tools/llm-bench-flare-steps.patch tested on it)
+  LiveBench              commit 1d1006a (2026-10-17), live_bench/coding, release option 2024-11-25

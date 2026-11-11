@@ -1,0 +1,14 @@
+{
+ "preset": "ttft-guard-1110-c8",
+ "capacity": 3014656,
+ "verdict": "PASS",
+ "waves": 2,
+ "long_ok": 16,
+ "long_total": 16,
+ "ping_ok": 67,
+ "ping_total": 67,
+ "prompt_tokens": 9512241,
+ "min_free_mib": 60,
+ "bad_log_lines": [],
+ "wall_min": 13.830160439014435
+}
