@@ -194,6 +194,24 @@ interactive round 1). The streams' slowdown lasts only while the new prompt is p
 a short prompt, longer for a long one); averaged over a run, decode is level (300 / 708 / 965 against 302 / 713 / 942
 tok/s at c1 / c4 / c8), and an agent replay finishes 519 turns instead of 448 in 300 s with `interactive`.
 
+**Why it exists (agent traffic report).** A user replayed real coding-agent traffic (tool calls, prefix-cache hits,
+~1.9K new tokens per turn, staggered arrivals) against vLLM `.11` and found median TTFT ×4.8 at 4 streams and ×7.6 at 8
+(2.00 / 3.52 s against 0.43 / 0.42 s), so fewer turns finished despite faster decode; `throughput` barely helped
+(×4.2 / ×6.7). Their prefill was fine on its own (~0.2 s for 1.9K tokens): the new turn just waited behind the
+decoding streams. Upstream Hyperflare behaves the same way (Helios values one output token like 64 prompt tokens, and
+DS41 exports no mixed prefill+decode graphs). The `probe` test above is the one they suggested.
+
+**What the guard changes (Helios scheduler, `--scheduler-policy interactive`).** Each round the scheduler checks the
+oldest request still without its first token. Once it has waited `--scheduler-ttft-target-ms` (50 ms), that round may
+only run work that moves it forward: its prompt prefill (or prefix-cache restore, image or resume step). After each
+forced prefill chunk at least one normal round (`--scheduler-ttft-decode-interleave`, default 1) lets the other
+streams decode before the next chunk, so a long prompt does not freeze them for its whole prefill. With the target at 0
+(`balanced`, `throughput`) the code path is inert and scheduling matches upstream exactly (a trace test checks this).
+Other knobs: `--scheduler-ttft-max-chunk` (largest forced chunk, 0 = largest prepared), and the existing weights
+`--scheduler-output-token-value`, `--scheduler-token-fairness`, `--scheduler-delivery-fairness`,
+`--scheduler-decode-age-price` and `--scheduler-adaptation-ms` are now settable (`serve.sh` exposes only `SCHEDULER`; pass the rest by editing it). Only `interactive` at its defaults
+was qualified.
+
 To turn the guard off: `SCHEDULER=balanced ./serve.sh` (no re-export; the package is the same). Mixed prefill+decode
 steps, as vLLM runs them, would soften the pause slightly; we estimated about +0.5-3% for DS41, not built.
 
