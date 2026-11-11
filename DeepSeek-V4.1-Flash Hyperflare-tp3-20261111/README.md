@@ -71,7 +71,7 @@ first-token row uses `tools/ttft_under_load.py probe --streams 3|7`.
 ## Contents
 
 1. [Test system](#test-system) · [What this build contains](#what-this-build-contains) · [How it fits in 3 × 96 GB](#how-it-fits-in-3--96-gb)
-2. [More KV: fewer hot experts](#more-kv-fewer-hot-experts) · [Which settings for me](#which-settings-for-me) · [Engram on disk (less RAM)](#engram-on-disk-less-ram) · [Memory](#memory)
+2. [More KV: fewer hot experts](#more-kv-fewer-hot-experts) · [Which settings for me](#which-settings-for-me) · [Scheduler trade-off](#scheduler-trade-off-first-token-vs-running-streams) · [Engram on disk (less RAM)](#engram-on-disk-less-ram) · [Memory](#memory)
 3. [Quality and long context](#quality-and-long-context) · [Measured and not adopted](#measured-and-not-adopted) · [Known limitations](#known-limitations)
 4. [Coming from 20261108](#coming-from-20261108) · [Building the package](#building-the-package) ([EXPORT.md](EXPORT.md)) · [Files](#files) · [Licenses](#licenses) · [Credits](#credits)
 
@@ -175,7 +175,27 @@ slower because more experts stream over PCIe. Export with `HOT=<n> ./export.sh`;
 | 350 W cards | defaults, exported at your power limit (tuning measures the cards as they run) | defaults | 10-14% slower: 275 / 644 / 850 tok/s at 32K, prefill 12,931 |
 
 `DRAFTS` must be the same at export and serve (default 5 in both scripts): the package is captured for one draft count.
-| Single user, throughput only (no first-token concern) | defaults | `SCHEDULER=balanced` | same decode speed; new prompts wait behind decode under load |
+| Single user, throughput only (no first-token concern) | defaults | `SCHEDULER=balanced` | running streams never pause for a new prompt; new prompts wait behind decode under load ([Scheduler trade-off](#scheduler-trade-off-first-token-vs-running-streams)) |
+
+## Scheduler trade-off: first token vs running streams
+
+The GPUs run one step at a time. When a new prompt arrives while other requests are decoding, its prefill either runs
+now (the running streams pause for those steps) or waits until the scheduler gets to it (the new prompt waits). Every
+policy picks a point between the two; none removes it. `serve.sh` takes `SCHEDULER=`:
+
+| `SCHEDULER` | New prompt, first token (c4 / c8 load, p50) | Running streams while that prompt is prefilled (c4 / c8, tok/s) | Good for |
+|---|---|---|---|
+| `interactive` (default) | **0.36 / 0.37 s** | 190 / 308 (largest pause 0.30-0.31 s) | chat, agents, tools: anything waiting on first tokens |
+| `throughput` | 1.50-1.56 / 2.72-2.90 s | 537-593 / 1035-1062 | in between |
+| `balanced` (Hyperflare's own default) | 1.97-2.06 / 3.95-4.07 s | 597-626 / 1093-1108 (largest pause 0.25 s) | batch jobs where nobody waits on a first token |
+
+A 1.9K-token prompt arriving while 3 / 7 streams decode (`tools/ttft_under_load.py probe`, this package, 11-10; 3 rounds per policy,
+interactive round 1). The streams' slowdown lasts only while the new prompt is prefilled (well under a second for
+a short prompt, longer for a long one); averaged over a run, decode is level (300 / 708 / 965 against 302 / 713 / 942
+tok/s at c1 / c4 / c8), and an agent replay finishes 519 turns instead of 448 in 300 s with `interactive`.
+
+To turn the guard off: `SCHEDULER=balanced ./serve.sh` (no re-export; the package is the same). Mixed prefill+decode
+steps, as vLLM runs them, would soften the pause slightly; we estimated about +0.5-3% for DS41, not built.
 
 ## Engram on disk (less RAM)
 
@@ -249,8 +269,9 @@ check 0, eval 42/43, tools 60/60, lavd 30/30, hotel-lights 29/30, c8 stress PASS
 
 - **Hardware-specific package:** 3 × 96 GB SM120 (RTX PRO 6000) only. Other setups need a fresh export.
 - **Interactive scheduler trade-off:** forced prefill rounds interleave with decode, so decoding streams see slightly
-  longer single pauses while a new prompt is prefilled (largest inter-token gap 0.30-0.31 s instead of 0.25 s at c4/c8);
-  their throughput is level. `SCHEDULER=balanced` restores the old order.
+  slower while a new prompt is prefilled (c4: 190 instead of ~600 tok/s for those steps; largest inter-token gap
+  0.30-0.31 s instead of 0.25 s); averaged over a run their throughput is level. `SCHEDULER=balanced` restores the old
+  order ([Scheduler trade-off](#scheduler-trade-off-first-token-vs-running-streams)).
 - **Max concurrency 8** is the qualified package. `MAXC=16` exports a 16-slot package (more graphs, fewer KV tokens);
   it is not part of this release's qualification.
 - **top_p is fixed at 1.0** (vocabulary-parallel sampling); temperature is fixed at 1.0 by Hyperflare's DeepSeek recipe.
