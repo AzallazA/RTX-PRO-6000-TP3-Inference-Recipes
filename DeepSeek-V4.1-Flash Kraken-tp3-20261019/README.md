@@ -65,7 +65,7 @@ with FP32 atomics, so the summation order changed from run to run. `.12` makes t
 deterministic top-k output (one fixed-order FP32 reduction) and has the fused decoder accumulate into paired slots in a
 fixed order for launches up to `DS41_BRRR_DET_ROWS=64` rows. It is deterministic for a given batch, **not
 batch-invariant**: the output can still depend on what else is in the step (launches above 64 rows, i.e. mixed steps with
-a long prefill, keep the old order). Re-checked on the published image: TBD-DET-BAKED.
+a long prefill, keep the old order). Re-checked on the published image (`sha256:8d19fb46…`): first-token spread 0.000000 and identical top-5 on 3 prompts × 8 repeats; 8/8 identical 128-token decodes on two prompts (max logprob difference 0.000000).
 
 **SQL benchmark (recipes issue #1).** A user ([@epheien](https://github.com/epheien)) reported a lower pass rate on the
 browser SQL benchmark at TP3 (`.11`, ~19/25) than on upstream's TP4 build (~23.5/25). Isolation on our side ruled out the
@@ -304,7 +304,7 @@ same session unless marked (that session's `.11` read its Engram tables from dis
 | Image stress: 4 × 10 photos of 6000×4000 | 4/4, min free VRAM 550 MiB, no OOM | 4/4 |
 | Images during two ~470K-token prefills | 17/17, median 0.90 s; both long requests complete | — |
 | c8 KV stress (below) | 16/16 long, 166/166 pings, 0 bad log lines, 0 restarts; **min free VRAM 193 MiB** (see below) | PASS (2026-11-03) |
-| Run-to-run determinism (3 prompts × 8 first tokens, 2 × 8 decodes of 128 tokens) | TBD-DET-BAKED | spread 0.1-1.5, top token flips |
+| Run-to-run determinism (3 prompts × 8 first tokens, 2 × 8 decodes of 128 tokens) | **bit-identical**: first-token spread 0.000000, top-5 identical 8/8 (3 prompts); 1 distinct completion out of 8 on both decodes | spread 0.1-1.5, top token flips |
 
 Vision: the prompts ask for a bare answer ("Reply with only the code."); the strict score counts an answer that comes
 with an explanation ("Therefore, the answer is **cyan**.") as a miss. The right-answer column scores the answer itself.
