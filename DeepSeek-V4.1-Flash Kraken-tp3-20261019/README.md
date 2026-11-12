@@ -73,7 +73,8 @@ sampler, rejection mode, speculative decoding, Engram precision and prefix cachi
 reporter then found the two setups had loaded different checkpoints: with the **initial** DeepSeek-V4.1-Flash release,
 TP3 on our image scores in the TP4 range (119/125 over 5 rounds), and TP4 with **1017** drops to 98/125. The gap is the
 1017 checkpoint on this benchmark (a later checking query replaces the graded answer, or the tool loop hits its limit),
-not the TP3 port.
+not the TP3 port. Our cross-check on `.12` (deterministic, same settings, 5 rounds each): the **initial** checkpoint scores
+**23.4/25**, the 1017 checkpoint 18.2-19.0/25.
 
 ## Coming from .11
 
