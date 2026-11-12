@@ -43,7 +43,7 @@ decode about level), +6000 memory offset, 256 GB host RAM, the checkpoint on a l
 ## New in .12
 
 `.12` = `.11` plus the changes below, each measured as it landed (A/B against the image before it) and then qualified
-together against `.11` in one session ([Measurements](#12-against-11-same-session), [Quality](#qualification-of-12)).
+together against `.11` in one session ([Measurements](#12-against-11-both-with-engram-in-ram), [Quality](#qualification-of-12)).
 Build steps: `patch-12/image/Dockerfile.12`, `Dockerfile.12-fp32`, `Dockerfile.12-det`.
 
 | Change | Effect | Switch |
