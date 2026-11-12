@@ -75,6 +75,10 @@ TP3 on our image scores in the TP4 range (119/125 over 5 rounds), and TP4 with *
 1017 checkpoint on this benchmark (a later checking query replaces the graded answer, or the tool loop hits its limit),
 not the TP3 port. Our cross-check on `.12` (deterministic, same settings, 5 rounds each): the **initial** checkpoint scores
 **23.4/25**, the 1017 checkpoint 18.2-19.0/25.
+The reporter later traced the 1017 drop to the benchmark's prompt rather than SQL ability: the grader scores the last
+query before `results_ok`, but the prompt never says so, and 1017 tends to run a checking query (often a `COUNT`) after its
+answer. In our runs 14 of 1017's 30-34 failures ended on such a check, against 1 of 8 for the initial checkpoint. With the
+rule stated in the prompt, 1017 on TP3 scores 24.2-25.0/25 ([issue #1](https://github.com/AzallazA/RTX-PRO-6000-TP3-Inference-Recipes/issues/1)).
 
 ## Coming from .11
 
