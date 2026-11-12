@@ -1,0 +1,16 @@
+# Step 3 = azallaza/ds41-kraken-tp3:20261019.12: run-to-run deterministic serving, on by default.
+#  - A-lite: the target model's b12x MoE uses b12x's deterministic top-k output (fixed-order FP32 reduce instead of
+#    BF16 atomics; ~240 MiB/GPU scratch). vLLM fused_moe/b12x.py.
+#  - B': BRRR's fused decoder accumulates in paired slots in a fixed order for launches up to DS41_BRRR_DET_ROWS (64)
+#    rows. brrr/kernels/decoder.cu.
+# DS41_DETERMINISTIC=0 at run time restores the previous arithmetic. Not batch-invariant (see README).
+# The published image copied a prebuilt decoder extension; this file rebuilds it from decoder.cu (same source).
+# Build from the release dir: docker build -f patch-12/image/Dockerfile.12-det -t azallaza/ds41-kraken-tp3:20261019.12 .
+FROM ds41-kraken-tp3:12-step2
+ARG SP=/opt/venv/lib/python3.12/site-packages
+COPY patch-12/determinism/vllm/model_executor/layers/fused_moe/b12x.py ${SP}/vllm/model_executor/layers/fused_moe/b12x.py
+COPY patch-12/determinism/brrr/kernels/decoder.cu ${SP}/brrr/kernels/decoder.cu
+RUN cd /tmp && MAX_JOBS=16 /opt/venv/bin/python -c "from brrr import cuext; cuext.extension('decoder')" \
+    && find /opt/brrr-ext -name lock -delete && find $SP/brrr $SP/vllm/model_executor/layers/fused_moe -name "*.pyc" -delete 2>/dev/null || true
+ENV DS41_DETERMINISTIC=1 DS41_BRRR_DET_ROWS=64
+LABEL org.opencontainers.image.description="DS41 kraken TP3 20261019.12: b12x ea74ea61 + vision staging + tool fixes + KV admission + lazy Engram + FP32 draft cache + deterministic serving"

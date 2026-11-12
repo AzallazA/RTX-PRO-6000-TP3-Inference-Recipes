@@ -1,6 +1,7 @@
-# DeepSeek-V4.1-Flash-1017 TP3 release, image azallaza/ds41-kraken-tp3:20261019.11
-# (karmic-kraken-beta-20261016.2 + FlashInfer main 5b065abe b12x + the TP3 port in src/,
-#  + the 2026-10-31 MXFP4-Engram / NVFP4-expert patches in patch-nvfp4/, inert for stock weights).
+# DeepSeek-V4.1-Flash-1017 TP3 release, image azallaza/ds41-kraken-tp3:20261019.12
+# (karmic-kraken-beta-20261016.2 + FlashInfer b12x ea74ea61 + the TP3 port in src/, patch-nvfp4/, patch-brrr/,
+#  patch-fused/ and patch-12/; .12 adds vision staging, tool-call fixes, KV-aware prefill admission, lazy Engram
+#  host tables, the FP32 draft-logit cache and deterministic serving).
 # Defaults: original deepseek-ai weights (MXFP4 experts, lossless), DSpark 5 drafts with
 # cap-only adaptive verification (all 5 drafts verified up to 4 concurrent decodes), 8 concurrent sequences, 1M context, 4096-token prefill chunks, KV 2,185,581 tokens
 # (2.08x 1M; see .env.example for the 4.4x / 6x presets), expert layers 20-33 parked in
@@ -8,14 +9,17 @@
 # expert-order-blend/ order built from real traffic (2026-10-30), Engram layer 1 in host
 # RAM and layer 14 read from the checkpoint (with the 4-bit Engram variants set
 # ENGRAM_RAM_LAYERS=1,14 to hold both in RAM: faster, ~150 GB host). Needs 3x 96 GB GPUs
-# and ~256 GB host RAM. Tested at 450 W/GPU (350 W works; power only affects prefill).
+# and ~256 GB host RAM. Qualified at 450 W/GPU (350 W works; power mostly affects prefill).
 services:
   ds41-kraken-tp3:
-    image: "${DS41_IMAGE:-azallaza/ds41-kraken-tp3:20261019.11}"
+    image: "${DS41_IMAGE:-azallaza/ds41-kraken-tp3:20261019.12}"
     container_name: ds41-kraken-tp3
     # unless-stopped: auto-start on host reboot / daemon restart, but respect a manual `stop`.
     restart: "unless-stopped"
     stop_grace_period: 90s
+    # Boot safety: the kernel OOM killer picks other host jobs (compilers, test runs) before a vLLM worker (~100 GB
+    # RSS). No effect on serving.
+    oom_score_adj: -600
     ipc: host
     # io_uring (disk Engram reads) needs seccomp unconfined; pinned host memory needs memlock.
     security_opt: [seccomp=unconfined]
@@ -36,14 +40,20 @@ services:
       # Populated Hugging Face cache with deepseek-ai/DeepSeek-V4.1-Flash-1017 @ 1bae0e10.
       # Engram layer 14 is read from these files during serving: keep them on an NVMe drive.
       - ${HF_CACHE_DIR:?Set HF_CACHE_DIR to your populated Hugging Face cache}:/root/.cache/huggingface:ro
-      # b12x compile/tuning caches and the promotion arm file; a fresh volume makes the
-      # first start ~10 minutes longer while kernels compile.
-      - runtime-cache:/cache
+      # b12x compile/tuning caches and the promotion arm file. .12 uses its own volume: its b12x (ea74ea61) kernels
+      # differ from .11's, so the first start compiles them cold (longer first start; later starts are warm).
+      # Rollback to .11: DS41_IMAGE=azallaza/ds41-kraken-tp3:20261019.11 DS41_CACHE_VOLUME=runtime-cache.
+      - ${DS41_CACHE_VOLUME:-runtime-cache-12}:/cache
       # Launcher settings from this release (max-num-seqs 8, graphs 48, 4096-token chunks, dspark k5) over the
       # copy baked into the image (which still says max-num-seqs 4).
       - ./ds41-launch.yaml:/etc/ds41/launch.yaml:ro
       # Expert promotion order built from real traffic (see B12X_EXPERT_ORDER_DIR below).
       - ./expert-order-blend:/opt/ds41/expert-order-blend:ro
+      # DSpark block rejection sampling: the lil profile with rejection_sample_method: block (the image's copy says
+      # standard) and the image contract with that file's hash (otherwise identical to the image's). This is the
+      # configuration every release measurement and qualification used. Remove both lines for standard rejection.
+      - ./ds41-flash.profile.yaml:/opt/lil/runtime/profiles/ds41-flash.yaml:ro
+      - ./image-contract.json:/opt/lil/runtime/image-contract.json:ro
     environment:
       # Weights repo (from HF_CACHE_DIR). Any checkpoint in the original FP8 layout is a drop-in;
       # e.g. MODEL=mrfakename/DeepSeek-V4.1-Flash-1017-abliterated. See README "Alternative weights".
@@ -89,15 +99,28 @@ services:
       BRRR_TP3_LOG: "${BRRR_TP3_LOG:-0}"
       DS41_FUSED_LAYERS: "${DS41_FUSED_LAYERS:-40}"
       DS41_SPARSE_DECODE: "${DS41_SPARSE_DECODE:-1}"
-      BRRR_RADIX_TOPK: "${BRRR_RADIX_TOPK:-blocks}"
+      # Indexer top-k. .12 (b12x ea74ea61, fused MXFP4 indexer) uses b12x's top-k: 0. .11 used blocks.
+      BRRR_RADIX_TOPK: "${BRRR_RADIX_TOPK:-0}"
+      # Run-to-run deterministic serving (.12): the target model's MoE reduces in a fixed order (b12x deterministic
+      # top-k output) and BRRR's fused decoder accumulates in paired slots for launches up to DS41_BRRR_DET_ROWS rows.
+      # Identical requests in identical batches give identical output; c1 -1.5%, c8 -2% decode. 0 = previous arithmetic.
+      DS41_DETERMINISTIC: "${DS41_DETERMINISTIC:-1}"
+      DS41_BRRR_DET_ROWS: "${DS41_BRRR_DET_ROWS:-64}"
+      # b12x kernel-compile processes per GPU worker. 8 (b12x default) x 3 ranks OOM-killed a worker during the cold
+      # first start next to ~150 GB of pinned host tables; 2 compiles longer and fits. Only matters while compiling.
+      B12X_COMPILE_WORKERS: "${B12X_COMPILE_WORKERS:-2}"
       # Image .7 bakes VLLM_DSPARK_SHARD_MARKOV_HEAD=1 / VLLM_DSPARK_REPLICATE_MARKOV_W1=1 (TP-sharded DSpark markov head,
       # needed by the vocab-split sampler). Set both to 0 here to get the stock replicated head; the split sampler then
       # disables itself (= image .6 behaviour, ~3-5% slower at c1).
       VLLM_DSPARK_SHARD_MARKOV_HEAD: "${VLLM_DSPARK_SHARD_MARKOV_HEAD:-1}"
       VLLM_DSPARK_REPLICATE_MARKOV_W1: "${VLLM_DSPARK_REPLICATE_MARKOV_W1:-1}"
-      # Engram layers whose tables live in pinned host RAM (31.5 GiB per GPU worker each).
-      # Both tables (1,14) do not fit next to the parked expert layers on 256 GB.
-      DS41_ENGRAM_RAM_LAYERS: "${ENGRAM_RAM_LAYERS:-1}"
+      # Engram layers whose tables live in pinned host RAM. .12 creates them lazily: after expert promotion, filled
+      # rank by rank on the first real batch (~6-8 s per rank), so the boot low point stays ~98 GB available instead
+      # of ~19 GB. 1 = stock weights (94 GiB table, 31.5 GiB per GPU worker; layer 14 read from disk);
+      # 1,14 = both 4-bit tables (the engram-nvidia / NVFP4 variants, 16.2 GiB per worker each: the tested setup).
+      DS41_ENGRAM_LAZY_RAM_LAYERS: "${ENGRAM_RAM_LAYERS:-1}"
+      DS41_ENGRAM_RAM_LAYERS: ""
+      DS41_ENGRAM_LAZY_PARALLEL: "0"
       # Host RAM row cache for the disk Engram table, in rows (256 B each): 8388608 = 2 GiB
       # per GPU worker. 0 = read every row from the checkpoint.
       DS41_ENGRAM_ROW_CACHE_ROWS: "${ENGRAM_ROW_CACHE_ROWS:-8388608}"
@@ -114,4 +137,5 @@ services:
       TRITON_CACHE_DIR: "${TRITON_CACHE_DIR:-/cache/triton}"
       HF_HUB_OFFLINE: "1"
 volumes:
+  runtime-cache-12:
   runtime-cache:

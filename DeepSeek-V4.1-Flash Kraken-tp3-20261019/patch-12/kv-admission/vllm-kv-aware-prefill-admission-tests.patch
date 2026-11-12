@@ -1,0 +1,453 @@
+# Tests for PATCH(ds41-kv-admission); apply at the vLLM repo root (port/vllm): patch -p1 < this file
+--- /dev/null
++++ b/tests/v1/core/test_kv_aware_prefill_admission.py
+@@ -0,0 +1,449 @@
++# SPDX-License-Identifier: Apache-2.0
++# SPDX-FileCopyrightText: Copyright contributors to the vLLM project
++"""KV-aware prefill admission (PATCH ds41-kv-admission, DS41_KV_ADMISSION=1).
++
++Scaled model of the DS41 TP3 c8 KV stress (2026-11-10): 1 KV block (16 tokens)
++stands for ~1000 real tokens. Pool 2185 blocks ~ 2,185,581 tokens, step budget
++64 tokens ~ 4096, 4 prefill lanes, 8 running slots, prefill compute share 0.4,
++prefix caching on, scheduler_reserve_full_isl off. One full-attention group plus
++sliding-window groups (DS41 is hybrid: a sliding-window chunk allocates its
++window blocks before older ones are recycled, so near a full pool no prefill
++chunk fits, running or new). 8 x 676 blocks = the "8 x 600000" stress
++(~676K tokens each).
++"""
++
++import itertools
++
++import pytest
++import torch
++
++import tests.v1.core.utils as core_utils
++from vllm.sampling_params import SamplingParams
++from vllm.utils.hashing import sha256
++from vllm.v1.core.kv_cache_utils import get_request_block_hasher, init_none_hash
++from vllm.v1.kv_cache_interface import (
++    FullAttentionSpec,
++    KVCacheGroupSpec,
++    SlidingWindowSpec,
++)
++from vllm.v1.outputs import ModelRunnerOutput
++from vllm.v1.request import Request, RequestStatus
++
++from .utils import create_scheduler
++
++pytestmark = pytest.mark.cpu_test
++
++BS = 16
++POOL_BLOCKS = 2186  # 2185 usable + the null block
++SWA_GROUPS = 8
++_tokens = itertools.count(1000)
++init_none_hash(sha256)
++
++
++@pytest.fixture
++def opt_model_path(tmp_path):
++    (tmp_path / "config.json").write_text(
++        '{"architectures":["OPTForCausalLM"],"model_type":"opt",'
++        '"max_position_embeddings":65536}'
++    )
++    return str(tmp_path)
++
++
++def _hybrid_kv_config(swa_groups: int):
++    original = core_utils.KVCacheConfig
++
++    def make(num_blocks, kv_cache_tensors, kv_cache_groups):
++        spec = dict(block_size=BS, num_kv_heads=1, head_size=1, dtype=torch.float32)
++        groups = [KVCacheGroupSpec(["full"], FullAttentionSpec(**spec))]
++        groups += [
++            KVCacheGroupSpec([f"swa{i}"], SlidingWindowSpec(sliding_window=16, **spec))
++            for i in range(swa_groups)
++        ]
++        # sliding-window groups hold ~2 blocks per request: add their share
++        return original(
++            num_blocks=num_blocks + swa_groups * 18,
++            kv_cache_tensors=kv_cache_tensors,
++            kv_cache_groups=groups,
++        )
++
++    return make
++
++
++def _scheduler(
++    monkeypatch,
++    model_path,
++    *,
++    kv_admission: bool,
++    max_parallel_prefills="auto",
++    num_blocks=POOL_BLOCKS,
++    swa_groups=SWA_GROUPS,
++    max_num_batched_tokens=64,
++    async_scheduling=False,
++    **env,
++):
++    monkeypatch.setenv("DS41_KV_ADMISSION", "1" if kv_admission else "0")
++    for key, value in env.items():
++        monkeypatch.setenv(key, str(value))
++    with monkeypatch.context() as patch:
++        if swa_groups:
++            patch.setattr(core_utils, "KVCacheConfig", _hybrid_kv_config(swa_groups))
++        scheduler = create_scheduler(
++            model=model_path,
++            skip_tokenizer_init=True,
++            device="cpu",
++            max_num_seqs=8,
++            max_num_batched_tokens=max_num_batched_tokens,
++            max_model_len=32768,
++            max_parallel_prefills=max_parallel_prefills,
++            block_size=BS,
++            num_blocks=num_blocks,
++            enable_prefix_caching=True,
++            prefill_compute_share=0.4,
++            async_scheduling=async_scheduling,
++        )
++    scheduler.scheduler_reserve_full_isl = False  # ds41-flash profile
++    assert scheduler.kv_aware_admission is kv_admission
++    return scheduler
++
++
++def _request(req_id: str, num_tokens: int, max_tokens: int = 4, prefix=()):
++    prompt = list(prefix) + [
++        next(_tokens) % 50000 + 1 for _ in range(num_tokens - len(prefix))
++    ]
++    params = SamplingParams(ignore_eos=True, max_tokens=max_tokens)
++    params.update_from_generation_config({}, 50256)
++    return Request(
++        request_id=req_id,
++        prompt_token_ids=prompt,
++        sampling_params=params,
++        pooling_params=None,
++        block_hasher=get_request_block_hasher(BS, sha256),
++    )
++
++
++def _runner_output(output, sampled):
++    req_ids = list(output.num_scheduled_tokens)
++    return ModelRunnerOutput(
++        req_ids=req_ids,
++        req_id_to_index={req_id: i for i, req_id in enumerate(req_ids)},
++        sampled_token_ids=[[7] if sampled[req_id] else [] for req_id in req_ids],
++        logprobs=None,
++        prompt_logprobs_dict={},
++        pooler_output=[],
++    )
++
++
++_pending: dict[int, tuple] = {}
++
++
++def _step(scheduler):
++    """One engine step. With async scheduling the previous step's output is
++    applied after the next schedule() (one batch in flight)."""
++    output = scheduler.schedule()
++    sampled = {
++        req_id: not scheduler.requests[req_id].is_prefill_chunk
++        for req_id in output.num_scheduled_tokens
++    }
++    if not scheduler.scheduler_config.async_scheduling:
++        scheduler.update_from_output(output, _runner_output(output, sampled))
++        return output
++    previous = _pending.pop(id(scheduler), None)
++    if previous is not None:
++        scheduler.update_from_output(previous[0], _runner_output(*previous))
++    _pending[id(scheduler)] = (output, sampled)
++    return output
++
++
++def _stress(scheduler, long_blocks=676, num_long=8, waves=2, ping_every=14):
++    """The c8 stress: waves of 8 long prompts plus a sequential pinger.
++    Returns (finished_long, pings_answered, max_ping_wait_steps, stalled)."""
++    finished, pings, ping_waits = 0, 0, []
++    ping, next_ping, last_progress, progress = None, 0, 0, None
++    longs: list[Request] = []
++    for step in range(12000):
++        if not longs or all(r.is_finished() for r in longs):
++            finished += sum(r.is_finished() for r in longs)
++            if waves == 0:
++                return finished, pings, max(ping_waits, default=0), False
++            waves -= 1
++            longs = [
++                _request(f"long{waves}-{i}", long_blocks * BS) for i in range(num_long)
++            ]
++            for request in longs:
++                scheduler.add_request(request)
++        if ping is None and step >= next_ping:
++            ping = (_request(f"ping{step}", 8), step)
++            scheduler.add_request(ping[0])
++        _step(scheduler)
++        if ping is not None and ping[0].num_output_tokens > 0:
++            pings += 1
++            ping_waits.append(step - ping[1])
++            next_ping, ping = step + ping_every, None
++        state = tuple(r.num_computed_tokens for r in longs)
++        if state != progress:
++            progress, last_progress = state, step
++        elif step - last_progress > 1600:
++            finished += sum(r.is_finished() for r in longs)
++            return finished, pings, max(ping_waits, default=0), True
++    raise AssertionError("simulation did not settle")
++
++
++@pytest.mark.parametrize("async_scheduling", [False, True])
++@pytest.mark.parametrize("max_parallel_prefills", ["auto", 2])
++def test_interleaved_prefills_deadlock_without_kv_admission(
++    monkeypatch, opt_model_path, max_parallel_prefills, async_scheduling
++):
++    """Reproduces the 11-10 hang: all 8 long prompts are admitted, their partial
++    prefills fill the pool, never-served waiting requests take the prefill lanes
++    in the preempting running pass, so the running prefills only get the
++    non-preempting leftover pass and nothing advances."""
++    scheduler = _scheduler(
++        monkeypatch,
++        opt_model_path,
++        kv_admission=False,
++        max_parallel_prefills=max_parallel_prefills,
++        async_scheduling=async_scheduling,
++    )
++    finished, _, _, stalled = _stress(scheduler)
++    assert stalled
++    assert finished == 0
++    assert scheduler.kv_cache_manager.usage > 0.98
++    assert any(r.status == RequestStatus.PREEMPTED for r in scheduler.waiting) or any(
++        r.status == RequestStatus.PREEMPTED for r in scheduler.skipped_waiting
++    )
++
++
++@pytest.mark.parametrize("async_scheduling", [False, True])
++@pytest.mark.parametrize("max_parallel_prefills", ["auto", 2])
++@pytest.mark.parametrize("long_blocks", [676, 597])
++def test_kv_admission_finishes_the_stress_and_keeps_answering_pings(
++    monkeypatch, opt_model_path, max_parallel_prefills, long_blocks, async_scheduling
++):
++    scheduler = _scheduler(
++        monkeypatch,
++        opt_model_path,
++        kv_admission=True,
++        max_parallel_prefills=max_parallel_prefills,
++        async_scheduling=async_scheduling,
++    )
++    finished, pings, max_ping_wait, stalled = _stress(
++        scheduler, long_blocks=long_blocks
++    )
++    assert not stalled
++    assert finished == 16
++    assert pings > 100
++    assert max_ping_wait <= 3  # a short request never waits behind long prefills
++    assert scheduler.kv_admission_stats["gated"] > 0
++    assert scheduler.kv_admission_stats["guard_preemptions"] == 0
++
++
++def test_single_lane_finishes_but_starves_short_requests(monkeypatch, opt_model_path):
++    """max-parallel-prefills 1 (option a): passes, pinger starves."""
++    scheduler = _scheduler(
++        monkeypatch, opt_model_path, kv_admission=False, max_parallel_prefills=1
++    )
++    finished, pings, max_ping_wait, stalled = _stress(scheduler)
++    assert not stalled and finished == 16
++    assert pings <= 2 and max_ping_wait > 1000
++
++
++def test_short_prompt_gets_a_lane_next_to_a_long_prefill(monkeypatch, opt_model_path):
++    scheduler = _scheduler(
++        monkeypatch, opt_model_path, kv_admission=True, num_blocks=1200
++    )
++    long_a = _request("long_a", 676 * BS)
++    long_b = _request("long_b", 676 * BS)
++    scheduler.add_request(long_a)
++    _step(scheduler)
++    scheduler.add_request(long_b)  # does not fit next to long_a: held
++    output = _step(scheduler)  # long_b's first check: it shared the lanes once
++    assert "long_b" not in output.num_scheduled_tokens
++    assert long_b.status == RequestStatus.WAITING
++    for _ in range(5):
++        output = _step(scheduler)
++        assert "long_b" not in output.num_scheduled_tokens
++        assert output.num_scheduled_tokens["long_a"] == 64  # full budget, no idle lane
++    short = _request("short", 40)
++    scheduler.add_request(short)
++    output = _step(scheduler)
++    # the short prompt gets a lane in the very next step (budget split 2 ways)
++    assert output.num_scheduled_tokens["short"] == 32
++    assert output.num_scheduled_tokens["long_a"] == 32
++    _step(scheduler)
++    assert short.num_output_tokens == 1  # first token after 2 steps
++    assert long_b.status == RequestStatus.WAITING
++    while not long_a.is_finished():
++        _step(scheduler)
++    for _ in range(3):
++        _step(scheduler)
++    assert long_b.status == RequestStatus.RUNNING
++
++
++def test_gate_counts_only_blocks_not_already_in_use(monkeypatch, opt_model_path):
++    """Prefix hits on blocks a running request holds cost nothing; a prompt of
++    the same length without them is held."""
++    scheduler = _scheduler(
++        monkeypatch, opt_model_path, kv_admission=True, num_blocks=1000
++    )
++    holder = _request("holder", 600 * BS, max_tokens=10_000)
++    scheduler.add_request(holder)
++    while holder.num_output_tokens == 0:
++        _step(scheduler)
++    sibling = _request("sibling", 650 * BS, prefix=holder.prompt_token_ids)
++    unrelated = _request("unrelated", 650 * BS)
++    scheduler.add_request(sibling)
++    scheduler.add_request(unrelated)
++    for _ in range(3):
++        _step(scheduler)
++    assert unrelated.status == RequestStatus.WAITING
++    assert "unrelated" in scheduler._kv_admission_held
++    assert sibling.status == RequestStatus.RUNNING
++    assert sibling.num_computed_tokens >= 600 * BS  # prefix hits
++
++
++def test_held_request_may_be_passed_before_it_ages(monkeypatch, opt_model_path):
++    scheduler = _scheduler(
++        monkeypatch, opt_model_path, kv_admission=True, num_blocks=1000
++    )  # DS41_KV_ADMISSION_HOL_S default 30
++    first = _request("first", 500 * BS)
++    scheduler.add_request(first)
++    _step(scheduler)
++    big = _request("big", 600 * BS)
++    scheduler.add_request(big)
++    _step(scheduler)
++    medium = _request("medium", 300 * BS)
++    scheduler.add_request(medium)
++    for _ in range(3):
++        _step(scheduler)
++    assert big.status == RequestStatus.WAITING
++    assert medium.status == RequestStatus.RUNNING
++
++
++@pytest.mark.parametrize("max_parallel_prefills", ["auto", 1])
++def test_oldest_held_request_is_not_starved(
++    monkeypatch, opt_model_path, max_parallel_prefills
++):
++    """Blocks are kept for the oldest held prompt: a later long prompt that
++    would fit on its own does not jump ahead of it."""
++    scheduler = _scheduler(
++        monkeypatch,
++        opt_model_path,
++        kv_admission=True,
++        num_blocks=1000,
++        max_parallel_prefills=max_parallel_prefills,
++        DS41_KV_ADMISSION_HOL_S=0,
++    )
++    first = _request("first", 500 * BS)
++    scheduler.add_request(first)
++    _step(scheduler)
++    big = _request("big", 600 * BS)  # held: 500 + 600 > pool
++    scheduler.add_request(big)
++    _step(scheduler)
++    medium = _request("medium", 300 * BS)  # would fit next to first alone
++    scheduler.add_request(medium)
++    for _ in range(5):
++        _step(scheduler)
++    assert big.status == RequestStatus.WAITING
++    assert medium.status == RequestStatus.WAITING
++    while not first.is_finished():
++        _step(scheduler)
++    for _ in range(3):
++        _step(scheduler)
++    assert big.status == RequestStatus.RUNNING
++
++
++@pytest.mark.parametrize("async_scheduling", [False, True])
++def test_progress_guard_preempts_the_newest_partial_prefill(
++    monkeypatch, opt_model_path, async_scheduling
++):
++    """Gate bypassed (every prompt counts as short): the over-admitted partial
++    prefills deadlock as before, and the guard preempts the newest one."""
++    scheduler = _scheduler(
++        monkeypatch,
++        opt_model_path,
++        kv_admission=True,
++        async_scheduling=async_scheduling,
++        DS41_KV_ADMISSION_SHORT_TOKENS=10**9,
++    )
++    finished, _, _, stalled = _stress(scheduler, waves=1)
++    assert not stalled and finished == 8
++    assert scheduler.kv_admission_stats["guard_preemptions"] > 0
++
++
++def test_guard_off_keeps_the_deadlock(monkeypatch, opt_model_path):
++    scheduler = _scheduler(
++        monkeypatch,
++        opt_model_path,
++        kv_admission=True,
++        DS41_KV_ADMISSION_SHORT_TOKENS=10**9,
++        DS41_KV_ADMISSION_GUARD=0,
++    )
++    _, _, _, stalled = _stress(scheduler, waves=1)
++    assert stalled
++
++
++@pytest.mark.parametrize("max_parallel_prefills", ["auto", 1])
++def test_identical_schedule_when_kv_is_not_near_full(
++    monkeypatch, opt_model_path, max_parallel_prefills
++):
++    """Big pool: every step's schedule is the same with and without the patch."""
++
++    def trace(kv_admission: bool):
++        global _tokens
++        _tokens = itertools.count(1000)
++        scheduler = _scheduler(
++            monkeypatch,
++            opt_model_path,
++            kv_admission=kv_admission,
++            max_parallel_prefills=max_parallel_prefills,
++            num_blocks=20000,
++        )
++        arrivals = {0: [600, 40, 300], 3: [8, 500], 9: [700, 16], 20: [64] * 4}
++        steps = []
++        for step in range(400):
++            for i, blocks in enumerate(arrivals.get(step, ())):
++                scheduler.add_request(
++                    _request(f"r{step}-{i}", blocks * BS // 4 + 3, max_tokens=12)
++                )
++            output = _step(scheduler)
++            steps.append(sorted(output.num_scheduled_tokens.items()))
++        assert scheduler.kv_admission_stats["gated"] == 0
++        return steps
++
++    assert trace(False) == trace(True)
++
++
++def test_short_prompts_keep_lanes_while_the_pool_is_overcommitted(
++    monkeypatch, opt_model_path
++):
++    """Held long prompts leave the lanes; short ones keep them even when the
++    in-flight prefills plus headroom already exceed the free blocks (long_a is
++    below the short threshold, so it was admitted without the gate)."""
++    scheduler = _scheduler(
++        monkeypatch,
++        opt_model_path,
++        kv_admission=True,
++        num_blocks=1000,
++        DS41_KV_ADMISSION_HEADROOM=0.6,
++        DS41_KV_ADMISSION_SHORT_TOKENS=8100,
++    )
++    long_a = _request("long_a", 500 * BS)
++    long_b = _request("long_b", 600 * BS)
++    scheduler.add_request(long_a)
++    _step(scheduler)
++    scheduler.add_request(long_b)
++    _step(scheduler)
++    _step(scheduler)
++    assert "long_b" in scheduler._kv_admission_held
++    free = scheduler.kv_cache_manager.block_pool.get_num_free_blocks()
++    assert free - scheduler.kv_admission_headroom_blocks - (
++        scheduler._kv_admission_blocks(long_a)
++    ) < 0  # overcommitted
++    for i in range(3):
++        short = _request(f"short{i}", 40)
++        scheduler.add_request(short)
++        output = _step(scheduler)
++        assert f"short{i}" in output.num_scheduled_tokens
++        while not short.is_finished():
++            _step(scheduler)
++    assert long_b.status == RequestStatus.WAITING

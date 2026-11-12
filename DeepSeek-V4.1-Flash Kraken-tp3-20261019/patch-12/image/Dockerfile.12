@@ -1,0 +1,40 @@
+# Step 1 of azallaza/ds41-kraken-tp3:20261019.12 = 20261019.11 +
+#  - FlashInfer b12x 5b065abe -> ea74ea61 (Local Inference Lab fork), with the image's MXFP4-Engram patch and the
+#    tiny_decode SwiGLU guard re-applied (DS V4.1 declares swiglu_limit 10; tiny_decode has no clamp, so 1-4 token
+#    decode MoE calls go to the clamped kernels), the vLLM port to its blockscaled-linear API, and the DS V4.1
+#    attention.py for its fused MXFP4 indexer (BRRR_RADIX_TOPK=0: b12x's top-k).
+#  - vision staging: host-resident vision/aligner weights staged through borrowed VRAM per image (DS41_VISION_STAGE=1).
+#  - adaptive-verification skip: no per-step confidence copy + broadcast while the rows fit under the cap (DS41_AV_SKIP_UNDER_CAP=1).
+#  - tool-call fixes: vLLM #62199 / #62517 / #62729 / #64971 ported to the V4.1 frontend.
+#  - KV-aware prefill admission (DS41_KV_ADMISSION=1): fixes a c8 KV-stress deadlock of max-parallel-prefills auto.
+#  - lazy Engram host tables: both tables (1,14) created after expert promotion and filled on the first real batch
+#    (boot low point ~98 GB available instead of ~19 GB).
+# First start compiles the new b12x kernels cold (use a fresh /cache volume; B12X_COMPILE_WORKERS=2 avoids a host OOM).
+# Build from the release dir: docker build -f patch-12/image/Dockerfile.12 -t ds41-kraken-tp3:12-step1 .
+FROM azallaza/ds41-kraken-tp3:20261019.11
+ARG FLASHINFER_COMMIT=ea74ea610ce89d4499ad4b1ecb6c9b525fc2a795
+ARG SP=/opt/venv/lib/python3.12/site-packages
+ADD https://github.com/local-inference-lab/flashinfer/archive/${FLASHINFER_COMMIT}.tar.gz /tmp/flashinfer.tar.gz
+COPY patch-12/b12x-bump/b12x-engram-mxfp4.patch patch-12/b12x-bump/b12x-tiny-decode-guard.patch /tmp/b12x-patches/
+RUN set -euo pipefail; mkdir /tmp/fi; tar -xzf /tmp/flashinfer.tar.gz -C /tmp/fi --strip-components=1; \
+    rm -rf "$SP/flashinfer/experimental/b12x"; cp -r /tmp/fi/flashinfer/experimental/b12x "$SP/flashinfer/experimental/b12x"; \
+    cp /tmp/fi/_flashinfer_filelock.py "$SP/_flashinfer_filelock.py"; cd "$SP/flashinfer/experimental/b12x"; \
+    patch -p1 --no-backup-if-mismatch < /tmp/b12x-patches/b12x-engram-mxfp4.patch; \
+    patch -p1 --no-backup-if-mismatch < /tmp/b12x-patches/b12x-tiny-decode-guard.patch; \
+    grep -q "and swiglu_limit is None" moe/fused_moe/_impl.py; rm -rf /tmp/fi /tmp/flashinfer.tar.gz /tmp/b12x-patches
+COPY patch-12/b12x-bump/vllm/models/deepseek_v4_1/attention.py ${SP}/vllm/models/deepseek_v4_1/attention.py
+COPY patch-12/b12x-bump/vllm-b12x-bump-api.patch /tmp/api.patch
+RUN set -e; cd "$SP"; patch -p1 --no-backup-if-mismatch < /tmp/api.patch; rm /tmp/api.patch; \
+    grep -q "PATCH(ds41-b12x-bump)" vllm/model_executor/kernels/linear/b12x_blockscaled.py
+COPY patch-12/vision-staging/vllm/models/deepseek_v4_1/nvidia/ ${SP}/vllm/models/deepseek_v4_1/nvidia/
+COPY patch-12/av-skip/vllm/v1/worker/gpu/spec_decode/adaptive_verification.py ${SP}/vllm/v1/worker/gpu/spec_decode/adaptive_verification.py
+COPY patch-12/tool-calls/vllm/tokenizers/ ${SP}/vllm/tokenizers/
+COPY patch-12/tool-calls/vllm/parser/deepseek_v41.py ${SP}/vllm/parser/deepseek_v41.py
+COPY patch-12/tool-calls/vllm/entrypoints/anthropic/serving.py ${SP}/vllm/entrypoints/anthropic/serving.py
+COPY patch-12/kv-admission/vllm-kv-aware-prefill-admission.patch patch-12/lazy-engram/vllm-ds41-lazy-engram-boot-ram.patch /tmp/
+RUN set -e; cd "$SP"; patch -p1 --forward --no-backup-if-mismatch < /tmp/vllm-kv-aware-prefill-admission.patch; \
+    patch -p1 --forward --no-backup-if-mismatch < /tmp/vllm-ds41-lazy-engram-boot-ram.patch; rm -f /tmp/*.patch; \
+    find "$SP/flashinfer/experimental/b12x" "$SP/vllm/models/deepseek_v4_1" "$SP/vllm/v1" "$SP/vllm/tokenizers" "$SP/vllm/parser" "$SP/vllm/entrypoints/anthropic" -name "*.pyc" -delete 2>/dev/null || true
+ENV BRRR_RADIX_TOPK=0 DS41_VISION_STAGE=1 DS41_VISION_STAGE_OVERLAP=1 DS41_VISION_STAGE_COPY=memcpy DS41_VISION_HOST=1 \
+    DS41_EMBED_HOST=0 DS41_AV_SKIP_UNDER_CAP=1 DS41_KV_ADMISSION=1 DS41_ENGRAM_RAM_LAYERS= \
+    DS41_ENGRAM_LAZY_RAM_LAYERS=1,14 DS41_ENGRAM_LAZY_SELF_ARM=1 DS41_ENGRAM_LAZY_PARALLEL=1 DS41_ENGRAM_LAZY_MARGIN_GIB=8

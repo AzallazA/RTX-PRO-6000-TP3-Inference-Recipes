@@ -1,0 +1,265 @@
+diff --git a/moe/_shared/kernels/tiny_decode.py b/moe/_shared/kernels/tiny_decode.py
+index 6902c281e..7323a0feb 100644
+--- a/moe/_shared/kernels/tiny_decode.py
++++ b/moe/_shared/kernels/tiny_decode.py
+@@ -23,10 +23,17 @@ The prep rotation normalizes both declared w13 layouts to the same rp tile
+ order (tiles [0, N/256) hold the "up" rows, [N/256, 2N/256) the "gate" rows of
+ the same channels), so FC1 stores inter rows through ``(p + n) % 2n`` and FC2
+ reads gate at [0, n), up at [n, 2n) unconditionally.
++
++``swiglu_limit`` is a compile-time specialization. When set, FC2 clamps gate
++to ``max=limit`` and up to ``[-limit, limit]`` before SiLU, matching the W4A8
++reference (``reference._apply_gated_activation``) and the compact W4A8 micro
++activation; without it the generated code is the plain SiLU-GLU.
+ """
+ 
+ from __future__ import annotations
+ 
++import math
++
+ import cutlass
+ import cutlass.cute as cute
+ import torch
+@@ -64,14 +71,25 @@ class MoETinyDecodeKernelBackend:
+         activation: str = "silu",
+         w13_layout: str = "w31",
+         compile_time_phase: int = 1,
++        swiglu_limit: float | None = None,
+     ):
+         if activation != "silu":
+             raise ValueError(f"tiny_decode supports silu only, got {activation!r}")
+         if int(compile_time_phase) not in (1, 2):
+             raise ValueError(f"unsupported tiny_decode phase {compile_time_phase!r}")
++        if swiglu_limit is not None:
++            # Only FC2 applies the activation; FC1 has no clamp specialization.
++            if int(compile_time_phase) != 2:
++                raise ValueError("tiny_decode swiglu_limit applies to phase 2 only")
++            swiglu_limit = float(swiglu_limit)
++            if not math.isfinite(swiglu_limit) or swiglu_limit <= 0.0:
++                raise ValueError(
++                    f"swiglu_limit must be positive and finite, got {swiglu_limit}"
++                )
+         self.compile_time_phase = int(compile_time_phase)
+         self.activation = activation
+         self.w13_layout = w13_layout
++        self.swiglu_limit = swiglu_limit
+         self._cfg_key = None
+         self._c = None
+         self.grid_x = 0
+@@ -149,8 +167,17 @@ class MoETinyDecodeKernelBackend:
+             self.compile_time_phase,
+             self._cfg_key,
+             self.grid_x,
++            self.swiglu_limit,
+         )
+ 
++    @cute.jit
++    def _clamp_gate_up(self, gate: Float32, up: Float32):
++        """SwiGLU input clamp: gate to max=limit, up to [-limit, limit]."""
++        limit = Float32(self.swiglu_limit)
++        gate = cutlass.min(gate, limit)
++        up = cutlass.max(cutlass.min(up, limit), -limit)
++        return gate, up
++
+     @cute.jit
+     def _row_block_dot(
+         self,
+@@ -380,6 +407,9 @@ class MoETinyDecodeKernelBackend:
+                                 u1 = Float32(
+                                     inter[ich + Int32(c["n"]) + Int32(2 * jp + 1)]
+                                 )
++                                if cutlass.const_expr(self.swiglu_limit is not None):
++                                    g0, u0 = self._clamp_gate_up(g0, u0)
++                                    g1, u1 = self._clamp_gate_up(g1, u1)
+                                 s0 = Float32(1.0) / (
+                                     Float32(1.0) + cute.math.exp(-g0, fastmath=False)
+                                 )
+@@ -401,6 +431,9 @@ class MoETinyDecodeKernelBackend:
+                             g1 = Float32(inter[ich + Int32(2 * jp + 1)])
+                             u0 = Float32(inter[ich + Int32(c["n"]) + Int32(2 * jp)])
+                             u1 = Float32(inter[ich + Int32(c["n"]) + Int32(2 * jp + 1)])
++                            if cutlass.const_expr(self.swiglu_limit is not None):
++                                g0, u0 = self._clamp_gate_up(g0, u0)
++                                g1, u1 = self._clamp_gate_up(g1, u1)
+                             s0 = Float32(1.0) / (
+                                 Float32(1.0) + cute.math.exp(-g0, fastmath=False)
+                             )
+@@ -566,9 +599,16 @@ class MoETinyDecodeKernelBackendPhase1(MoETinyDecodeKernelBackend):
+ class MoETinyDecodeKernelBackendPhase2(MoETinyDecodeKernelBackend):
+     """Phase-2 compile identity for exact launch/resource attribution."""
+ 
+-    def __init__(self, *, activation: str = "silu", w13_layout: str = "w31"):
++    def __init__(
++        self,
++        *,
++        activation: str = "silu",
++        w13_layout: str = "w31",
++        swiglu_limit: float | None = None,
++    ):
+         super().__init__(
+             activation=activation,
+             w13_layout=w13_layout,
+             compile_time_phase=2,
++            swiglu_limit=swiglu_limit,
+         )
+diff --git a/moe/fused_moe/_impl.py b/moe/fused_moe/_impl.py
+index 8fd5dc022..c16b21856 100644
+--- a/moe/fused_moe/_impl.py
++++ b/moe/fused_moe/_impl.py
+@@ -2613,6 +2613,9 @@ def _w4a8_mx_micro_supported(
+     activation: str,
+     source_format: str,
+     deterministic_output: bool = False,
++    swiglu_clamp_after_silu: bool = False,
++    swiglu_alpha: object = None,
++    swiglu_beta: object = None,
+ ) -> bool:
+     source_format = _canonical_moe_policy_source_format(source_format)
+     if source_format == "b12x_trellis":
+@@ -2639,6 +2642,11 @@ def _w4a8_mx_micro_supported(
+         )
+     return (
+         not deterministic_output
++        and _tiny_decode_swiglu_supported(
++            swiglu_clamp_after_silu=swiglu_clamp_after_silu,
++            swiglu_alpha=swiglu_alpha,
++            swiglu_beta=swiglu_beta,
++        )
+         and _tiny_decode_enabled()
+         and _tiny_decode_supports(
+             num_tokens=num_tokens,
+@@ -2662,6 +2670,9 @@ def _w4a8_mx_micro_preferred(
+         activation=query.activation,
+         source_format=query.source_format,
+         deterministic_output=query.deterministic_output,
++        swiglu_clamp_after_silu=query.swiglu_clamp_after_silu,
++        swiglu_alpha=query.swiglu_alpha,
++        swiglu_beta=query.swiglu_beta,
+     ):
+         return False
+     if (
+@@ -2703,6 +2714,9 @@ def _policy_micro_supported(query: MoeDecodeQuery) -> bool:
+             activation=query.activation,
+             source_format=query.source_format,
+             deterministic_output=query.deterministic_output,
++            swiglu_clamp_after_silu=query.swiglu_clamp_after_silu,
++            swiglu_alpha=query.swiglu_alpha,
++            swiglu_beta=query.swiglu_beta,
+         )
+     return _band_runs_direct_micro(
+         num_tokens=query.num_tokens,
+@@ -13043,6 +13057,22 @@ def _tiny_decode_supports(*, num_tokens: int, k: int, n: int, activation: str) -
+     )
+ 
+ 
++def _tiny_decode_swiglu_supported(
++    *,
++    swiglu_clamp_after_silu: bool = False,
++    swiglu_alpha: object = None,
++    swiglu_beta: object = None,
++) -> bool:
++    # tiny_decode specializes swiglu_limit (pre-SiLU gate/up clamp) at compile
++    # time, but implements neither post-SiLU clamping nor SwiGLU alpha/beta.
++    # Unset and identity values (alpha 1, beta 0) are plain SiLU-GLU.
++    return (
++        not swiglu_clamp_after_silu
++        and (swiglu_alpha is None or swiglu_alpha == 1.0)
++        and (swiglu_beta is None or swiglu_beta == 0.0)
++    )
++
++
+ _TINY_DECODE_KERNEL_CACHE: dict = {}
+ register_program_cache(_TINY_DECODE_KERNEL_CACHE)
+ 
+@@ -13056,6 +13086,7 @@ def _get_tiny_decode_kernel(
+     *,
+     device: torch.device | None = None,
+     topk_ids_dtype: torch.dtype = torch.int32,
++    swiglu_limit: float | None = None,
+ ):
+     from b12x.moe._shared.kernels.tiny_decode import (
+         MoETinyDecodeKernelBackendPhase1,
+@@ -13066,11 +13097,11 @@ def _get_tiny_decode_kernel(
+         raise TypeError("tiny decode expert IDs must be int32 or int64")
+     ids_type = cutlass.Int32 if topk_ids_dtype == torch.int32 else cutlass.Int64
+     compiled_phases = []
+-    for kernel_cls in (
+-        MoETinyDecodeKernelBackendPhase1,
+-        MoETinyDecodeKernelBackendPhase2,
++    # Only FC2 applies the activation, so only phase 2 specializes the clamp.
++    for kernel in (
++        MoETinyDecodeKernelBackendPhase1(),
++        MoETinyDecodeKernelBackendPhase2(swiglu_limit=swiglu_limit),
+     ):
+-        kernel = kernel_cls()
+         kernel.configure(m, k, n, num_topk, weight_E, device=device)
+         cache_key = ("tiny_decode", str(topk_ids_dtype)) + kernel.__cache_key__
+         cached = None if planning() else _TINY_DECODE_KERNEL_CACHE.get(cache_key)
+@@ -13126,6 +13157,7 @@ def _launch_tiny_decode_flat(
+     k: int,
+     n: int,
+     num_topk: int,
++    swiglu_limit: float | None = None,
+ ) -> None:
+     from b12x.moe._shared.kernels.tiny_decode import (
+         MoETinyDecodeKernelBackend,
+@@ -13133,7 +13165,14 @@ def _launch_tiny_decode_flat(
+ 
+     del barrier_count, barrier_epoch
+     compiled_fc1, compiled_fc2 = _get_tiny_decode_kernel(
+-        weight_E, m, k, n, num_topk, device=a.device, topk_ids_dtype=launch_ids.dtype
++        weight_E,
++        m,
++        k,
++        n,
++        num_topk,
++        device=a.device,
++        topk_ids_dtype=launch_ids.dtype,
++        swiglu_limit=swiglu_limit,
+     )
+     rt = m * num_topk
+     inter = micro_intermediate.view(torch.float32).reshape(-1)[: rt * 2 * n]
+@@ -13173,6 +13212,7 @@ def _tp_moe_tiny_decode_launch_op(
+     k: int,
+     n: int,
+     num_topk: int,
++    swiglu_limit: float | None,
+     volatile_launch_state: bool,
+ ) -> None:
+     del volatile_launch_state
+@@ -13193,6 +13233,7 @@ def _tp_moe_tiny_decode_launch_op(
+         k=k,
+         n=n,
+         num_topk=num_topk,
++        swiglu_limit=swiglu_limit,
+     )
+ 
+ 
+@@ -13214,6 +13255,7 @@ def _tp_moe_tiny_decode_launch_fake(
+     k: int,
+     n: int,
+     num_topk: int,
++    swiglu_limit: float | None,
+     volatile_launch_state: bool,
+ ) -> None:
+     return None
+@@ -13385,6 +13427,7 @@ def _launch_micro(
+             k,
+             n,
+             num_topk,
++            swiglu_limit,
+             workspace.volatile_launch_state,
+         )
+         return
+diff --git a/moe/fused_moe/_preparation.py b/moe/fused_moe/_preparation.py
+index aeb864ddf..19f8f9c1c 100644
+--- a/moe/fused_moe/_preparation.py
++++ b/moe/fused_moe/_preparation.py
+@@ -1030,6 +1030,7 @@ def _program_carriers(
+                         plan.num_topk,
+                         device=plan.device,
+                         topk_ids_dtype=dtype,
++                        swiglu_limit=plan.swiglu_limit,
+                     )
+                 )
+         else:

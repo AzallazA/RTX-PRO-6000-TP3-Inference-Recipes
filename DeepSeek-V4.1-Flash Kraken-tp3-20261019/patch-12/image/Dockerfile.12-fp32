@@ -1,0 +1,9 @@
+# Step 2 of 20261019.12: BRRR's vocab-split draft-logit cache in FP32 (was BF16). The draft kernel samples from FP32
+# logits but stored them BF16-rounded, so verification rebuilt a slightly different proposal distribution (recipes
+# issue #2, found and reproduced by @epheien; patch-12/draft-fp32/test_vp_cache_precision.py is their CPU test).
+# One line in brrr/vp_sampling.py. Decode level; output distribution now matches the target.
+# Build from the release dir: docker build -f patch-12/image/Dockerfile.12-fp32 -t ds41-kraken-tp3:12-step2 .
+FROM ds41-kraken-tp3:12-step1
+ARG SP=/opt/venv/lib/python3.12/site-packages
+COPY patch-12/draft-fp32/brrr/vp_sampling.py ${SP}/brrr/vp_sampling.py
+RUN set -e; grep -q "dtype=torch.float32, device=device)" ${SP}/brrr/vp_sampling.py; rm -f ${SP}/brrr/__pycache__/vp_sampling.*.pyc

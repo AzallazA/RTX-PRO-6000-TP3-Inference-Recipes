@@ -1,0 +1,354 @@
+--- brrr/kernels/decoder.cu.orig	2026-11-11 07:53:04.103045848 -0500
++++ brrr/kernels/decoder.cu	2026-11-11 07:53:04.113525066 -0500
+@@ -1,5 +1,6 @@
+ #include <type_traits>
+ #include <cstdlib>
++#include <cstdio>
+ #include <c10/cuda/CUDAGuard.h>
+ #include <torch/extension.h>
+ 
+@@ -148,6 +149,18 @@
+ 
+ constexpr int R1_JOBS = R1_BLOCKS * R1_PARTS;
+ 
++// moedet-bp (2026-11-11): deterministic pair-slot accumulation, see make_brrr_detbp.py. Contributors per element
++// are paired (K part kp -> slot kp / 2, top-k slot k -> k / 2): two red.add.f32 into a zeroed float commute exactly.
++constexpr int Z_SLOTS = OAK / 32 / KS_WOA / 2;  // wo_a: 16 K parts (8 at m <= WOA_SMALL)
++constexpr int Y_SLOTS = KP_WOB / 2;             // wo_b: 6 K parts
++constexpr int S_SLOTS = KP_SH1 / 2;             // shared FC1: 10 K parts
++constexpr int H_SLOTS = R1_PARTS / 2;           // routed FC1: 10 K parts
++constexpr int YR_SLOTS = TOPK / 2;              // routed FC2: 6 routes per token
++static_assert(OAK / 32 % (2 * 2 * KS_WOA) == 0 && KP_WOB % 2 == 0 && KP_SH1 % 2 == 0 && R1_PARTS % 2 == 0 && TOPK % 2 == 0,
++              "pair slots need even contributor counts");
++
++__host__ __device__ __forceinline__ int z_slots(int m) { return OAK / 32 / woa_ks(m) / 2; }
++
+ __host__ __device__ __forceinline__ int chunk_jobs(const Layout& L, int n) { return 2 * L.tg + n + 1; }
+ 
+ __device__ __forceinline__ int total_jobs(const Layout& L, int n) { return L.routed + n * R1_JOBS + CHUNKS * chunk_jobs(L, n); }
+@@ -276,6 +289,7 @@
+   float* qsq;
+   unsigned* tiles;
+   unsigned* pc;
++  int det_rows;  // moedet-bp: 0 = off, else pair slots allocated for launches of up to det_rows rows
+ };
+ 
+ // TP3 CSF: b12x CsfBlockPayload (destination 2, mxfp4 1-bit codes, 3-byte group records) read in-kernel.
+@@ -326,6 +340,7 @@
+   Weights w;
+   int rank;
+   int m;
++  int det;  // moedet-bp: this launch accumulates in pair slots (packed by m)
+   const __nv_bfloat16* o;
+   long o_stride;
+   const long* positions;
+@@ -552,6 +567,49 @@
+   __stcg(a + 1, zero);
+ }
+ 
++// moedet-bp: slot j of an accumulator lives at base + j * stride; sums run in fixed order j = 0..n-1 (n == 1: the
++// image's single load). Loads are issued before the dependent adds (unrolled to the compile-time slot maximum).
++__device__ __forceinline__ int nslots(const Params& p, int pairs) { return p.det ? pairs : 1; }
++
++template <int MAXS>
++__device__ __forceinline__ void load_sum8(const float* src, long stride, int n, bool live, float (&v)[8]) {
++  unpack8(load8(src, live), v);
++#pragma unroll
++  for (int j = 1; j < MAXS; ++j) {
++    if (j < n) {
++      float w[8];
++      unpack8(load8(src + j * stride, live), w);
++#pragma unroll
++      for (int e = 0; e < 8; ++e) v[e] += w[e];
++    }
++  }
++}
++
++template <int MAXS>
++__device__ __forceinline__ void clear_slots8(float* dst, long stride, int n) {
++  clear8(dst);
++#pragma unroll
++  for (int j = 1; j < MAXS; ++j)
++    if (j < n) clear8(dst + j * stride);
++}
++
++template <int MAXS>
++__device__ __forceinline__ float load_sum1(const float* src, long stride, int n) {
++  float v = __ldcg(src);
++#pragma unroll
++  for (int j = 1; j < MAXS; ++j)
++    if (j < n) v += __ldcg(src + j * stride);
++  return v;
++}
++
++template <int MAXS>
++__device__ __forceinline__ void clear_slots1(float* dst, long stride, int n) {
++  __stcg(dst, 0.0f);
++#pragma unroll
++  for (int j = 1; j < MAXS; ++j)
++    if (j < n) __stcg(dst + j * stride, 0.0f);
++}
++
+ __device__ __forceinline__ long chunk_off(int i, int k) { return long(i / CHUNK_VECS) * HID + k * CHUNK_COLS + (i % CHUNK_VECS) * 8; }
+ 
+ __device__ __forceinline__ __nv_bfloat16* inbox(const Params& p, int r, int which, int stage, unsigned epoch) {
+@@ -916,12 +974,14 @@
+   constexpr int PER = OTOK * 8 / GT;
+   const Params& p = c.p;
+   const Span sp = group_of(p.m, tg);
++  const long zs = long(p.m) * OA;
++  const int zn = nslots(p, z_slots(p.m));
+   float z[PER][8];
+ #pragma unroll
+   for (int u = 0; u < PER; ++u) {
+     const int i = c.tid + u * GT, tok = sp.first + i / 8;
+     float v[8];
+-    unpack8(load8(p.s.zacc + long(tok) * OA + rb * 64 + i % 8 * 8, i / 8 < sp.count), v);
++    load_sum8<Z_SLOTS>(p.s.zacc + long(tok) * OA + rb * 64 + i % 8 * 8, zs, zn, i / 8 < sp.count, v);
+ #pragma unroll
+     for (int e = 0; e < 8; ++e) z[u][e] = bf(v[e]);
+   }
+@@ -930,7 +990,7 @@
+     const int i = c.tid + u * GT, tok = sp.first + i / 8, col = rb * 64 + i % 8 * 8;
+     const int e = block_exp(z[u], AMAX_FLOOR);
+     if (i / 8 >= sp.count) continue;
+-    clear8(p.s.zacc + long(tok) * OA + col);
++    clear_slots8<Z_SLOTS>(p.s.zacc + long(tok) * OA + col, zs, zn);
+     *reinterpret_cast<uint2*>(p.s.zq + long(tok) * OA + col) = quant8(z[u], e);
+     if (i % 4 == 0) p.s.zse[tok * (OA / 32) + col / 32] = uint8_t(e + 127);
+   }
+@@ -975,7 +1035,8 @@
+ #pragma unroll
+         for (int e = 0; e < 4; ++e) a[e] += d[e] * sw;
+       });
+-  stores(c, sp, acc, [&](int rt, int tt, const float (&a)[4]) { scatter(p.s.zacc, OA, rb * 64 + rt * 16, sp, tt, a, c.lane); });
++  float* const zdst = p.s.zacc + (p.det ? long(kp >> 1) * p.m * OA : 0L);
++  stores(c, sp, acc, [&](int rt, int tt, const float (&a)[4]) { scatter(zdst, OA, rb * 64 + rt * 16, sp, tt, a, c.lane); });
+ }
+ 
+ __device__ void job_woa(Ctx& c, int rb, int kp, int tg, int stages) {
+@@ -990,20 +1051,20 @@
+   const Span sp = group_of(p.m, tg);
+   __nv_bfloat16* mine = inbox(p, p.rank, 0, 0, c.epoch);
+   constexpr int PER = OTOK * 8 / GT;
+-  Acc8 v[PER];
++  const long ys = long(p.m) * HID;
++  const int yn = nslots(p, Y_SLOTS);
++  float v[PER][8];
+ #pragma unroll
+   for (int u = 0; u < PER; ++u) {
+     const int i = c.tid + u * GT;
+-    v[u] = load8(p.s.yacc + long(sp.first + i / 8) * HID + rb * 64 + (i % 8) * 8, i < sp.count * 8);
++    load_sum8<Y_SLOTS>(p.s.yacc + long(sp.first + i / 8) * HID + rb * 64 + (i % 8) * 8, ys, yn, i < sp.count * 8, v[u]);
+   }
+ #pragma unroll
+   for (int u = 0; u < PER; ++u) {
+     const int i = c.tid + u * GT, tok = sp.first + i / 8, col = rb * 64 + (i % 8) * 8;
+     if (i >= sp.count * 8) break;
+-    clear8(p.s.yacc + long(tok) * HID + col);
+-    float y[8];
+-    unpack8(v[u], y);
+-    *reinterpret_cast<uint4*>(mine + long(tok) * HID + col) = pack8(y);
++    clear_slots8<Y_SLOTS>(p.s.yacc + long(tok) * HID + col, ys, yn);
++    *reinterpret_cast<uint4*>(mine + long(tok) * HID + col) = pack8(v[u]);
+   }
+   c.signal(C_YC + rb / 2);
+ }
+@@ -1014,7 +1075,8 @@
+   fill_q(
+       c, sp.count, KS_WOB, KS_WOB / 4, [&](int tok) { return p.s.zq + long(sp.first + tok) * OA + kp * KS_WOB * 32; },
+       [&](int tok) { return p.s.zse + (sp.first + tok) * (OA / 32) + kp * KS_WOB; });
+-  dense_q(c, sp, KS_WOB, KS_WOB / 4, [&](int rt, int tt, const float (&a)[4]) { scatter(p.s.yacc, HID, rb * 64 + rt * 16, sp, tt, a, c.lane); });
++  float* const ydst = p.s.yacc + (p.det ? long(kp >> 1) * p.m * HID : 0L);
++  dense_q(c, sp, KS_WOB, KS_WOB / 4, [&](int rt, int tt, const float (&a)[4]) { scatter(ydst, HID, rb * 64 + rt * 16, sp, tt, a, c.lane); });
+   if (c.arrive(C_YA + rb * GROUPS + tg, KP_WOB)) finish_wob(c, rb, tg);
+ }
+ 
+@@ -1192,21 +1254,23 @@
+   const Span sp = group_of(p.m, tg);
+   constexpr int PER = OTOK / GW;
+   const int col = b * 32 + c.lane;
++  const long ss = long(p.m) * 2 * INTER;
++  const int sn = nslots(p, S_SLOTS);
+   float g[PER], u[PER];
+ #pragma unroll
+   for (int i = 0; i < PER; ++i) {
+     const int t = c.warp + i * GW;
+     const float* h = p.s.sacc + long(sp.first + t) * 2 * INTER + col;
+-    g[i] = t < sp.count ? __ldcg(h) : 0.0f;
+-    u[i] = t < sp.count ? __ldcg(h + INTER) : 0.0f;
++    g[i] = t < sp.count ? load_sum1<S_SLOTS>(h, ss, sn) : 0.0f;
++    u[i] = t < sp.count ? load_sum1<S_SLOTS>(h + INTER, ss, sn) : 0.0f;
+   }
+ #pragma unroll
+   for (int i = 0; i < PER; ++i) {
+     const int t = c.warp + i * GW, tok = sp.first + t;
+     if (t >= sp.count) break;
+     float* h = p.s.sacc + long(tok) * 2 * INTER + col;
+-    __stcg(h, 0.0f);
+-    __stcg(h + INTER, 0.0f);
++    clear_slots1<S_SLOTS>(h, ss, sn);
++    clear_slots1<S_SLOTS>(h + INTER, ss, sn);
+     const float a = bf(swiglu(bf(g[i]), bf(u[i])));
+     const int e = quant_exp(warp_max(fabsf(a)), AMAX_FLOOR);
+     p.s.hsq[tok * INTER + col] = quant_byte(a, e);
+@@ -1221,8 +1285,9 @@
+   fill_q(
+       c, sp.count, KS_SH1, KS_SH1 / 4, [&](int tok) { return p.s.xq + long(sp.first + tok) * HID + kp * KS_SH1 * 32; },
+       [&](int tok) { return p.s.xse + (sp.first + tok) * SLICES + kp * KS_SH1; });
++  float* const sdst = p.s.sacc + (p.det ? long(kp >> 1) * p.m * 2 * INTER : 0L);
+   dense_q(c, sp, KS_SH1, KS_SH1 / 4,
+-          [&](int rt, int tt, const float (&a)[4]) { scatter(p.s.sacc, 2 * INTER, (rt < 2 ? b * 32 : INTER + b * 32 - 32) + rt * 16, sp, tt, a, c.lane); });
++          [&](int rt, int tt, const float (&a)[4]) { scatter(sdst, 2 * INTER, (rt < 2 ? b * 32 : INTER + b * 32 - 32) + rt * 16, sp, tt, a, c.lane); });
+   if (c.arrive(C_SA + b * GROUPS + tg, KP_SH1)) finish_sh1(c, b, tg);
+ }
+ 
+@@ -1343,12 +1408,14 @@
+ 
+ __device__ void finish_r1(Ctx& c, int ei, int bb, const Span& en) {
+   const Params& p = c.p;
++  const long hs = long(p.m) * TOPK * 2 * INTER;
++  const int hn = nslots(p, H_SLOTS);
+   for (int item = c.warp; item < en.count * 2; item += GW) {
+     const int route = c.sm.routes[item / 2], col = bb * 64 + (item & 1) * 32 + c.lane;
+     float* h = p.s.hacc + long(route) * 2 * INTER + col;
+-    const float g = __ldcg(h), u = __ldcg(h + INTER);
+-    __stcg(h, 0.0f);
+-    __stcg(h + INTER, 0.0f);
++    const float g = load_sum1<H_SLOTS>(h, hs, hn), u = load_sum1<H_SLOTS>(h + INTER, hs, hn);
++    clear_slots1<H_SLOTS>(h, hs, hn);
++    clear_slots1<H_SLOTS>(h + INTER, hs, hn);
+     const float a = swiglu(g, u);
+     const int e = quant_exp(warp_max(fabsf(a)), AMAX_FLOOR);
+     p.s.hq[long(route) * INTER + col] = quant_byte(a, e);
+@@ -1365,7 +1432,8 @@
+   fill_q(
+       c, en.count, KS, KS / 4, [&](int i) { return p.s.xq + long(c.sm.routes[i] / TOPK) * HID + kp * KS * 32; },
+       [&](int i) { return p.s.xse + (c.sm.routes[i] / TOPK) * SLICES + kp * KS; });
+-  routed(c, en, KS, KS / 4, [&](int route, int r, float4 v) { red4(p.s.hacc + long(route) * 2 * INTER + (r < 64 ? 0 : INTER - 64) + bb * 64 + r, v); },
++  float* const hdst = p.s.hacc + (p.det ? long(kp >> 1) * p.m * TOPK * 2 * INTER : 0L);
++  routed(c, en, KS, KS / 4, [&](int route, int r, float4 v) { red4(hdst + long(route) * 2 * INTER + (r < 64 ? 0 : INTER - 64) + bb * 64 + r, v); },
+          p.w.csf13.storage ? &p.w.csf13 : nullptr, 2, (bb % 2) * 64,
+          ((long(job.e) * (2 * INTER / 256) + 1 * (INTER / 256) + (bb / 2) / 2) * (HID / 128) + kp * 4) * 256 + ((bb / 2) % 2) * 128 + (bb % 2) * 64,
+          ((long(job.e) * (2 * INTER / 256) + 0 * (INTER / 256) + (bb / 2) / 2) * (HID / 128) + kp * 4) * 256 + ((bb / 2) % 2) * 128 + (bb % 2) * 64,
+@@ -1381,7 +1449,8 @@
+       c, en.count, KS_INTER, KW_INTER, [&](int i) { return p.s.hq + long(c.sm.routes[i]) * INTER; }, [&](int i) { return p.s.hqe + c.sm.routes[i] * HQ_LD; });
+   routed(c, en, KS_INTER, KW_INTER, [&](int route, int r, float4 v) {
+     const float w = __ldcg(p.s.topk_w + route);
+-    red4(p.s.yracc + long(route / TOPK) * HID + rb * 128 + r, make_float4(w * v.x, w * v.y, w * v.z, w * v.w));
++    red4(p.s.yracc + (p.det ? long((route % TOPK) >> 1) * p.m * HID : 0L) + long(route / TOPK) * HID + rb * 128 + r,
++         make_float4(w * v.x, w * v.y, w * v.z, w * v.w));
+   }, p.w.csf2.storage ? &p.w.csf2 : nullptr, 1, 0, ((long(job.e) * (HID / 256) + rb / 2) * (INTER / 128)) * 256 + (rb % 2) * 128, 0,
+          job.e, job.e, rb * p.w.csf2.column_groups);
+   c.signal(C_SF + rb);
+@@ -1392,14 +1461,17 @@
+   c.release();
+   __nv_bfloat16* mine = inbox(p, p.rank, 1, 0, c.epoch);
+   constexpr int XU = 2;
++  const long yrs = long(p.m) * HID;
++  const int yrn = nslots(p, YR_SLOTS);
+   for (int base = 0; base < p.m * CHUNK_VECS; base += GT * XU) {
+-    Acc8 rv[XU], sv[XU];
++    float rv[XU][8];
++    Acc8 sv[XU];
+ #pragma unroll
+     for (int u = 0; u < XU; ++u) {
+       const int i = base + c.tid + u * GT;
+       const bool live = i < p.m * CHUNK_VECS;
+       const long off = chunk_off(live ? i : 0, k);
+-      rv[u] = load8(p.s.yracc + off, live);
++      load_sum8<YR_SLOTS>(p.s.yracc + off, yrs, yrn, live, rv[u]);
+       sv[u] = load8(p.s.shacc + off, live);
+     }
+ #pragma unroll
+@@ -1407,15 +1479,14 @@
+       const int i = base + c.tid + u * GT;
+       if (i >= p.m * CHUNK_VECS) break;
+       const long off = chunk_off(i, k);
+-      clear8(p.s.yracc + off);
++      clear_slots8<YR_SLOTS>(p.s.yracc + off, yrs, yrn);
+       clear8(p.s.shacc + off);
+-      float routed[8], shared[8], y[8];
+-      unpack8(rv[u], routed);
++      float shared[8], y[8];
+       unpack8(sv[u], shared);
+ #pragma unroll
+       for (int e = 0; e < 8; ++e) shared[e] = bf(shared[e]);
+ #pragma unroll
+-      for (int e = 0; e < 8; ++e) y[e] = bf(routed[e]) + shared[e];
++      for (int e = 0; e < 8; ++e) y[e] = bf(rv[u][e]) + shared[e];
+       *reinterpret_cast<uint4*>(mine + off) = pack8(y);
+     }
+   }
+@@ -2148,13 +2219,23 @@
+     e.peers.pub[r] = reinterpret_cast<__nv_bfloat16*>(buffers[r] + FLAG_BYTES);
+   }
+   e.rank = int(rank);
++  // moedet-bp: DS41_BRRR_DET=1 (unset/empty: follow DS41_DETERMINISTIC) turns on pair-slot accumulation for launches of up
++  // to DS41_BRRR_DET_ROWS rows (default MAXM). Slot memory is packed by the launch's rows: slots * det_rows rows.
++  const char* det_env = getenv("DS41_BRRR_DET");
++  if (!det_env || !*det_env) det_env = getenv("DS41_DETERMINISTIC");
++  const bool det = det_env && atoi(det_env) != 0;
++  const char* det_rows_env = getenv("DS41_BRRR_DET_ROWS");
++  const int det_rows_req = det_rows_env && *det_rows_env ? atoi(det_rows_env) : MAXM;
++  e.s.det_rows = det ? (det_rows_req < 1 ? 1 : det_rows_req > MAXM ? MAXM : det_rows_req) : 0;
++  const long dr = e.s.det_rows;
++  auto rows = [](long a, long b) { return a > b ? a : b; };
+   e.s.epoch = zeroed<unsigned>(1);
+   e.s.counters = zeroed<unsigned>(COUNTERS);
+   e.s.table = zeroed<Table>(1);
+-  e.s.zacc = zeroed<float>(long(MAXM) * OA);
++  e.s.zacc = zeroed<float>(rows(MAXM, Z_SLOTS * dr) * OA);
+   e.s.zq = zeroed<uint8_t>(long(MAXM) * OA);
+   e.s.zse = zeroed<uint8_t>(long(MAXM) * (OA / 32));
+-  e.s.yacc = zeroed<float>(long(MAXM) * HID);
++  e.s.yacc = zeroed<float>(rows(MAXM, Y_SLOTS * dr) * HID);
+   e.s.yattn = zeroed<__nv_bfloat16>(long(MAXM) * HID);
+   e.s.mixp = zeroed<float>(long(SLICES) * MAXM * MIXW);
+   e.s.mixq = zeroed<float>(long(MAXM) * (MIX + 1));
+@@ -2165,14 +2246,14 @@
+   e.s.xse = zeroed<uint8_t>(long(MAXM) * SLICES);
+   e.s.gacc = zeroed<long long>(long(MAXM) * EXPERTS);
+   e.s.topk_w = zeroed<float>(ROUTES);
+-  e.s.sacc = zeroed<float>(long(MAXM) * 2 * INTER);
++  e.s.sacc = zeroed<float>(rows(MAXM, S_SLOTS * dr) * 2 * INTER);
+   e.s.hsq = zeroed<uint8_t>(long(MAXM) * INTER);
+   e.s.hse = zeroed<uint8_t>(long(MAXM) * HQ_LD);
+   e.s.shacc = zeroed<float>(long(MAXM) * HID);
+-  e.s.hacc = zeroed<float>(long(ROUTES) * 2 * INTER);
++  e.s.hacc = zeroed<float>(rows(ROUTES, H_SLOTS * dr * TOPK) * 2 * INTER);
+   e.s.hq = zeroed<uint8_t>(long(ROUTES) * INTER);
+   e.s.hqe = zeroed<uint8_t>(long(ROUTES) * HQ_LD);
+-  e.s.yracc = zeroed<float>(long(MAXM) * HID);
++  e.s.yracc = zeroed<float>(rows(MAXM, YR_SLOTS * dr) * HID);
+   e.s.aq = zeroed<uint8_t>(long(MAXM) * HID);
+   e.s.as = zeroed<uint8_t>(long(SLICES / 4) * 16 * MAXM);
+   e.s.qkp = zeroed<float>(long(KSPLIT) * MAXM * QKV);
+@@ -2180,6 +2261,12 @@
+   e.s.qsq = zeroed<float>(long(QKV_TILES) * MAXM);
+   e.s.tiles = zeroed<unsigned>(QKV_TILES);
+   e.s.pc = zeroed<unsigned>(PCOUNTERS);
++  if (det) {
++    const long extra = ((rows(MAXM, Z_SLOTS * dr) - MAXM) * OA + (rows(MAXM, Y_SLOTS * dr) - MAXM) * HID + (rows(MAXM, S_SLOTS * dr) - MAXM) * 2 * INTER +
++                        (rows(ROUTES, H_SLOTS * dr * TOPK) - ROUTES) * 2 * INTER + (rows(MAXM, YR_SLOTS * dr) - MAXM) * HID) * long(sizeof(float));
++    fprintf(stderr, "[brrr] moedet-bp: deterministic pair-slot accumulation ON (rank %d, rows <= %d, +%.1f MiB slot scratch)\n", e.rank, e.s.det_rows,
++            extra / 1048576.0);
++  }
+   int sms = 0, per = 0;
+   TORCH_CHECK(cudaDeviceGetAttribute(&sms, cudaDevAttrMultiProcessorCount, c10::cuda::current_device()) == cudaSuccess);
+   opt_in_smem<layer_kernel>(sizeof(Smem));
+@@ -2295,6 +2382,14 @@
+   p.w = l.w;
+   p.rank = e.rank;
+   p.m = m;
++  p.det = e.s.det_rows >= m ? 1 : 0;
++  if (e.s.det_rows && !p.det) {
++    static bool warned = false;
++    if (!warned) {
++      warned = true;
++      fprintf(stderr, "[brrr] moedet-bp: %d rows > DS41_BRRR_DET_ROWS=%d: such launches accumulate non-deterministically\n", m, e.s.det_rows);
++    }
++  }
+   p.o = data_as<const __nv_bfloat16>(o);
+   p.o_stride = o.stride(0);
+   p.positions = ptr<long>(positions);

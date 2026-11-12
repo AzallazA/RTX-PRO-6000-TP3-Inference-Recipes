@@ -1,0 +1,46 @@
+--- fused_moe/b12x.py.orig	2026-11-11 07:55:56.774679941 -0500
++++ fused_moe/b12x.py	2026-11-11 07:55:56.783375029 -0500
+@@ -153,6 +153,35 @@
+ _PENDING_INPLACE_LAYERS: "weakref.WeakSet[Any]" = weakref.WeakSet()
+ 
+ 
++_DS41_MOE_DET_LOGGED: set = set()
++
++
++def _ds41_moe_det_routing(lane: int) -> dict:
++    """moedet-alite (2026-11-11): explicit RoutingSpec.deterministic_output per workspace lane.
++
++    DS41_MOE_DET: '' = leave b12x's env default (image behaviour), 'target' = deterministic top-k
++    output for lane 0 (target model) only, 'all' = every plan, 'off' = none. Unset/empty DS41_MOE_DET
++    follows DS41_DETERMINISTIC=1 -> 'target'.
++    """
++    mode = os.environ.get("DS41_MOE_DET", "").strip().lower()
++    if not mode and os.environ.get("DS41_DETERMINISTIC", "0").strip() not in ("", "0"):
++        mode = "target"
++    if mode in ("", "default"):
++        return {}
++    if mode == "target":
++        det = int(lane) == 0
++    elif mode in ("all", "1"):
++        det = True
++    elif mode in ("off", "0"):
++        det = False
++    else:
++        raise ValueError(f"DS41_MOE_DET must be '', target, all or off, got {mode!r}")
++    if (mode, int(lane)) not in _DS41_MOE_DET_LOGGED:
++        _DS41_MOE_DET_LOGGED.add((mode, int(lane)))
++        logger.info("moedet-alite: DS41_MOE_DET=%s lane %d -> deterministic_output=%s", mode, int(lane), det)
++    return {"deterministic_output": det}
++
++
+ def _require_b12x_fused_moe() -> Any:
+     fused_moe = get_b12x_fused_moe()
+     assert fused_moe is not None
+@@ -1367,6 +1396,7 @@
+                 ),
+                 routing=fused_moe.RoutingSpec(
+                     apply_router_weight_on_input=route_on_input,
++                    **_ds41_moe_det_routing(getattr(workload, "lane", 0)),
+                 ),
+                 # Tuning choices depend on the routing corpus. Invalidate only
+                 # MoE choices when its distribution changes, not compiled code

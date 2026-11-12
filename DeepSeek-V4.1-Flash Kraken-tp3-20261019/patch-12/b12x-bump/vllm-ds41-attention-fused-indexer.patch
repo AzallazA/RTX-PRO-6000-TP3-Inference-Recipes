@@ -1,0 +1,33 @@
+--- a/vllm/models/deepseek_v4_1/attention.py	2026-11-03 10:14:21.891496558 -0500
++++ b/vllm/models/deepseek_v4_1/attention.py	2026-11-09 19:11:37.357637333 -0500
+@@ -1103,7 +1103,8 @@
+ 
+     def _index_call(self, mode: str, rows: int, *, benchmark: bool = False):
+         def prepare(state):
+-            from b12x.attention.dsa_indexer.mxfp4 import score_mxfp4, select_mxfp4
++            # b12x >= 573e91e0 (2026-11-07) fuses MXFP4 scoring and top-512 selection: the staged
++            # score_mxfp4/select_mxfp4 API and its full-context score/logit buffers are gone.
+             from b12x.preparation import PreparedCall
+ 
+             cache = self.indexer.k_cache.kv_cache
+@@ -1180,8 +1181,7 @@
+             )
+ 
+             def run():
+-                score_mxfp4(binding, launchers=state._launchers)
+-                return select_mxfp4(binding, launchers=state._launchers)
++                return state.run(binding)
+ 
+             return PreparedCall(
+                 run=run,
+@@ -1555,8 +1555,8 @@
+                     **candidate_args,
+                 )
+                 retain_cuda_graph_capture_resource(scratch)
+-                dsa_indexer.score(binding)
+-                dsa_indexer.select(binding)
++                # Fused MXFP4 score + exact top-512 (b12x >= 573e91e0; replaces score() + select()).
++                dsa_indexer.run(binding)
+ 
+         _sp_check = None
+         if mode == "decode" and sparse_decode.fits(q, self.swa_width, 512 if main is not None else 0):

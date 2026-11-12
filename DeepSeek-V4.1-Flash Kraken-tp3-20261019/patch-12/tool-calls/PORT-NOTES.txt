@@ -1,0 +1,65 @@
+patch-tools: upstream vLLM DeepSeek-V4.1 tool-calling/frontend fixes as a mount overlay for
+azallaza/ds41-kraken-tp3:20261019.11 (vLLM fork 6d66eed35, upstream merge-base 0f8fa53). Overlay: ../compose.tools.yaml.
+Prepared 2026-11-09, CPU only. Every patched file = the file extracted from .11 + the PR hunks below (minimal port;
+fork-specific behaviour kept: developer->system mapping, tool namespaces, effort map, latest_reminder role).
+
+Files (site-packages relative):
+  vllm/tokenizers/deepseek_v41.py           #62199 (image-token 400), #62729 (pass controls), #64971 (tool_reference)
+  vllm/tokenizers/deepseek_v41_encoding.py  #62729 (generation controls), #62199 docstrings (core already in .11)
+  vllm/parser/deepseek_v41.py               #62517 (TOOL_START variant), #62729 (turn_boundary_tokens)
+  vllm/entrypoints/anthropic/serving.py     #64971 (one tool message per tool_result)
+The stack serves through the Python frontend (no VLLM_USE_RUST_FRONTEND in compose/launcher; tokenizer-mode,
+reasoning-parser and tool-call-parser = deepseek_v41 from ds41-flash.profile.yaml).
+
+Per PR
+------
+#62199 (encoder = 1017 reference)  PORTED. The core change (find_last_user_index skips user messages made only of
+  tool results, so the reasoning before a tool call is kept) is ALREADY IN .11: it is exactly the encoder half of
+  the BRRR "renderer tool-loop fix" (patch-brrr/stage1.patch, baked in the 2026-11-01 layer). Added here: the
+  reference's literal-<｜deepseek_image｜> check (text, text parts, reasoning -> ValueError = HTTP 400) and docstrings.
+  Not taken: the upstream context lines carrying image_order/_image_indices (that is #60792, a different PR; see the
+  reconciliation below). The 5 golden fixtures from the checkpoint's encoding/tests match (closed-history form).
+  Note: the "reasoning kept" effect only applies to requests WITHOUT a `tools` field; with tools the encoder never
+  drops history reasoning (drop_thinking is forced off), so it cannot explain the reasoning-on sqlbench drop.
+#62200 (Rust renderer twin)  SKIPPED: Rust frontend not used by this stack (rust/ code, not in site-packages).
+#62517 (parser `<｜DSML｜ tool_calls>` opener)  PORTED as is (one hunk). Stock .11 parses the calls but leaks the
+  opener into content ("Checking.\n\n<｜DSML｜ tool_calls>\n") and, in thinking mode, into reasoning.
+#62729 (add_generation_prompt / continue_final_message)  PORTED, PARTIAL on one point:
+  encoder + tokenizer wrapper: ported as is (final assistant message gets a new assistant turn by default;
+  add_generation_prompt=false leaves the prompt open-ended; continue_final_message leaves the final assistant
+  message without EOS, reasoning left open when it ends inside reasoning; no final assistant -> 400).
+  parser: turn_boundary_tokens {<｜User｜>, <｜Assistant｜>} declared (the engine already supports it in .11). This
+  reaches streaming parse_delta and the engine-side reasoning_ended check (chat_completion/serving.py:364
+  parser.is_reasoning_end(prompt_token_ids)). NOT reached: the NON-streaming parse() of .11 has no prompt hook
+  (upstream's set_prompt_token_ids came later), so a non-streaming continue_final_message after a closed </think>
+  still parses its output as reasoning-first. Infrastructure missing in the image; not ported.
+  Behaviour change to know: a conversation ending with an assistant message now gets `<｜Assistant｜><think>`
+  (or `</think>`) appended unless the client sends continue_final_message=true (or add_generation_prompt=false).
+#64971 (tool_reference)  PORTED as is: V4.1 renders each tool_reference part as the tool name (joined with \n\n);
+  /v1/messages emits ONE tool message per tool_result (references first, then text) instead of an extra empty
+  result + a second tool message (which misaligned results after parallel calls).
+Upstream tests needing a server or Rust (test_render.py, cargo tests) were replaced by in-process equivalents.
+
+Reconciliation with the BRRR tool-message reorder patch
+-------------------------------------------------------
+BRRR's "renderer tool-loop fix" (patch-brrr/stage1.patch, image layer 2026-11-01) touches two files:
+  1. tokenizers/deepseek_v41_encoding.py: find_last_user_index skips tool-result-only user turns. Byte-identical in
+     intent and code to #62199's encoder change -> kept unchanged, now documented as such. The overlay's encoder is
+     BRRR's file + the #62729 hunks; nothing of BRRR's is reverted.
+  2. renderers/deepseek_v4.py: reorders the raw OpenAI messages into the encoder's merged/sorted order
+     (merge_tool_messages + sort_tool_results_by_call_order) before parse_chat_messages, so images inside tool
+     results are collected in prompt order. Upstream solved the same problem differently (#60792 image_order /
+     _image_indices). Since #62199/#62729/#64971 do not touch the renderer and do not depend on image_order, the BRRR
+     renderer stays as baked (NOT overlaid) and upstream image_order is NOT ported. Both intents hold: tool results
+     render in call order (checked against the 1017 reference with out-of-order results) and the encoder's
+     generation controls see the same final message (the reorder only permutes tool results inside one tool block;
+     assistant messages never move). Checked through the baked renderer itself (test_brrr_renderer_*).
+     The encoder re-sorts idempotently, so prompts are unchanged by the reorder.
+
+Checks (CPU, no GPU, no compose project touched): ./check_tools.sh [patched|unpatched|both]
+  docker run --rm --name tools-check-<pid>-<mode> --network none, overlay files mounted exactly like the overlay,
+  tests/ (pytest; replay_harness.py copied unchanged from upstream @0f8fa53), the 1017 reference encoder
+  (checkpoint encoding/encoding.py + tests/ fixtures) mounted read-only.
+  2026-11-09 result: patched 89 passed; unpatched 48 passed + 41 xfailed (strict) = every new expectation fails on
+  stock .11 for the PR's reason (opener leak, no 400, generation controls ignored, tool_reference rejected,
+  anthropic two tool messages, no turn boundaries). Summary line: "TOOLS-CHECK PASS (both)".

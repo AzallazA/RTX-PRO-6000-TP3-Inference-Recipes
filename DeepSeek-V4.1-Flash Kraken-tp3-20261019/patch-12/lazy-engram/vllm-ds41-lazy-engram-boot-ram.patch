@@ -1,0 +1,150 @@
+# PATCH(ds41-lazy-engram) 2026-11-10: boot host-RAM peak fix for lazy Engram RAM tables (image .11/.12 vLLM).
+# Apply in site-packages: cd /opt/venv/lib/python3.12/site-packages && patch -p1 < vllm-ds41-lazy-engram-boot-ram.patch
+# (.12 builds: apply after the vision-staging model.py; the hunks apply to both model.py versions.)
+# Inactive unless DS41_ENGRAM_LAZY_SELF_ARM=1 and/or DS41_ENGRAM_LAZY_PARALLEL=1; only matters with
+# DS41_ENGRAM_LAZY_RAM_LAYERS set.
+#  - DS41_ENGRAM_LAZY_SELF_ARM=1: every TP rank creates the promotion arm file on its first real (non-dummy) batch,
+#    so lazy tables are filled before any request reads them and all ranks take the fill/barrier branch on the same step.
+#  - DS41_ENGRAM_LAZY_PARALLEL=1: fill all ranks' lazy tables at once when every rank has room for all of them + margin.
+--- a/vllm/models/deepseek_v4_1/nvidia/model.py
++++ b/vllm/models/deepseek_v4_1/nvidia/model.py
+@@ -570,6 +570,36 @@
+                     logger.exception("Failed to clear Engram rows during cleanup")
+             raise
+ 
++    def self_arm_lazy_engram(self) -> None:
++        """PATCH(ds41-lazy-engram): arm promotion on the first real batch.
++
++        Called by DeepseekV41ModelState.prepare_inputs only for batches whose
++        requests are all registered (never for profile/warm-up dummy batches,
++        which use unregistered request ids). With DS41_ENGRAM_LAZY_SELF_ARM=1
++        and lazy Engram tables still unfilled, every TP rank creates the arm
++        file itself, so all ranks take the promote-and-fill branch on the same
++        step (no arm-file race against ds41-serve) and no real request ever
++        reads the zero rows an unfilled lazy table contributes.
++        """
++        if not _LAZY_SELF_ARM or not getattr(self, "_lazy_engram_pending", True):
++            return
++        arm_file = os.environ.get("B12X_DEFERRED_BANK_ARM_FILE", "")
++        if not arm_file or os.path.exists(arm_file):
++            return
++        pending = any(
++            layer.engram.embed_tokens.lazy_pending
++            for layer in islice(self.layers, self.start_layer, self.end_layer)
++            if getattr(layer, "engram", None) is not None
++        )
++        if not pending:
++            return
++        try:
++            with open(arm_file, "a"):
++                pass
++            logger.info("Lazy Engram RAM: first real batch, created arm file %s", arm_file)
++        except OSError as exc:
++            logger.warning("Lazy Engram RAM: cannot create arm file %s: %s", arm_file, exc)
++
+     def _fill_lazy_engram(self, engrams):
+         """Fill DS41_ENGRAM_LAZY_RAM_LAYERS tables once promotion is armed.
+ 
+@@ -577,6 +607,8 @@
+         then fills each rank's lazy tables one rank at a time, checking host
+         RAM before each fill. Runs outside graph capture, before the step's
+         Engram lookups, so no request reads an unfilled table once armed.
++        PATCH(ds41-lazy-engram): DS41_ENGRAM_LAZY_PARALLEL=1 fills all ranks at
++        once when every rank sees room for all ranks' tables plus the margin.
+         """
+         lazy = [e for e in engrams if e.embed_tokens.lazy_pending]
+         if not lazy:
+@@ -592,9 +624,36 @@
+         torch.cuda.synchronize()
+         group = get_tp_group()
+         margin = int(float(os.environ.get("DS41_ENGRAM_LAZY_MARGIN_GIB", "8")) * (1 << 30))
++        need = sum(e.embed_tokens.mapped_host_nbytes for e in lazy)
++        if _LAZY_PARALLEL and group.world_size > 1:
++            available = _host_mem_available()
++            fits = torch.tensor(
++                [1 if available >= group.world_size * need + margin else 0],
++                dtype=torch.int32,
++            )
++            torch.distributed.all_reduce(
++                fits, op=torch.distributed.ReduceOp.MIN, group=group.cpu_group
++            )
++            if int(fits.item()):
++                start = time.perf_counter()
++                for engram in lazy:
++                    engram.embed_tokens.fill_lazy()
++                logger.info(
++                    "Lazy Engram RAM: rank %d filled %.2f GiB in %.1f s, all ranks "
++                    "in parallel (host RAM available before: %.1f GiB)",
++                    group.rank_in_group, need / (1 << 30),
++                    time.perf_counter() - start, available / (1 << 30),
++                )
++                group.barrier()
++                self._lazy_engram_pending = False
++                return
++            logger.info(
++                "Lazy Engram RAM: not enough host RAM on every rank for a parallel "
++                "fill (%.1f GiB available here); filling one rank at a time",
++                available / (1 << 30),
++            )
+         for rank in range(group.world_size):
+             if rank == group.rank_in_group:
+-                need = sum(e.embed_tokens.mapped_host_nbytes for e in lazy)
+                 available = _host_mem_available()
+                 if available < need + margin:
+                     raise RuntimeError(
+@@ -1135,6 +1194,11 @@
+             )
+         state.update(parts={}, rows=0, files=state["files"] + 1)
+ 
++# PATCH(ds41-lazy-engram): both default off (image behaviour).
++_LAZY_SELF_ARM = os.environ.get("DS41_ENGRAM_LAZY_SELF_ARM", "0") == "1"
++_LAZY_PARALLEL = os.environ.get("DS41_ENGRAM_LAZY_PARALLEL", "0") == "1"
++
++
+ def _host_mem_available() -> int:
+     with open("/proc/meminfo") as meminfo:
+         for line in meminfo:
+--- a/vllm/models/deepseek_v4_1/nvidia/model_state.py
++++ b/vllm/models/deepseek_v4_1/nvidia/model_state.py
+@@ -1,5 +1,6 @@
+ # SPDX-License-Identifier: Apache-2.0
+ # SPDX-FileCopyrightText: Copyright contributors to the vLLM project
++import os
+ from typing import Any
+ 
+ import torch
+@@ -20,6 +21,23 @@
+ from vllm.v1.worker.utils import AttentionGroup
+ 
+ 
++# PATCH(ds41-lazy-engram): default off (image behaviour).
++_LAZY_SELF_ARM = os.environ.get("DS41_ENGRAM_LAZY_SELF_ARM", "0") == "1"
++
++
++def _is_real_batch(input_batch: InputBatch, req_states: RequestState) -> bool:
++    """PATCH(ds41-lazy-engram): True for scheduler batches of registered requests.
++
++    Profile and warm-up dummy batches (InputBatch.make_dummy) carry fresh random
++    request ids that RequestState never registered.
++    """
++    req_ids = getattr(input_batch, "req_ids", None)
++    known = getattr(req_states, "req_id_to_index", None)
++    if not req_ids or known is None:
++        return False
++    return all(req_id in known for req_id in req_ids)
++
++
+ @triton.jit(do_not_specialize=["num_reqs"])
+ def _gather_lookback_kernel(
+     lookback_ptr,
+@@ -255,6 +273,10 @@
+             BLOCK_DEPTH=triton.next_power_of_2(depth),
+         )
+         model_inputs["lookback_token_ids"] = window
++        if _LAZY_SELF_ARM and _is_real_batch(input_batch, req_states):
++            # PATCH(ds41-lazy-engram): only with DS41_ENGRAM_LAZY_SELF_ARM=1.
++            for model in self.disk_engram_models:
++                model.self_arm_lazy_engram()
+         for model in self.disk_engram_models:
+             model.prepare_disk_engram(
+                 input_batch.input_ids, input_batch.query_start_loc, window

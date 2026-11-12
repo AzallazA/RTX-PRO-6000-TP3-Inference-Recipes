@@ -1,0 +1,69 @@
+--- a/vllm/model_executor/kernels/linear/b12x_blockscaled.py
++++ b/vllm/model_executor/kernels/linear/b12x_blockscaled.py
+@@ -45,6 +45,41 @@
+     return weight.values, weight.scale_mma, None, "none"
+ 
+ 
++class _RegimePlanView:
++    """A ``plan_regimes`` composite as ``blockscaled.mm`` reads it.
++
++    PATCH(ds41-b12x-bump): b12x c82506d71 (fused rounded SwiGLU packing, in
++    pins from 2026-11-07 on) makes ``blockscaled_mm`` read
++    ``plan.query.source_activation`` to size the source row. ``plan_regimes``
++    returns a ``_CompositePlan``, which has no ``query``, so every packed
++    NVFP4/MXFP8 call raised ``AttributeError`` (the profile run's first LM-head
++    projection on the 2026-11-10 bump boot). The view exposes the capacity
++    child's query (all regime children share its source activation and K) and
++    forwards everything else, notably ``handle``, which ``blockscaled.mm``
++    passes to the custom op that resolves the prepared regime. The composite
++    itself stays the declared and prepared plan.
++    """
++
++    __slots__ = ("plan", "query")
++
++    def __init__(self, plan) -> None:
++        self.plan = plan
++        self.query = plan.variants[max(plan.token_counts)].query
++
++    def __getattr__(self, name: str):
++        # Only reached for names the view does not hold (handle, prepared, ...).
++        if name.startswith("__") or name in self.__slots__:
++            raise AttributeError(name)
++        return getattr(self.plan, name)
++
++
++def _mm_plan(plan):
++    """``plan`` as ``blockscaled.mm`` expects it: scalar plans pass through."""
++    if plan is None or hasattr(plan, "query") or not hasattr(plan, "variants"):
++        return plan
++    return _RegimePlanView(plan)
++
++
+ class B12xBlockscaledLinear:
+     def __init__(
+         self,
+@@ -67,6 +102,9 @@
+         self.activation_scale = activation_scale
+         self.plan = None
+         self._plan_key: tuple[int, tuple[int, ...]] | None = None
++        # PATCH(ds41-b12x-bump): the plan handed to blockscaled.mm (see _RegimePlanView).
++        self._mm_plan_source = None
++        self._mm_plan = None
+ 
+     @property
+     def out_features(self) -> int:
+@@ -311,10 +349,13 @@
+                 )
+         api = get_b12x_blockscaled()
+         assert api is not None
++        if self._mm_plan_source is not plan:
++            self._mm_plan = _mm_plan(plan)
++            self._mm_plan_source = plan
+         return api.mm(
+             source,
+             self.packed,
+-            plan=plan,
++            plan=self._mm_plan,
+             bias=bias,
+             workspace=workspace,
+             activation_global_scale=self.activation_scale,

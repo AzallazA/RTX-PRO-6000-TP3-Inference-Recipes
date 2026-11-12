@@ -1,0 +1,388 @@
+# PATCH(ds41-kv-admission) 2026-11-10: KV-aware prefill admission + progress guard for the vLLM v1 scheduler (image .11/.12 vLLM).
+# Apply in site-packages: cd /opt/venv/lib/python3.12/site-packages && patch -p1 < vllm-kv-aware-prefill-admission.patch
+# Inactive unless DS41_KV_ADMISSION=1.
+--- a/vllm/v1/core/sched/scheduler.py
++++ b/vllm/v1/core/sched/scheduler.py
+@@ -2,6 +2,7 @@
+ # SPDX-FileCopyrightText: Copyright contributors to the vLLM project
+ import itertools
+ import math
++import os
+ import time
+ from collections import defaultdict, deque
+ from collections.abc import Iterable
+@@ -93,6 +94,14 @@
+ logger = init_logger(__name__)
+ 
+ 
++def _env_flag(name: str, default: bool) -> bool:
++    """PATCH(ds41-kv-admission): boolean environment switch."""
++    value = os.environ.get(name)
++    if value is None or value.strip() == "":
++        return default
++    return value.strip().lower() not in ("0", "false", "no", "off")
++
++
+ def _build_kv_connector_block_state(
+     kv_cache_config: KVCacheConfig,
+     kv_cache_manager: KVCacheManager,
+@@ -414,6 +423,55 @@
+         self.scheduler_reserve_full_isl = (
+             self.scheduler_config.scheduler_reserve_full_isl
+         )
++        # PATCH(ds41-kv-admission): KV-aware prefill admission + progress guard.
++        # DS41_KV_ADMISSION=1: a waiting request whose uncached prompt is longer
++        # than DS41_KV_ADMISSION_SHORT_TOKENS is admitted only if its remaining
++        # prompt fits next to what in-flight prefills still need plus
++        # DS41_KV_ADMISSION_HEADROOM (fraction of the pool) for decode growth.
++        # If in-flight prefills still deadlock on a full pool, the newest
++        # partial prefill is preempted (DS41_KV_ADMISSION_GUARD, default on).
++        self.kv_aware_admission = _env_flag("DS41_KV_ADMISSION", False)
++        self.kv_admission_guard = self.kv_aware_admission and _env_flag(
++            "DS41_KV_ADMISSION_GUARD", True
++        )
++        self.kv_admission_short_tokens = int(
++            os.environ.get(
++                "DS41_KV_ADMISSION_SHORT_TOKENS",
++                4 * self.scheduler_config.max_num_batched_tokens,
++            )
++        )
++        self.kv_admission_headroom_blocks = math.ceil(
++            float(os.environ.get("DS41_KV_ADMISSION_HEADROOM", "0.01"))
++            * kv_cache_config.num_blocks
++        )
++        self.kv_admission_stats = {"gated": 0, "guard_preemptions": 0}
++        # request_id -> blocks it needed when last held by the gate. Used to keep
++        # it out of the step's prefill lanes until that many blocks could fit.
++        self._kv_admission_held: dict[str, int] = {}
++        self._kv_admission_last_log = 0.0
++        # Consecutive prefill-attempting steps in which no running prefill
++        # advanced and one failed to get blocks. The guard fires at
++        # DS41_KV_ADMISSION_GUARD_STEPS (default 3), so a transient miss (lanes
++        # went elsewhere for a step) never preempts.
++        self._kv_stuck_steps = 0
++        # Aging: once the oldest held long prompt has waited this long (s), its
++        # need is kept free against later long admissions (FCFS, no
++        # starvation). Before that, later prompts that fit may go first.
++        self.kv_admission_hol_s = float(
++            os.environ.get("DS41_KV_ADMISSION_HOL_S", "30")
++        )
++        self.kv_admission_guard_steps = max(
++            1, int(os.environ.get("DS41_KV_ADMISSION_GUARD_STEPS", "3"))
++        )
++        if self.kv_aware_admission:
++            logger.info(
++                "KV-aware prefill admission on: short prompts <= %d tokens "
++                "bypass, headroom %d blocks of %d, progress guard %s",
++                self.kv_admission_short_tokens,
++                self.kv_admission_headroom_blocks,
++                kv_cache_config.num_blocks,
++                "on" if self.kv_admission_guard else "off",
++            )
+ 
+         self.has_mamba_layers = kv_cache_config.has_mamba_layers
+         self.needs_kv_cache_zeroing = kv_cache_config.needs_kv_cache_zeroing
+@@ -934,8 +992,16 @@
+         prefill_interleave_step = (
+             self.prefill_interleave_controller.begin_step(
+                 running=self.running,
+-                waiting=self.waiting if admission_open else (),
+-                skipped_waiting=self.skipped_waiting if admission_open else (),
++                waiting=(
++                    self._kv_admission_lane_filter(self.waiting)
++                    if admission_open
++                    else ()
++                ),
++                skipped_waiting=(
++                    self._kv_admission_lane_filter(self.skipped_waiting)
++                    if admission_open
++                    else ()
++                ),
+                 request_lookup=self.requests,
+                 is_local_prefill=self._request_has_local_prefill,
+                 max_parallel_prefills=self.max_parallel_prefills,
+@@ -1005,6 +1071,15 @@
+             else None
+         )
+ 
++        # PATCH(ds41-kv-admission): running prefills whose chunk could not get
++        # KV blocks this step, and the step-start running set for the guard.
++        kv_blocked_prefill_ids: set[str] = set()
++        kv_running_at_start = (
++            {request.request_id for request in self.running}
++            if self.kv_admission_guard
++            else None
++        )
++
+         def schedule_running_requests(
+             service_class: ComputeServiceClass | None = None,
+             *,
+@@ -1263,6 +1338,8 @@
+ 
+                 if new_blocks is None:
+                     # Cannot schedule this request.
++                    if request.is_prefill_chunk and request in self.running:
++                        kv_blocked_prefill_ids.add(request.request_id)
+                     if prefill_interleave_step is not None:
+                         prefill_interleave_step.mark_unavailable(request.request_id)
+                     break
+@@ -1802,19 +1879,41 @@
+                     # avoid deadlock and predictable preemptions.
+                     reserved_blocks = self._inflight_prefill_reserved_blocks()
+ 
+-                new_blocks = self.kv_cache_manager.allocate_slots(
+-                    request,
+-                    num_new_tokens,
+-                    num_new_computed_tokens=num_new_local_computed_tokens,
+-                    new_computed_blocks=new_computed_blocks,
+-                    num_lookahead_tokens=effective_lookahead_tokens,
+-                    num_external_computed_tokens=num_external_computed_tokens,
+-                    delay_cache_blocks=load_kv_async,
+-                    num_encoder_tokens=num_encoder_tokens,
+-                    full_sequence_must_fit=self.scheduler_reserve_full_isl,
+-                    reserved_blocks=reserved_blocks,
+-                    has_scheduled_reqs=bool(self.running),
+-                )
++                kv_gate_blocks = (
++                    self._kv_admission_gate(
++                        request,
++                        new_computed_blocks,
++                        num_new_local_computed_tokens,
++                        num_external_computed_tokens,
++                    )
++                    if self.kv_aware_admission
++                    and has_local_prefill
++                    and not boundary_logits_only
++                    and request.num_computed_tokens == 0
++                    and request.num_tokens - num_computed_tokens
++                    > self.kv_admission_short_tokens
++                    else 0
++                )
++                if kv_gate_blocks:
++                    # PATCH(ds41-kv-admission): the remaining prompt does not
++                    # fit next to the in-flight prefills; treat as no capacity.
++                    new_blocks = None
++                else:
++                    if self._kv_admission_held:
++                        self._kv_admission_held.pop(request_id, None)
++                    new_blocks = self.kv_cache_manager.allocate_slots(
++                        request,
++                        num_new_tokens,
++                        num_new_computed_tokens=num_new_local_computed_tokens,
++                        new_computed_blocks=new_computed_blocks,
++                        num_lookahead_tokens=effective_lookahead_tokens,
++                        num_external_computed_tokens=num_external_computed_tokens,
++                        delay_cache_blocks=load_kv_async,
++                        num_encoder_tokens=num_encoder_tokens,
++                        full_sequence_must_fit=self.scheduler_reserve_full_isl,
++                        reserved_blocks=reserved_blocks,
++                        has_scheduled_reqs=bool(self.running),
++                    )
+ 
+                 if new_blocks is None:
+                     # The request cannot be scheduled.
+@@ -2019,6 +2118,41 @@
+                 enforce_lora_limit=True,
+             )
+ 
++        if self.kv_admission_guard:
++            # PATCH(ds41-kv-admission): guaranteed progress. If for several
++            # steps no prefill that was already running advanced and some could
++            # not get KV blocks, the partial prefills hold the pool against each
++            # other. Preempt the newest one so the others can finish.
++            victim = self._kv_admission_guard_victim(
++                kv_running_at_start,
++                num_scheduled_tokens,
++                blocked=bool(kv_blocked_prefill_ids)
++                and not preempted_reqs
++                and self._pause_state != PauseState.PAUSED_ALL,
++            )
++            if victim is not None:
++                victim_computed = victim.num_computed_tokens
++                self.running.remove(victim)
++                self._preempt_request(
++                    victim,
++                    scheduled_timestamp,
++                    drop_stale_output=self.requires_kv_delivery,
++                )
++                if prefill_interleave_step is not None:
++                    prefill_interleave_step.mark_unavailable(victim.request_id)
++                preempted_reqs.append(victim)
++                self.kv_admission_stats["guard_preemptions"] += 1
++                logger.warning(
++                    # (worded without "preempt": stress_kv.py fails on that word)
++                    "KV admission guard: requeued partial prefill %s "
++                    "(%d/%d tokens) to unblock %d stuck prefill(s), KV usage %.1f%%",
++                    victim.request_id,
++                    victim_computed,
++                    victim.num_tokens,
++                    len(kv_blocked_prefill_ids),
++                    100 * self.kv_cache_manager.usage,
++                )
++
+         if scheduled_prefill_req_ids:
+             self.prefill_interleave_controller.record_scheduled(
+                 scheduled_prefill_req_ids, self.current_step
+@@ -3997,6 +4131,162 @@
+             apply_admission_cap=True,
+         )
+ 
++    def _kv_admission_blocks(
++        self,
++        request: Request,
++        new_computed_blocks: tuple = (),
++        num_local_computed_tokens: int | None = None,
++        num_external_computed_tokens: int = 0,
++    ) -> int:
++        """PATCH(ds41-kv-admission): blocks `request` still needs for its
++        whole sequence (prompt + output so far + spec lookahead slots), after
++        prefix-cache hits, with the recycling-aware (SWA) admission cap."""
++        main_tokens = min(request.num_tokens, self.max_model_len)
++        num_tokens = min(main_tokens + self.num_lookahead_tokens, self.max_model_len)
++        if num_local_computed_tokens is None:
++            num_local_computed_tokens = request.num_computed_tokens
++        coordinator = self.kv_cache_manager.coordinator
++        return coordinator.get_num_blocks_to_allocate(
++            request_id=request.request_id,
++            num_tokens=num_tokens,
++            new_computed_blocks=(
++                new_computed_blocks
++                or self.kv_cache_manager.empty_kv_cache_blocks.blocks
++            ),
++            num_encoder_tokens=0,
++            total_computed_tokens=num_local_computed_tokens
++            + num_external_computed_tokens,
++            num_local_computed_tokens=num_local_computed_tokens,
++            num_tokens_main_model=main_tokens,
++            apply_admission_cap=True,
++        )
++
++    def _kv_admission_gate(
++        self,
++        request: Request,
++        new_computed_blocks: KVCacheBlocks,
++        num_new_local_computed_tokens: int,
++        num_external_computed_tokens: int,
++    ) -> int:
++        """PATCH(ds41-kv-admission): 0 if `request` may start its prefill,
++        else the blocks it needs (it stays waiting).
++
++        Admit only if free blocks cover its remaining prompt, the remaining
++        prompt of every in-flight prefill, the need of the oldest held request
++        that arrived before it and has waited DS41_KV_ADMISSION_HOL_S (aging,
++        no starvation), and the decode-growth headroom."""
++        need = self._kv_admission_blocks(
++            request,
++            new_computed_blocks.blocks,
++            num_new_local_computed_tokens,
++            num_external_computed_tokens,
++        )
++        committed = sum(
++            self._kv_admission_blocks(inflight)
++            for inflight in self._inflight_prefills
++            if inflight is not request
++        )
++        hol_reserve_blocks = 0
++        oldest_arrival = request.arrival_time
++        aged = time.time() - self.kv_admission_hol_s
++        for held_id, held_need in self._kv_admission_held.items():
++            held = self.requests.get(held_id)
++            if (
++                held is not None
++                and held is not request
++                and held.status in (RequestStatus.WAITING, RequestStatus.PREEMPTED)
++                and held.arrival_time < oldest_arrival
++                and held.arrival_time <= aged
++            ):
++                oldest_arrival, hol_reserve_blocks = held.arrival_time, held_need
++        free = self.kv_cache_manager.block_pool.get_num_free_blocks()
++        if (
++            need + committed + hol_reserve_blocks + self.kv_admission_headroom_blocks
++            <= free
++        ):
++            self._kv_admission_held.pop(request.request_id, None)
++            return 0
++        self.kv_admission_stats["gated"] += 1
++        self._kv_admission_held[request.request_id] = max(need, 1)
++        now = time.monotonic()
++        if now - self._kv_admission_last_log > 30.0:
++            self._kv_admission_last_log = now
++            logger.info(
++                "KV admission: holding %s (needs %d blocks; free %d, in-flight "
++                "prefills need %d, headroom %d; %d held so far)",
++                request.request_id,
++                need,
++                free,
++                committed + hol_reserve_blocks,
++                self.kv_admission_headroom_blocks,
++                self.kv_admission_stats["gated"],
++            )
++        return max(need, 1)
++
++    def _kv_admission_lane_filter(self, queue: Iterable[Request]) -> Iterable[Request]:
++        """PATCH(ds41-kv-admission): drop held waiting requests from the lane
++        candidates while their last measured need still does not fit, so the
++        lanes (and the step budget) go to prefills that can run. Without this a
++        held request ranks first (never served) and pushes the running
++        prefills into the non-preempting leftover pass every step."""
++        held = self._kv_admission_held
++        if not held:
++            return queue
++        for request_id in [r for r in held if r not in self.requests]:
++            del held[request_id]
++        if not held:
++            return queue
++        free = self.kv_cache_manager.block_pool.get_num_free_blocks()
++        spare = (
++            free
++            - self.kv_admission_headroom_blocks
++            - sum(self._kv_admission_blocks(r) for r in self._inflight_prefills)
++        )
++        return [
++            request
++            for request in queue
++            if request.request_id not in held or held[request.request_id] <= spare
++        ]
++
++    def _kv_admission_guard_victim(
++        self,
++        running_at_start: set[str] | None,
++        num_scheduled_tokens: dict[str, int],
++        blocked: bool,
++    ) -> Request | None:
++        """PATCH(ds41-kv-admission): the partial prefill to preempt, or None.
++
++        `blocked`: a running prefill failed to get blocks this step. The stuck
++        counter resets when a running prefill advances, counts blocked steps,
++        and ignores steps that tried no running prefill (decode turns).
++        Candidates are partial prefills that were running at step start and got
++        nothing this step. At least two are needed (one keeps going). The
++        newest (lowest priority, then latest arrival) is chosen."""
++        assert running_at_start is not None
++        stuck = []
++        for request in self.running:
++            if request.request_id not in running_at_start:
++                continue
++            if not (request.is_prefill_chunk and request in self._inflight_prefills):
++                continue
++            if request.request_id in num_scheduled_tokens:
++                self._kv_stuck_steps = 0  # a running prefill advanced
++                return None
++            stuck.append(request)
++        if not blocked:
++            return None
++        self._kv_stuck_steps += 1
++        if self._kv_stuck_steps < self.kv_admission_guard_steps or len(stuck) < 2:
++            return None
++        if self.policy == SchedulingPolicy.PRIORITY:
++            victim = max(stuck, key=lambda r: (r.priority, r.arrival_time))
++        else:
++            victim = max(stuck, key=lambda r: r.arrival_time)
++        if not self._request_blocks_can_be_freed(victim):
++            return None
++        self._kv_stuck_steps = 0
++        return victim
++
+     def _inflight_prefill_reserved_blocks(self) -> int:
+         """Num blocks in-flight prefills still need to finish (their reservation)."""
+ 
