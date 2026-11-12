@@ -73,17 +73,19 @@ sampler, rejection mode, speculative decoding, Engram precision and prefix cachi
 reporter then found the two setups had loaded different checkpoints: with the **initial** DeepSeek-V4.1-Flash release,
 TP3 on our image scores in the TP4 range (119/125 over 5 rounds), and TP4 with **1017** drops to 98/125. The gap is the
 1017 checkpoint on this benchmark (a later checking query replaces the graded answer, or the tool loop hits its limit),
-not the TP3 port. Our own cross-check of the initial checkpoint against 1017 on `.12`: TBD-SQL-INITIAL.
+not the TP3 port.
 
 ## Coming from .11
 
 - Pull `.12` and recreate. Its b12x kernels compile into a new volume (`runtime-cache-12`) on the first start, which
   takes longer; later starts are warm. `B12X_COMPILE_WORKERS=2` (in `compose.yaml`) keeps that compile from running the
   host out of memory.
-- `compose.yaml` now mounts `ds41-flash.profile.yaml` and `image-contract.json`: the lil profile with
-  `rejection_sample_method: block` and the image's contract updated for that file. Every measurement and qualification
-  in this folder ran with block rejection; the `.11` compose did not mount the profile, so it served the image's
-  `standard` rejection. Remove the two lines to keep standard rejection.
+- **Block verification is now actually on.** Both images (`.11` and `.12`) have `rejection_sample_method: standard` built
+  in; every measurement and qualification in this folder, for `.11` and `.12` alike, ran with a profile that switches it
+  to `block`. The published `.11` compose did not mount that profile, so `.11` installs served **standard** rejection
+  although this README described block. `compose.yaml` now mounts `ds41-flash.profile.yaml` (block) and
+  `image-contract.json` (the image's contract updated for that file), so you get the tested setup. To keep standard
+  rejection, remove those two lines (on the SQL benchmark the two were within noise: 19.4 vs 19.0/25).
 - `ENGRAM_RAM_LAYERS` now selects `.12`'s lazily created tables (`1` = stock weights, the compose default; `1,14` =
   both 4-bit tables, the tested setup; empty = both on disk). `.11`'s at-boot tables moved to `ENGRAM_EAGER_RAM_LAYERS`:
   leave it empty on `.12` (setting it brings back the ~19 GB boot low point), set it when rolling back to `.11`.
