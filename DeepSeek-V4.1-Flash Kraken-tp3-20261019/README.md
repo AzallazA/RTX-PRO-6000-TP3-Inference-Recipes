@@ -84,11 +84,14 @@ not the TP3 port. Our own cross-check of the initial checkpoint against 1017 on 
   `rejection_sample_method: block` and the image's contract updated for that file. Every measurement and qualification
   in this folder ran with block rejection; the `.11` compose did not mount the profile, so it served the image's
   `standard` rejection. Remove the two lines to keep standard rejection.
-- `ENGRAM_RAM_LAYERS` now selects the lazily created tables (`1` = stock weights, the compose default; `1,14` = both
-  4-bit tables, the tested setup). Do not set `DS41_ENGRAM_RAM_LAYERS` yourself.
+- `ENGRAM_RAM_LAYERS` now selects `.12`'s lazily created tables (`1` = stock weights, the compose default; `1,14` =
+  both 4-bit tables, the tested setup; empty = both on disk). `.11`'s at-boot tables moved to `ENGRAM_EAGER_RAM_LAYERS`:
+  leave it empty on `.12` (setting it brings back the ~19 GB boot low point), set it when rolling back to `.11`.
 - `BRRR_RADIX_TOPK` defaults to `0` (b12x's fused indexer top-k on the new b12x); `.11` used `blocks`.
 - Output is run-to-run deterministic by default; `DS41_DETERMINISTIC=0` gives back ~1.5-2% decode.
-- Roll back with `DS41_IMAGE=azallaza/ds41-kraken-tp3:20261019.11 DS41_CACHE_VOLUME=runtime-cache BRRR_RADIX_TOPK=blocks`.
+- Roll back with `DS41_IMAGE=azallaza/ds41-kraken-tp3:20261019.11 DS41_CACHE_VOLUME=runtime-cache BRRR_RADIX_TOPK=blocks
+  ENGRAM_EAGER_RAM_LAYERS=1,14` (`1` with the stock weights). Without the last one `.11` reads both Engram tables from disk
+  (about 7.5% slower c1 decode, measured).
 
 ## What it is
 
@@ -479,6 +482,7 @@ layer-1 table (`ENGRAM_RAM_LAYERS=1`), the NVFP4 experts, standard rejection, an
 | `B12X_EXPERT_ROUTES_ALL` | `0` | `1` = dump route counts every 30 s to build your own order (~0.5-1% while on) |
 | `DS41_OFFLOAD_FROM` / `DS41_OFFLOAD_TO` | `20` / `33` | parked expert layers; do not pass ~34 |
 | `RESERVE_BYTES` | `1610612736` | GPU memory left free after promotion (1.5 GiB, stress-clean) |
+| `ENGRAM_EAGER_RAM_LAYERS` | empty | `.11` rollback only: Engram tables created at boot in host RAM (`1,14` 4-bit, `1` stock); keep empty on `.12` |
 | `ENGRAM_ROW_CACHE_ROWS` | `8388608` | host row cache for disk Engram tables; `0` = off |
 | `DRAFT_NVFP4_HEAD` | `1` | DSpark drafter vocabulary head in NVFP4; `0` = BF16 |
 | `DS41_LAUNCH_SETTINGS` | `/etc/ds41/launch.yaml` | lil launcher settings file (`k7.yaml` points it at `ds41-launch-k7.yaml`) |
@@ -532,7 +536,7 @@ services:
       - ${HF_CACHE_DIR:?Set HF_CACHE_DIR to your populated Hugging Face cache}:/root/.cache/huggingface:ro
       # b12x compile/tuning caches and the promotion arm file. .12 uses its own volume: its b12x (ea74ea61) kernels
       # differ from .11's, so the first start compiles them cold (longer first start; later starts are warm).
-      # Rollback to .11: DS41_IMAGE=azallaza/ds41-kraken-tp3:20261019.11 DS41_CACHE_VOLUME=runtime-cache.
+      # Rollback to .11: DS41_IMAGE=azallaza/ds41-kraken-tp3:20261019.11 DS41_CACHE_VOLUME=runtime-cache ENGRAM_EAGER_RAM_LAYERS=1,14.
       - ${DS41_CACHE_VOLUME:-runtime-cache-12}:/cache
       # Launcher settings from this release (max-num-seqs 8, graphs 48, 4096-token chunks, dspark k5) over the
       # copy baked into the image (which still says max-num-seqs 4).
@@ -608,8 +612,12 @@ services:
       # rank by rank on the first real batch (~6-8 s per rank), so the boot low point stays ~98 GB available instead
       # of ~19 GB. 1 = stock weights (94 GiB table, 31.5 GiB per GPU worker; layer 14 read from disk);
       # 1,14 = both 4-bit tables (the engram-nvidia / NVFP4 variants, 16.2 GiB per worker each: the tested setup).
-      DS41_ENGRAM_LAZY_RAM_LAYERS: "${ENGRAM_RAM_LAYERS:-1}"
-      DS41_ENGRAM_RAM_LAYERS: ""
+      # 1,14 with the stock FP8 weights = both 94 GiB tables (~189 GiB pinned host RAM): only on hosts with ~384 GB+
+      # RAM, not tested. Empty (ENGRAM_RAM_LAYERS=) = both tables read from disk (least RAM, slower decode).
+      DS41_ENGRAM_LAZY_RAM_LAYERS: "${ENGRAM_RAM_LAYERS-1}"
+      # At-boot RAM tables (.11 style): keep empty on .12 (lazy tables above); for a .11 rollback set
+      # ENGRAM_EAGER_RAM_LAYERS=1,14 (4-bit tables) or 1 (stock), or .11 reads both tables from disk (~7.5% slower c1).
+      DS41_ENGRAM_RAM_LAYERS: "${ENGRAM_EAGER_RAM_LAYERS-}"
       DS41_ENGRAM_LAZY_PARALLEL: "0"
       # Host RAM row cache for the disk Engram table, in rows (256 B each): 8388608 = 2 GiB
       # per GPU worker. 0 = read every row from the checkpoint.
