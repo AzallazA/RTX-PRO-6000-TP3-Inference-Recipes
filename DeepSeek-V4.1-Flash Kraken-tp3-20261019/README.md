@@ -293,6 +293,8 @@ same session unless marked (that session's `.11` read its Engram tables from dis
 | Tool calls, 60 at 4 concurrent | **60/60** | 60/60 |
 | Tool-call port checks: streaming with thinking, non-streaming, parallel results on `/v1/messages`, `continue_final_message` | all pass; literal image token → HTTP 400 | — |
 | LiveBench coding (release 2024-11-25, 32K budget) | **81.9** | `.10`: 81.5 / 81.5 / 82.5 |
+| GPQA Diamond (198 questions, temperature 0, 32K token budget, 8 concurrent; `llm-inference-bench --test-profile gpqa-diamond`) | **89.4%** (177/198; Wilson 95% 84.3-93.0%), 8 hit the token budget before answering | — |
+| tool-eval-bench (community leaderboard settings: hard mode, seed 42, temperature 0; `llm-inference-bench --tool-eval`) | **90/100**, 79/92 scenarios pass | — |
 | hotel-lights, 30 runs at 8 concurrent | **30 exact** / 0 wrong / 0 truncated | 30/30 (c4) |
 | lavd, 30 runs at 8 concurrent | **30 exact** / 0 wrong / 0 truncated | 30/30 |
 | Retrieval of three markers at 128K / 900K; needle at 995K | pass / pass; pass | pass / pass (`.3`) |
