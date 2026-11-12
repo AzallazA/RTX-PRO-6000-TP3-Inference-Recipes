@@ -181,34 +181,38 @@ Everything below is built in; `compose.yaml` only mounts the launcher settings a
 
 ## Measurements on this image
 
-### .12 against .11, same session
+### .12 speed
 
-Both images booted alternately (2 rounds each) on the same cards, `.env` and weights (`local/…-engram-nvidia`, 2x
-preset), **450 W/GPU**, 2026-11-11. Decode: `llm-inference-bench` 32K, 60 s per cell; tok/s is the mean of the two rounds,
-steps/s in brackets. **Caveat: in this session `.11` read both Engram tables from disk** (it has no lazy tables, and the
-shared `.env` did not set `ENGRAM_RAM_LAYERS=1,14` for it), while `.12` held both in RAM. The `.11` column is therefore a
-lower bound and the change column overstates `.12`'s gain. Against `.11` with both tables in RAM (same cards and
-settings, measured the day before): c1 106.7 → 108.1 steps/s (295 → 291 tok/s), c4 215.2 → 216.7 (564 → 583), c8
-405.5 → 417.6 (949 → 979), i.e. **+1-3% steps/s**; see also the like-for-like steps below the table. The earlier tables
-further down were measured at 350 W and with 30 s cells.
+Average of several runs, `llm-inference-bench`, 450 W/GPU, 2x preset, engram-nvidia weights with both Engram tables in
+host RAM (`ENGRAM_RAM_LAYERS=1,14`), deterministic serving on (the default):
 
-| | `.11` | `.12` | change |
+| | `.12` |
+| --- | ---: |
+| Decode 32K, c1 / c4 / c8 (tok/s) | **290 / 604 / 988** |
+| Decode 128K, c1 | **279** |
+| Decode 512K, c1 | **271** |
+| Prefill 32K / 128K (tok/s) | **16,593 / 15,224** |
+| First image / 6 images in parallel | 0.34 s / 0.78 s (`.11`: 2.10 s / 6.95 s) |
+
+### .12 against .11, both with Engram in RAM
+
+Same cards, settings and weights, 450 W, 2026-11-11; `.11` with `ENGRAM_RAM_LAYERS=1,14` (its at-boot tables, as it was
+published), 2 runs; `.12` from its qualification run, 2 rounds. Decode 32K, 60 s per cell; engine steps/s in brackets.
+(The qualification's own `.11` rounds read the Engram tables from disk and are not used here.)
+
+| | `.11` | `.12` | change (steps/s) |
 | --- | ---: | ---: | --- |
-| decode 32K c1, tok/s (steps/s) | 253 (98.4) | **291 (108.1)** | +15% (+10%) |
-| decode 32K c4 aggregate | 532 (196.7) | **583 (216.7)** | +10% (+10%) |
-| decode 32K c8 aggregate | 883 (379.3) | **979 (417.6)** | +11% (+10%) |
-| decode 128K c1 | 247 (95.0) | **273 (104.7)** | +10% |
-| decode 512K c1 | — (run voided by the benchmark's loop detection) | 272 | |
-| prefill 32K / 128K, tok/s | 15,314 / 13,895 | **15,873 / 14,442** | +3.6% / +3.9% |
-| coding peak c1, mean / max tok/s (TBD-CODING: average of 2 runs) | 417 / 468.5 (run 1) | 451 / 476 (run 1) | |
-| first image / 6 images in parallel | 2.10 s / 6.95 s | **0.34 s / 0.78 s** | |
-| decode with natural stops (respect EOS), c1 / c4 / c8 | — | 282 / 555 / 930 | 0 loops |
+| decode 32K c1, tok/s (steps/s) | 277 (106.0) | **291 (108.1)** | +2.0% |
+| decode 32K c4 aggregate | 580 (210.1) | **583 (216.7)** | +3.1% |
+| decode 32K c8 aggregate | 898 (388.0) | **979 (417.6)** | +7.6% |
+| coding peak c1, mean / max tok/s | 446.5 / 480 (2 runs) | 451 / 476 (1 run) | about level |
+| decode with natural stops (respect EOS), c1 / c4 / c8 | — | 282 / 555 / 930, 0 loops | |
 
 Like-for-like steps (each against the image just before it, same session, same Engram placement):
 `.11` → `.12` without the b12x update (vision staging, AV skip, tool fixes, KV admission, lazy Engram): decode c1/c4/c8
 290 / 579 / 951 tok/s, level with `.11`; + b12x `ea74ea61`: c1 +1.2%, c4 +7.6%, c8 +4.9% (3 rounds), prefill +2.5%,
 512K c1 +4%; + FP32 draft cache: level; + deterministic serving: c1 -1.5%, c4 level, c8 -2%. Images and boot host RAM
-are the large changes; decode is +1-3% steps/s against `.11` with its tables in RAM.
+are the large changes; decode is +2% / +3% / +8% steps/s at c1 / c4 / c8 against `.11` with its tables in RAM.
 KV is the same 2,185,581 tokens on both (fixed by the preset); `.12` keeps 6-7 more expert chunks per GPU in VRAM.
 
 ### Earlier tags
@@ -278,7 +282,7 @@ sessions are really needed; spare KV beyond the running sessions only feeds pref
 
 Run 2026-11-11 on the published image (`sha256:8d19fb46…`), 450 W, with the settings this folder's `compose.yaml` ships
 (block rejection, 2x preset) and the engram-nvidia weights with both tables in RAM, at 8 concurrent where a test is concurrent. `.11` columns are the
-same session unless marked.
+same session unless marked (that session's `.11` read its Engram tables from disk, which affects speed only).
 
 | Test | `.12` | `.11` |
 | --- | --- | --- |
@@ -286,7 +290,7 @@ same session unless marked.
 | 43 verifiable-answer questions, thinking off, temperature 0 | **42/43** (refusals 3/37) | 42/43 (2/37) |
 | Tool calls, 60 at 4 concurrent | **60/60** | 60/60 |
 | Tool-call port checks: streaming with thinking, non-streaming, parallel results on `/v1/messages`, `continue_final_message` | all pass; literal image token → HTTP 400 | — |
-| LiveBench coding (release 2024-11-25, 32K budget) | TBD-LIVEBENCH | `.10`: 81.5 / 81.5 / 82.5 |
+| LiveBench coding (release 2024-11-25, 32K budget) | **81.9** | `.10`: 81.5 / 81.5 / 82.5 |
 | hotel-lights, 30 runs at 8 concurrent | **30 exact** / 0 wrong / 0 truncated | 30/30 (c4) |
 | lavd, 30 runs at 8 concurrent | **30 exact** / 0 wrong / 0 truncated | 30/30 |
 | Retrieval of three markers at 128K / 900K; needle at 995K | pass / pass; pass | pass / pass (`.3`) |
@@ -295,7 +299,7 @@ same session unless marked.
 | Vision hard (60 images), right answer / strict format, T0 + T1 | **57 + 58** / 36 + 45 | 58 + 59 / 36 + 50 (release run) |
 | Image stress: 4 × 10 photos of 6000×4000 | 4/4, min free VRAM 550 MiB, no OOM | 4/4 |
 | Images during two ~470K-token prefills | 17/17, median 0.90 s; both long requests complete | — |
-| c8 KV stress (below) | TBD-STRESS | PASS (2026-11-03) |
+| c8 KV stress (below) | 16/16 long, 166/166 pings, 0 bad log lines, 0 restarts; **min free VRAM 193 MiB** (see below) | PASS (2026-11-03) |
 | Run-to-run determinism (3 prompts × 8 first tokens, 2 × 8 decodes of 128 tokens) | TBD-DET-BAKED | spread 0.1-1.5, top token flips |
 
 Vision: the prompts ask for a bare answer ("Reply with only the code."); the strict score counts an answer that comes
@@ -324,7 +328,7 @@ mapping-failure / preemption / cuBLAS lines.
 
 | Stress | Result |
 | --- | --- |
-| `.12`, 2x pool, c8 | TBD-STRESS |
+| `.12`, 2x pool, c8 | **PASS on requests**: 16/16 long, 166/166 pings, 0 bad log lines, 0 restarts (17.2 min); min free VRAM **193 MiB** |
 | `.11`, 2x pool, c8 | **PASS**: 16/16 long, 130/130 pings, 9.56M prompt tokens, min free VRAM 524 MiB, 0 bad log lines (26.5 min) |
 | `.10` (sparse attention), 2x pool, c8 | PASS: 16/16 long, 137/137 pings, 9.56M prompt tokens, min free VRAM 490 MiB, 0 bad log lines (28 min) |
 | `.9` (fused, vLLM dense weights), 2x pool, c8 | PASS: 16/16 long, 135/135 pings, 9.56M prompt tokens, min free VRAM 521 MiB, 0 bad log lines (27 min) |
@@ -333,6 +337,12 @@ mapping-failure / preemption / cuBLAS lines.
 | `.6` (BRRR kernels), 2x pool, c8 | PASS: 16/16 long, 136/136 pings, 9.56M prompt tokens, min free 543 MiB |
 | `.5` (cap-only adaptive), 2x pool, c8 | PASS: 16/16, 127/127, 9.56M tokens, min free 593 MiB |
 | `.4`, 2x / 4x / 6x / 8x pools, c4 | all PASS (min free 517-537 MiB; the 1.5 GiB reserve, not the KV size, governs stability) |
+
+`.12` runs with less spare VRAM at the peak of this test (193 MiB against 490-593 MiB on earlier tags): it keeps 6-7
+more expert chunks per GPU in VRAM, and the b12x update and deterministic reduction add small workspaces. Every request
+and ping completed. If you hit an out-of-memory error under heavier load, raise the promotion reserve
+(`RESERVE_BYTES=1879048192`, 1.75 GiB, instead of 1.5 GiB): a few experts stay in host memory and ~250 MiB more stays
+free per GPU.
 | 3-rank phased all-reduce extension (`patch-brrr/test_phased.py`) | 132 collectives bit/tolerance-equal to torch references |
 | Sparse attention vs b12x on live inputs (`DS41_SPARSE_CHECK=1`, 3,135 calls, 1-48 rows, all three layer types) | cosine 0.999996, max relative difference 4-8e-3 (bf16 rounding) |
 | Fused layer replay, vLLM dense weights vs `.8` copies (`patch-fused/replay_native.py`) | bit-identical outputs; memcheck 0 errors |
@@ -424,6 +434,8 @@ third-party, not audited by us; lavd/hotel-lights 30/30, retrieval pass, 41-43/4
 - Determinism is per batch, not batch-invariant: the same request can still produce different output when the rest of
   the batch differs (steps above 64 rows, e.g. a long prefill sharing the step, keep the old summation order).
 - The first `.12` start compiles the new b12x kernels (longer first start; keep the host otherwise idle).
+- Less VRAM headroom at peak than earlier tags: 193 MiB free in the c8 stress test (all requests completed). If you
+  see out-of-memory errors, set `RESERVE_BYTES=1879048192` (1.75 GiB promotion reserve).
 
 ## Not tested
 
