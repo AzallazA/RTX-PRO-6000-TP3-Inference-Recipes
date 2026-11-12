@@ -118,7 +118,9 @@ services:
       # rank by rank on the first real batch (~6-8 s per rank), so the boot low point stays ~98 GB available instead
       # of ~19 GB. 1 = stock weights (94 GiB table, 31.5 GiB per GPU worker; layer 14 read from disk);
       # 1,14 = both 4-bit tables (the engram-nvidia / NVFP4 variants, 16.2 GiB per worker each: the tested setup).
-      DS41_ENGRAM_LAZY_RAM_LAYERS: "${ENGRAM_RAM_LAYERS:-1}"
+      # 1,14 with the stock FP8 weights = both 94 GiB tables (~189 GiB pinned host RAM): only on hosts with ~384 GB+
+      # RAM, not tested. Empty (ENGRAM_RAM_LAYERS=) = both tables read from disk (least RAM, slower decode).
+      DS41_ENGRAM_LAZY_RAM_LAYERS: "${ENGRAM_RAM_LAYERS-1}"
       DS41_ENGRAM_RAM_LAYERS: ""
       DS41_ENGRAM_LAZY_PARALLEL: "0"
       # Host RAM row cache for the disk Engram table, in rows (256 B each): 8388608 = 2 GiB

@@ -462,7 +462,7 @@ layer-1 table (`ENGRAM_RAM_LAYERS=1`), the NVFP4 experts, standard rejection, an
 | --- | --- | --- |
 | `HF_CACHE_DIR` | required | Hugging Face cache containing the weights |
 | `MODEL` | `local/DeepSeek-V4.1-Flash-1017-engram-nvidia` | weights repo to serve (see [Alternative weights](#alternative-weights)) |
-| `ENGRAM_RAM_LAYERS` | `1` | Engram layers held in pinned host RAM, created lazily after promotion (`.12`); `1,14` with the 4-bit tables (the tested setup), `1` with the stock 94 GiB tables |
+| `ENGRAM_RAM_LAYERS` | `1` | Engram layers held in pinned host RAM, created lazily after promotion (`.12`); `1,14` with the 4-bit tables (the tested setup), `1` with the stock 94 GiB tables; `1,14` with the stock tables needs ~189 GiB pinned host RAM (hosts with ~384 GB+, not tested); empty (`ENGRAM_RAM_LAYERS=`) = both tables read from disk |
 | `KV_CACHE_MEMORY_BYTES` | `2415919104` (2x) | KV bytes per GPU; presets 2x/4x/6x/8x via `./kv.sh` or `kv-<preset>.yaml` |
 | `DS41_VERIFY_ROW_CAP` | `24` | cap-only adaptive verification row ceiling; `0` = upstream cost-model adaptive |
 | `VLLM_DSPARK_SHARD_MARKOV_HEAD` / `VLLM_DSPARK_REPLICATE_MARKOV_W1` | `1` / `1` | TP-sharded DSpark markov head for the vocab-split sampler; `0`/`0` = stock head, split sampler off (= `.6`) |
