@@ -1,0 +1,28 @@
+{
+ "id": "chatcmpl-8b238040a236c144-32",
+ "object": "chat.completion",
+ "created": 1794510772,
+ "model": "glm53-fp4-local",
+ "choices": [
+  {
+   "index": 0,
+   "message": {
+    "role": "assistant",
+    "content": "```json\n{\n  \"A\": \"ALPHA-R34-7K2M9Q\",\n  \"B\": \"BETA-R34-8P6V3X\",\n  \"C\": \"GAMMA-R34-4T9N2Z\"\n}\n```",
+    "reasoning_content": "The user wants me to extract three marker values from the archive. Looking at the text:\n\n- Marker A = ALPHA-R34-7K2M9Q (stated at the top)\n- Marker B = BETA-R34-8P6V3X (stated in the middle)\n- Marker C = GAMMA-R34-4T9N2Z (stated at the bottom)\n\nThe rest is filler text saying \"This ordinary archived entry contains no requested marker.\"\n\nThe user asks to return only a JSON object with keys A, B, C and their exact marker values."
+   },
+   "finish_reason": "stop"
+  }
+ ],
+ "usage": {
+  "prompt_tokens": 899994,
+  "completion_tokens": 181,
+  "total_tokens": 900175,
+  "prompt_tokens_details": {
+   "cached_tokens": 9
+  },
+  "completion_tokens_details": {
+   "reasoning_tokens": 121
+  }
+ }
+}

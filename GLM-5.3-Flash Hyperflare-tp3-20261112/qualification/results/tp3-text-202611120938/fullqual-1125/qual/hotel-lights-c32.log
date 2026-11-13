@@ -1,0 +1,91 @@
+╭──────────────────────────── NVIDIA P2P Override ─────────────────────────────╮
+│ Effective: yes                                                               │
+│ Configured file: yes (/etc/modprobe.d/nvidia-p2p-override.conf)              │
+│ Runtime: ForceP2P=0x11; RMForceP2PType=1; RMPcieP2PType=2;                   │
+│ GrdmaPciTopoCheckOverride=1; EnableResizableBar=1; DmaRemapPeerMmio=1        │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭─────────────────────────────── Configuration ────────────────────────────────╮
+│ Hotel Lights Reasoning Test                                                  │
+│ Model: GLM-5.3-Flash @ 127.0.0.1:15015                                       │
+│ Prompt: profile:hotel-lights                                                 │
+│ Concurrency: 32                                                              │
+│ Measured runs: 30 | Max tokens: 100000                                       │
+│ Scoring: EXACT / FAIL asserted final number (strict; reasoning never scored) │
+│ Sampling: temperature 1, top_p 0.95, seed 103 + run index, reasoning_effort  │
+│ max | Watchdog: stall 600s, wall-clock off                                   │
+╰──────────────────────────────────────────────────────────────────────────────╯
+
+╭────────────────────────────── Completion Stats ──────────────────────────────╮
+│ Hotel Lights Reasoning Test                                                  │
+│ A compact reasoning profile with a known numeric answer. It checks whether   │
+│ the model handles repeated toggles plus the cat reset rule and returns 48.   │
+│ Built-in profile run at fixed concurrency C=32.                              │
+╰──────────────────────────────────────────────────────────────────────────────╯
+Profile                                  
+╭────────────────┬──────────────────────╮
+│ field          │ value                │
+├────────────────┼──────────────────────┤
+│ profile        │ hotel-lights         │
+│ prompt         │ profile:hotel-lights │
+│ prompt chars   │ 385                  │
+│ requested runs │ 30                   │
+│ concurrency    │ 32                   │
+│ max tokens     │ 100000               │
+│ scoring        │ numeric_exact        │
+│ expected       │ 48                   │
+│ prompt sha256  │ cbe4d382ab459448     │
+╰────────────────┴──────────────────────╯
+╭───────────────────────── Whole-run GPU Power ──────────────────────────╮
+│ avg 1,346 W | max 1,360 W | limit 1,350 W | over 17m 21s | 387 samples │
+╰────────────────────────────────────────────────────────────────────────╯
+Concurrency Results                                                             
+╭──┬──────┬─────────────────────┬────┬─────────┬────────┬──────────┬───────┬───╮
+│  │ don… │               score │ s… │ output… │ outpu… │ aggrega… │ avg … │ … │
+├──┼──────┼─────────────────────┼────┼─────────┼────────┼──────────┼───────┼───┤
+│  │ 30/… │ EXACT 26 / FAIL 2 … │ ★… │  44,167 │ 60,785 │     65.2 │ 725.4 │ … │
+╰──┴──────┴─────────────────────┴────┴─────────┴────────┴──────────┴───────┴───╯
+Selected C=32                                                                   
+╭───────────────────────────────┬──────────────────────────────────────────────╮
+│ metric                        │                                        value │
+├───────────────────────────────┼──────────────────────────────────────────────┤
+│ completed                     │                                        30/30 │
+│ score                         │                  EXACT 26 / FAIL 2 / TRUNC 2 │
+│ stars                         │                                ★★★★★★★★✕⊘ 👍 │
+│ pass rate                     │                                86.7% (26/30) │
+│ pass rate, finished runs only │                  92.9% (26/28); 2 incomplete │
+│                               │         (truncated/stalled/timeout) excluded │
+│ unparseable (format)          │                                            1 │
+│ hit max_tokens                │  2  (2 produced no answer, 0 answered before │
+│                               │                                     the cap) │
+│ completion tokens avg         │                                       47,000 │
+│ completion tokens p50         │                                       44,167 │
+│ completion tokens p90         │                                       60,785 │
+│ completion tokens p99         │                                      100,000 │
+│ elapsed avg                   │                                       725.4s │
+│ TTFT avg                      │                                        4.40s │
+│ aggregate gen tok/s           │                                         65.2 │
+│ mean per-request gen tok/s    │                                         63.6 │
+╰───────────────────────────────┴──────────────────────────────────────────────╯
+Failed Final Answers                                                            
+╭────┬────┬─────────┬───────┬──────────────────────────────────────────────────╮
+│  # │  C │  tokens │ score │ final answer                                     │
+├────┼────┼─────────┼───────┼──────────────────────────────────────────────────┤
+│  5 │ 32 │ 100,000 │ TRUNC │ (no answer: hit max_tokens limit) |              │
+│ 15 │ 32 │  11,885 │ FAIL  │ 49 (expected 48, got 49) | 49                    │
+│ 25 │ 32 │  53,789 │ FAIL  │ (unparseable: multiple numbers without answer    │
+│    │    │         │       │ anchor) | $$49 - 1 = \boxed{48}$$                │
+│ 27 │ 32 │ 100,000 │ TRUNC │ (no answer: hit max_tokens limit) |              │
+╰────┴────┴─────────┴───────┴──────────────────────────────────────────────────╯
+Interpretation: EXACT means the number the visible answer asserts matches the 
+expected value. The scorer reads an explicit 'Final answer:' line, a line that 
+is just the number, or a number anchored at the end of the last line ('= 48', 
+'answer is 48'); 'Not 48', hedged statements and lines with several unanchored 
+numbers are unparseable (FAIL). Private reasoning is never scored. 
+TRUNC/STALL/TIMEOUT (glyph ⊘) mark runs that never produced a visible answer 
+because of max_tokens, a token stall or the wall-clock limit; they count as 
+not-correct but are runtime artifacts, so the report also shows the pass rate 
+over finished runs. The 10-slot quality bar is a rounded distribution: ★=EXACT, 
+✕=FAIL, ⊘=incomplete.
+
+Results saved to 
+qual/hotel-lights-c32.json

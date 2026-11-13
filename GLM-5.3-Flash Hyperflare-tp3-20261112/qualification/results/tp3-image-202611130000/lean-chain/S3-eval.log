@@ -1,0 +1,1 @@
+IMAGE_EVAL glm-tp3-staged T=1.0 effort low: set 60/60 (errors 0, truncated 0) | hard 51/60 (errors 0, truncated 0) | DS41 Flare ref (T=0+1, set): results-vision-staged-real-set.json

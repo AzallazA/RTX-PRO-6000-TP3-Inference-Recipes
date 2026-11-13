@@ -1,0 +1,4 @@
+model GLM-5.3-Flash, effort max, temperature 1.0, top-p 0.95
+{"seed": 201, "content_chars": 39683, "reasoning_chars": 907, "completion": 10086, "prompt": 530058, "finish": ["stop"], "repeat_8gram": 0.0005, "reasoning_repeat_8gram": 0.0, "ttr": 0.648, "fail": false, "empty": false, "repeat": false, "thin": false, "markup": false, "not_stopped": false}
+{"seed": 202, "content_chars": 43191, "reasoning_chars": 33231, "completion": 20363, "prompt": 530058, "finish": ["stop"], "repeat_8gram": 0.0, "reasoning_repeat_8gram": 0.0054, "ttr": 0.683, "fail": false, "empty": false, "repeat": false, "thin": false, "markup": false, "not_stopped": false}
+done (top-p 0.95)

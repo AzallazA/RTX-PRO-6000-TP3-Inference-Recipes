@@ -1,0 +1,31 @@
+[ PENDING  ] Verify core.  0.0s
+[    OK    ] Verify core.  signatures  0.1s
+[ PENDING  ] Verify stored data.  0.0s
+[    OK    ] Verify stored data.  0.0 GiB  0.0s
+[ PENDING  ] Prepare model.  0.0s
+[    OK    ] Prepare model.  3 ranks  0.0s
+[ PENDING  ] Initialize GPUs.  0.0s
+[    OK    ] Initialize GPUs.  GPU 0 · SM120 / GPU 1 · SM120 / GPU 2 · SM120  0.5s
+[ PENDING  ] Allocate model memory.  0.0s
+[    OK    ] Allocate model memory.  190.9 GiB GPU · 0.0 GiB host  0.1s
+[ PENDING  ] Load weights.  0.0s
+[ PENDING  ] Load weights.  99.9 / 174.8 GiB  10.0s
+[    OK    ] Load weights.  174.8 GiB  17.4s
+[ PENDING  ] Prepare kernels.  0.0s
+[    OK    ] Prepare kernels.  12276 kernels  0.6s
+[ PENDING  ] Prepare execution.  0.0s
+[    OK    ] Prepare execution.  concurrency 32  1.4s
+[ PENDING  ] Plan cache.  0.0s
+[    OK    ] Plan cache.  per GPU: 64.07–64.21 GiB loaded · 30.18–30.31 GiB cache budget  0.0s
+[ PENDING  ] Allocate cache.  0.0s
+[    OK    ] Allocate cache.  90.5 GiB · 13523712 KV tokens · 462 shared snapshot slots · limited by memory  4.2s
+[ PENDING  ] Prepare host prefix cache.  0.0s
+[    OK    ] Prepare host prefix cache.  memory 43.7 GiB (8840 slots, split by rank)  3.6s
+[ PENDING  ] Read model configuration.  0.0s
+[    OK    ] Read model configuration.  glm53-fp4-local  0.0s
+[ PENDING  ] Load tokenizer.  0.0s
+[    OK    ] Load tokenizer.  tokenizer ready  0.3s
+[ PENDING  ] Start server.  0.0s
+[    OK    ] Start server.  http://127.0.0.1:15015  0.7s
+[ PENDING  ] Shut down server.  0.0s
+[    OK    ] Shut down server.  7.5s

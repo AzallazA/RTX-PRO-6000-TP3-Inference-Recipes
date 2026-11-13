@@ -1,0 +1,28 @@
+{
+ "label": "glm-tp3-staged",
+ "cold_small": 0.148,
+ "warm_small": 0.132,
+ "seq8": [
+  0.149,
+  0.128,
+  0.129,
+  0.128,
+  0.131,
+  0.154,
+  0.132,
+  0.137
+ ],
+ "large_first": 1.514,
+ "large_second": 1.512,
+ "large_prompt_tokens": 8021,
+ "mid": 0.701,
+ "par4_wall": 0.541,
+ "par4": [
+  0.504,
+  0.539,
+  0.522,
+  0.484
+ ],
+ "text": 0.002,
+ "ok": true
+}

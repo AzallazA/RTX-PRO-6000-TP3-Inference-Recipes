@@ -1,0 +1,122 @@
+╭──────────────────────────── NVIDIA P2P Override ─────────────────────────────╮
+│ Effective: yes                                                               │
+│ Configured file: yes (/etc/modprobe.d/nvidia-p2p-override.conf)              │
+│ Runtime: ForceP2P=0x11; RMForceP2PType=1; RMPcieP2PType=2;                   │
+│ GrdmaPciTopoCheckOverride=1; EnableResizableBar=1; DmaRemapPeerMmio=1        │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭─────────────────────────────── Configuration ────────────────────────────────╮
+│ GPQA Diamond Accuracy Benchmark                                              │
+│ Model: GLM-5.3-Flash @ localhost:15015                                       │
+│ Prompt: profile:gpqa-diamond                                                 │
+│ Dataset: gpqa_diamond (198 items, sha256 a8472c5a82ea2df8…)                  │
+│ Concurrency: 8                                                               │
+│ Measured runs: 198 | Max tokens: 131072                                      │
+│ Scoring: per-item option letter vs dataset reference                         │
+│ Sampling: temperature 0 | Watchdog: stall 600s, wall-clock off               │
+╰──────────────────────────────────────────────────────────────────────────────╯
+
+╭────────────────────────────── Completion Stats ──────────────────────────────╮
+│ GPQA Diamond Accuracy Benchmark                                              │
+│ Every request is a different graduate-level 'Google-proof' science question  │
+│ (198 items; biology, chemistry, physics; 4 options with a deterministic      │
+│ per-item shuffle), scored by exact option-letter match. Frontier-difficulty  │
+│ anchor; note the small item count limits statistical resolution — read it    │
+│ alongside gsm8k and mmlu-pro. Use --compare-baseline for paired A/B          │
+│ comparison. Built-in profile run at fixed concurrency C=8.                   │
+╰──────────────────────────────────────────────────────────────────────────────╯
+Profile                                              
+╭────────────────┬──────────────────────────────────╮
+│ field          │ value                            │
+├────────────────┼──────────────────────────────────┤
+│ profile        │ gpqa-diamond                     │
+│ prompt         │ dataset:gpqa_diamond (198 items) │
+│ prompt chars   │ 494                              │
+│ dataset        │ gpqa_diamond (198/198 items)     │
+│ requested runs │ 198                              │
+│ concurrency    │ 8                                │
+│ max tokens     │ 131072                           │
+│ scoring        │ dataset_mc_letter                │
+│ dataset sha256 │ a8472c5a82ea2df8                 │
+╰────────────────┴──────────────────────────────────╯
+╭──────────────────────── Whole-run GPU Power ─────────────────────────╮
+│ avg 918 W | max 996 W | limit 1,350 W | over 59m 16s | 1,552 samples │
+╰──────────────────────────────────────────────────────────────────────╯
+Concurrency Results                                                             
+╭──┬──────┬───────────────────────┬────┬────────┬────────┬─────────┬───────┬───╮
+│  │ don… │                 score │ s… │ outpu… │ outpu… │ aggreg… │ avg … │ … │
+├──┼──────┼───────────────────────┼────┼────────┼────────┼─────────┼───────┼───┤
+│  │ 198… │ EXACT 180 / FAIL 17 … │ ★… │  4,693 │ 30,145 │    84.3 │ 137.8 │ … │
+╰──┴──────┴───────────────────────┴────┴────────┴────────┴─────────┴───────┴───╯
+Selected C=8                                                                    
+╭────────────────────────────┬─────────────────────────────────────────────────╮
+│ metric                     │                                           value │
+├────────────────────────────┼─────────────────────────────────────────────────┤
+│ completed                  │                                         198/198 │
+│ score                      │                   EXACT 180 / FAIL 17 / TRUNC 1 │
+│ stars                      │                                   ★★★★★★★★★✕ 👍 │
+│ accuracy                   │                                90.91% (180/198) │
+│ Wilson 95% CI              │                                 86.09% – 94.17% │
+│ truncated (no answer)      │             1 — hit max_tokens before answering │
+│ hit max_tokens             │ 1  (1 produced no answer, 0 answered before the │
+│                            │                                            cap) │
+│ completion tokens avg      │                                          11,414 │
+│ completion tokens p50      │                                           4,693 │
+│ completion tokens p90      │                                          30,145 │
+│ completion tokens p99      │                                          75,815 │
+│ elapsed avg                │                                          137.8s │
+│ TTFT avg                   │                                           2.33s │
+│ aggregate gen tok/s        │                                            84.3 │
+│ mean per-request gen tok/s │                                            84.0 │
+╰────────────────────────────┴─────────────────────────────────────────────────╯
+Per-category Accuracy                      
+╭───────────┬────────┬─────────┬──────────╮
+│ category  │ scored │ correct │ accuracy │
+├───────────┼────────┼─────────┼──────────┤
+│ Biology   │     19 │      14 │    73.7% │
+│ Chemistry │     93 │      83 │    89.2% │
+│ Physics   │     86 │      83 │    96.5% │
+╰───────────┴────────┴─────────┴──────────╯
+Failed Final Answers                                                            
+╭─────┬────────────────────────┬───┬─────────┬───────┬─────────────────────────╮
+│   # │ item                   │ C │  tokens │ score │ final answer            │
+├─────┼────────────────────────┼───┼─────────┼───────┼─────────────────────────┤
+│  14 │ gpqa-rec527dNeEtWJrYNl │ 8 │  14,815 │ FAIL  │ B (expected D, got B) | │
+│     │                        │   │         │       │ B                       │
+│  18 │ gpqa-rec7qmSnbud4FHSqL │ 8 │     988 │ FAIL  │ B (expected C, got B) | │
+│     │                        │   │         │       │ B                       │
+│  33 │ gpqa-recEmTBhx2hgw6tPQ │ 8 │  43,339 │ FAIL  │ C (expected B, got C) | │
+│     │                        │   │         │       │ C                       │
+│  49 │ gpqa-recK9F5aqdaybl8bb │ 8 │  75,114 │ FAIL  │ A (expected B, got A) | │
+│     │                        │   │         │       │ A                       │
+│  70 │ gpqa-recQiWOxhkXRz9NVE │ 8 │  20,127 │ FAIL  │ C (expected B, got C) | │
+│     │                        │   │         │       │ C                       │
+│  76 │ gpqa-recUBgVlkKzcRPDdK │ 8 │  19,480 │ FAIL  │ D (expected B, got D) | │
+│     │                        │   │         │       │ D                       │
+│  77 │ gpqa-recUOePh79cp4T2Bg │ 8 │  42,667 │ FAIL  │ B (expected A, got B) | │
+│     │                        │   │         │       │ B                       │
+│  82 │ gpqa-recWxGU8Q4YReJ1tb │ 8 │ 131,072 │ TRUNC │ (no answer: hit         │
+│     │                        │   │         │       │ max_tokens limit) |     │
+│  89 │ gpqa-recZ13cwgDQf9jRd9 │ 8 │  28,210 │ FAIL  │ D (expected A, got D) | │
+│     │                        │   │         │       │ D                       │
+│  95 │ gpqa-reca44yABeO2fx7UB │ 8 │  40,399 │ FAIL  │ A (expected C, got A) | │
+│     │                        │   │         │       │ A                       │
+│ 107 │ gpqa-recf6ayQmL1SxKbvW │ 8 │     973 │ FAIL  │ C (expected B, got C) | │
+│     │                        │   │         │       │ C                       │
+│ 128 │ gpqa-recnTTKdBzfuoZ7w7 │ 8 │  37,898 │ FAIL  │ A (expected B, got A) | │
+│     │                        │   │         │       │ A                       │
+╰─────┴────────────────────────┴───┴─────────┴───────┴─────────────────────────╯
+Interpretation: every measured request is a distinct pinned dataset item, so the
+correctness rate is dataset accuracy, not a resample pass-rate; the Wilson 95% 
+interval reflects item-count resolution. TRUNC (1 here, glyph ⊘) means the model
+hit the max_tokens limit while still reasoning and never emitted an answer — a 
+token-budget artifact, not a format miss; these still count as wrong. Raise 
+--max-tokens (or shorten the model's thinking) to recover them. 'unparseable 
+(format)' is the separate case where the model did answer but the letter/number 
+could not be read. For quantization A/B tests keep engine version and flags 
+identical, run the same profile against each endpoint, and pass 
+--compare-baseline to get paired per-item deltas with an exact McNemar 
+significance test. Completion-token inflation and max_tokens hits are early 
+damage signals even before accuracy moves.
+
+Results saved to 
+qual/gpqa.json

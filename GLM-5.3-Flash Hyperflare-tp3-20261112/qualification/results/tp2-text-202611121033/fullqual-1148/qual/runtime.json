@@ -1,0 +1,4 @@
+{
+ "server": "flare",
+ "cmdline": "<fork>/flare-cli/target/release/flare run <disk> --gpus 0,1 --port 15015 --host 127.0.0.1 --served-model-name GLM-5.3-Flash --prefix-cache-memory 32G --mtp-draft-tokens 5 --scheduler-policy balanced"
+}

@@ -1,0 +1,1 @@
+03:34:19	stress	WARN	PASS 16/16 long, ping 139/139, min free 96 MiB, bad lines 0, wall 16.3 min (every request passed; min free below the 480 MiB margin)

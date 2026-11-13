@@ -1,0 +1,14 @@
+21:16:28 def (BUDGET=package) start
+[    OK    ] Plan cache.  per GPU: 64.88–64.92 GiB loaded · 29.35–29.39 GiB cache budget  0.0s
+21:21:51 b32 (BUDGET=32) start
+[    OK    ] Plan cache.  per GPU: 64.80–64.85 GiB loaded · 29.42–29.46 GiB cache budget  0.0s
+21:27:24 b48 (BUDGET=48) start
+[    OK    ] Plan cache.  per GPU: 64.83–64.87 GiB loaded · 29.40–29.44 GiB cache budget  0.0s
+21:32:56 def (BUDGET=package) start
+[    OK    ] Plan cache.  per GPU: 64.88–64.92 GiB loaded · 29.35–29.39 GiB cache budget  0.0s
+21:38:28 b32 (BUDGET=32) start
+[    OK    ] Plan cache.  per GPU: 64.80–64.85 GiB loaded · 29.42–29.46 GiB cache budget  0.0s
+21:44:14 k0 (K=0, no speculation) start
+serve k0 FAILED
+21:44:20 k0 (K=0, no speculation) start
+serve k0 FAILED

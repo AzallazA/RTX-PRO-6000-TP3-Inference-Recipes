@@ -1,0 +1,25 @@
+[glm-hyperflare-tp3-c32] capacity=13,523,712 tok -> 2 waves x 32 x ~530,000 tok unique prompts (+ pinger)
+  wave 1/2: 22/32 ok, 12,883,496 prompt tok, 1800s, minfree so far 98 MiB
+    FAIL: TimeoutError: timed out 
+    FAIL: TimeoutError: timed out 
+    FAIL: TimeoutError: timed out 
+    FAIL: TimeoutError: timed out 
+    FAIL: TimeoutError: timed out 
+    FAIL: TimeoutError: timed out 
+    FAIL: TimeoutError: timed out 
+    FAIL: TimeoutError: timed out 
+    FAIL: TimeoutError: timed out 
+    FAIL: TimeoutError: timed out 
+  wave 2/2: 22/32 ok, 12,883,326 prompt tok, 1800s, minfree so far 98 MiB
+    FAIL: TimeoutError: timed out 
+    FAIL: TimeoutError: timed out 
+    FAIL: TimeoutError: timed out 
+    FAIL: TimeoutError: timed out 
+    FAIL: TimeoutError: timed out 
+    FAIL: TimeoutError: timed out 
+    FAIL: TimeoutError: timed out 
+    FAIL: TimeoutError: timed out 
+    FAIL: TimeoutError: timed out 
+    FAIL: TimeoutError: timed out 
+(Flare log: 0 preemption lines, reported separately)
+[glm-hyperflare-tp3-c32] FAIL: 44/64 long requests ok, pinger 197/197 ok, 25,766,822 prompt tok pushed, min free VRAM 98 MiB (1750 samples), health=200, bad log lines=0, wall 60.2 min

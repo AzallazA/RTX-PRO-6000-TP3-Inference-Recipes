@@ -1,0 +1,5 @@
+16:26:21	eval	PASS	REUSED from qual: 42/43
+16:26:21	tools	PASS	REUSED from qual: tool calls: 60/60 OK (0 chose a different tool), concurrency 32, 13 s
+16:26:21	verify	PASS	REUSED from qual: 20 runs, 6000 tokens: TRUE corruptions 0, natural-uncertainty flags 0
+16:43:47	hotel-lights	FAIL	DONE hotel-lights-c32 rc=0 | exact 26 / wrong 2 / truncated 2 | [(15, 'expected 48, got 49', 11885), (25, 'unparseable: multiple numbers without answer anchor', 53789)]
+16:45:58	retrieval	PASS	DONE long retrieval rc=0: DONE 128000 pass DONE 900000 pass

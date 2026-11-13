@@ -1,0 +1,148 @@
+{
+ "label": "lean-vs-lean2",
+ "a": "features/lean.pt",
+ "b": "features/lean2.pt",
+ "meta_a": {
+  "label": "lean",
+  "worktree": "<fork>",
+  "git": "72548a426b045261a8b437bcd3d54d5506ebeb9e HEAD -> glm-vision-lean",
+  "b12x": "<fork>/.b12x-overlay/b12x_tree/_api.py",
+  "torch": "2.14.1+cu132",
+  "gpu": "NVIDIA RTX PRO 6000 Blackwell Workstation Edition",
+  "snapshot": "<ckpt>/glm53-fp4-local",
+  "stage": true,
+  "overlap": true,
+  "compiler": "worker",
+  "capacities": [
+   32768,
+   4096
+  ],
+  "seconds": 110.9,
+  "inputs_sha256": {
+   "set/chart-00.png": "c69f5f8e410c7f3f8c05d0dd517ef60f8e3646479ff7d06c0910405e226b18ca",
+   "set/chart-01.png": "ab4cbde54bcee73e945105634061217bba2a97cbf43250960aa8c23f50cd0e6e",
+   "set/chart-02.png": "4a0bc3514762be48ef28c935b41a63e3c4039d209aec1a031e5883687c9d952e",
+   "set/chart-03.png": "926fe3f594f9036b79ce698b8500c45c5402e4b9fe3cc5bf1c6942e1c0b3474f",
+   "hard/chartvalue-00.png": "f6feaa94aec734be86532d563dedf38257ac67434649a199f605379009b7c6d4",
+   "hard/chartvalue-01.png": "a6c4e9385e1c41c8ce54df356dd8ec76a857292684a3c5661d4185644f208a5a",
+   "hard/chartvalue-02.png": "b00c5711c9b2b23ca327d21343d74048559003b5cbdbee8532eae2538aec5648",
+   "hard/chartvalue-03.png": "c4a86538edb037875fc4562f46cc8e843ce0a384d7d0d588e3a44b1b7a4d9a69",
+   "composite-2800x2240-set30-33": "8796fc8f9750d35716c6ec459946406aa121e73db5c9c87cec8ee0a6b560cd20"
+  }
+ },
+ "meta_b": {
+  "label": "lean2",
+  "worktree": "<fork>",
+  "git": "72548a426b045261a8b437bcd3d54d5506ebeb9e HEAD -> glm-vision-lean",
+  "b12x": "<fork>/.b12x-overlay/b12x_tree/_api.py",
+  "torch": "2.14.1+cu132",
+  "gpu": "NVIDIA RTX PRO 6000 Blackwell Workstation Edition",
+  "snapshot": "<ckpt>/glm53-fp4-local",
+  "stage": true,
+  "overlap": true,
+  "compiler": "worker",
+  "capacities": [
+   32768,
+   4096
+  ],
+  "seconds": 27.8,
+  "inputs_sha256": {
+   "set/chart-00.png": "c69f5f8e410c7f3f8c05d0dd517ef60f8e3646479ff7d06c0910405e226b18ca",
+   "set/chart-01.png": "ab4cbde54bcee73e945105634061217bba2a97cbf43250960aa8c23f50cd0e6e",
+   "set/chart-02.png": "4a0bc3514762be48ef28c935b41a63e3c4039d209aec1a031e5883687c9d952e",
+   "set/chart-03.png": "926fe3f594f9036b79ce698b8500c45c5402e4b9fe3cc5bf1c6942e1c0b3474f",
+   "hard/chartvalue-00.png": "f6feaa94aec734be86532d563dedf38257ac67434649a199f605379009b7c6d4",
+   "hard/chartvalue-01.png": "a6c4e9385e1c41c8ce54df356dd8ec76a857292684a3c5661d4185644f208a5a",
+   "hard/chartvalue-02.png": "b00c5711c9b2b23ca327d21343d74048559003b5cbdbee8532eae2538aec5648",
+   "hard/chartvalue-03.png": "c4a86538edb037875fc4562f46cc8e843ce0a384d7d0d588e3a44b1b7a4d9a69",
+   "composite-2800x2240-set30-33": "8796fc8f9750d35716c6ec459946406aa121e73db5c9c87cec8ee0a6b560cd20"
+  }
+ },
+ "overall": "bit-identical",
+ "expect": "identical",
+ "ok": true,
+ "problems": [],
+ "images": {
+  "set/chart-00.png": {
+   "verdict": "bit-identical",
+   "max_abs": 0.0,
+   "max_rel": 0.0,
+   "bit_identical": 1.0,
+   "cosine": 1.0000000000000018,
+   "finite": true,
+   "max_abs_a": 0.1318359375
+  },
+  "set/chart-01.png": {
+   "verdict": "bit-identical",
+   "max_abs": 0.0,
+   "max_rel": 0.0,
+   "bit_identical": 1.0,
+   "cosine": 1.000000000000002,
+   "finite": true,
+   "max_abs_a": 0.12158203125
+  },
+  "set/chart-02.png": {
+   "verdict": "bit-identical",
+   "max_abs": 0.0,
+   "max_rel": 0.0,
+   "bit_identical": 1.0,
+   "cosine": 1.0000000000000022,
+   "finite": true,
+   "max_abs_a": 0.14453125
+  },
+  "set/chart-03.png": {
+   "verdict": "bit-identical",
+   "max_abs": 0.0,
+   "max_rel": 0.0,
+   "bit_identical": 1.0,
+   "cosine": 1.0000000000000018,
+   "finite": true,
+   "max_abs_a": 0.13671875
+  },
+  "hard/chartvalue-00.png": {
+   "verdict": "bit-identical",
+   "max_abs": 0.0,
+   "max_rel": 0.0,
+   "bit_identical": 1.0,
+   "cosine": 1.0000000000000018,
+   "finite": true,
+   "max_abs_a": 0.1201171875
+  },
+  "hard/chartvalue-01.png": {
+   "verdict": "bit-identical",
+   "max_abs": 0.0,
+   "max_rel": 0.0,
+   "bit_identical": 1.0,
+   "cosine": 1.0000000000000022,
+   "finite": true,
+   "max_abs_a": 0.11865234375
+  },
+  "hard/chartvalue-02.png": {
+   "verdict": "bit-identical",
+   "max_abs": 0.0,
+   "max_rel": 0.0,
+   "bit_identical": 1.0,
+   "cosine": 1.0000000000000016,
+   "finite": true,
+   "max_abs_a": 0.119140625
+  },
+  "hard/chartvalue-03.png": {
+   "verdict": "bit-identical",
+   "max_abs": 0.0,
+   "max_rel": 0.0,
+   "bit_identical": 1.0,
+   "cosine": 1.0000000000000027,
+   "finite": true,
+   "max_abs_a": 0.1337890625
+  },
+  "composite-2800x2240-set30-33": {
+   "verdict": "bit-identical",
+   "max_abs": 0.0,
+   "max_rel": 0.0,
+   "bit_identical": 1.0,
+   "cosine": 1.000000000000187,
+   "finite": true,
+   "max_abs_a": 0.224609375
+  }
+ }
+}

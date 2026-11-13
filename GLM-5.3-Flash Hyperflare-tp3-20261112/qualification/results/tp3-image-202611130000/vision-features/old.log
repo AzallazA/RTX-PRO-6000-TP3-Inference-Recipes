@@ -1,0 +1,16 @@
+[    0.1s] ignition <fork>/ignition/__init__.py (be55368cf93ad60774de239db467c225c1ae5ae3 HEAD -> glm-vision-staging); b12x <fork>/.b12x-overlay/b12x_tree/_api.py; capacities [32768, 4096]; stage True overlap True compiler worker
+[    0.8s] weights loaded and parked; 2 MiB
+[    0.9s] staging slots 22 MiB, tail aliased True
+[    1.8s] prepared
+[   28.2s] compiled (worker)
+[   28.5s] captured ['vision32768', 'vision4096']; 3800 MiB allocated, 4772 MiB reserved
+[   28.6s] set/chart-00.png: 560x380 grid [1, 28, 40] patches 1120 cap 4096 errors [0, 0] replays identical True finite True max|x| 0.1318
+[   28.6s] set/chart-01.png: 560x380 grid [1, 28, 40] patches 1120 cap 4096 errors [0, 0] replays identical True finite True max|x| 0.1216
+[   28.6s] set/chart-02.png: 560x380 grid [1, 28, 40] patches 1120 cap 4096 errors [0, 0] replays identical True finite True max|x| 0.1445
+[   28.7s] set/chart-03.png: 560x380 grid [1, 28, 40] patches 1120 cap 4096 errors [0, 0] replays identical True finite True max|x| 0.1367
+[   28.7s] hard/chartvalue-00.png: 600x420 grid [1, 30, 44] patches 1320 cap 4096 errors [0, 0] replays identical True finite True max|x| 0.1201
+[   28.8s] hard/chartvalue-01.png: 600x420 grid [1, 30, 44] patches 1320 cap 4096 errors [0, 0] replays identical True finite True max|x| 0.1187
+[   28.8s] hard/chartvalue-02.png: 600x420 grid [1, 30, 44] patches 1320 cap 4096 errors [0, 0] replays identical True finite True max|x| 0.1191
+[   28.9s] hard/chartvalue-03.png: 600x420 grid [1, 30, 44] patches 1320 cap 4096 errors [0, 0] replays identical True finite True max|x| 0.1338
+[   30.1s] composite-2800x2240-set30-33: 2800x2240 grid [1, 160, 200] patches 32000 cap 32768 errors [0, 0] replays identical True finite True max|x| 0.2246
+[   30.5s] saved features/old.pt; 9 images; problems: none

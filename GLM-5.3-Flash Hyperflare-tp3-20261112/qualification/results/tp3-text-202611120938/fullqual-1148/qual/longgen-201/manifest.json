@@ -1,0 +1,42 @@
+{
+ "args": {
+  "label": "longgen-201",
+  "top_p": 0.95,
+  "temperature": 1.0,
+  "effort": "max",
+  "seed": 201,
+  "context": "full",
+  "tokens": 65536,
+  "natural_eos": true,
+  "clear_thinking": false,
+  "payload": "<recipes> Flare-tp3-20261108/qualification/captured-request.san.json"
+ },
+ "request_sha256": "dabd1461965de0e91afc970db850ebe07a06fa2dd00b93bf44f1bb6f7ef881ff",
+ "canonical_without_seed_or_cache_salt_sha256": "6150c80442219f76c6c1aecd8d4531edded12a7420f809565951ddba52313772",
+ "capture_sha256": "a9d5973a21a3338506d084fb49a86c98b89c34d6441578b31d780d9e0a1bef18",
+ "settings": {
+  "model": "GLM-5.3-Flash",
+  "stream": true,
+  "stream_options": {
+   "include_usage": true,
+   "continuous_usage_stats": true
+  },
+  "max_completion_tokens": 65536,
+  "temperature": 1.0,
+  "top_p": 0.95,
+  "seed": 201,
+  "min_tokens": 0,
+  "ignore_eos": false,
+  "repetition_penalty": 1.0,
+  "tool_choice": "none",
+  "cache_salt": "glm53-qualification-longgen-201",
+  "reasoning_effort": "max",
+  "return_token_ids": true
+ },
+ "appended_prompt": "Ignore any pending tool work. Using the full conversation above, write an exhaustive technical retrospective of at least 6000 words. Cover: (1) every distinct problem investigated and its resolution, (2) the systems and components involved and how they interact, (3) a chronological narrative of how understanding evolved, (4) unresolved issues and concrete next steps, and (5) lessons learned. Use detailed prose with headed sections. Be thorough and specific; do not summarise briefly.",
+ "runtime": {
+  "server": "flare",
+  "cmdline": "<fork>/flare-cli/target/release/flare run <disk> --gpus 0,1,2 --port 15015 --host 127.0.0.1 --served-model-name GLM-5.3-Flash --prefix-cache-memory 32G --mtp-draft-tokens 5 --scheduler-policy balanced --mtp-adaptive-verification-alpha 0.8"
+ },
+ "power_limits": "450.00\n450.00\n450.00\n"
+}

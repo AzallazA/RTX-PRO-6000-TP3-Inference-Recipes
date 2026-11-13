@@ -1,0 +1,9 @@
+╭───────────────────────── Tool-Call Benchmark failed ─────────────────────────╮
+│ Cannot connect to the OpenAI-compatible server at http://localhost:15015:    │
+│ ConnectError: [Errno 111] Connection refused                                 │
+│ Check --host/--port (and --api-key); the server must be up before            │
+│ tool-eval-bench starts.                                                      │
+╰──────────────────────────────────────────────────────────────────────────────╯
+
+Results saved to 
+qual/tooleval.json

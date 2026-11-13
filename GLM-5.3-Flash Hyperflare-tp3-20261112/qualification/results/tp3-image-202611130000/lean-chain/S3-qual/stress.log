@@ -1,0 +1,5 @@
+[glm-vision-tp3-1112-c32] capacity=13,130,496 tok -> 2 waves x 32 x ~530,000 tok unique prompts (+ pinger)
+  wave 1/2: 32/32 ok, 18,737,061 prompt tok, 2075s, minfree so far 80 MiB
+  wave 2/2: 32/32 ok, 18,736,840 prompt tok, 2076s, minfree so far 44 MiB
+(Flare log: 0 preemption lines, reported separately)
+[glm-vision-tp3-1112-c32] PASS: 64/64 long requests ok, pinger 246/246 ok, 37,473,901 prompt tok pushed, min free VRAM 44 MiB (2008 samples), health=200, bad log lines=0, wall 69.3 min

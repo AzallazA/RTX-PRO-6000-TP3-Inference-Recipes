@@ -1,0 +1,14 @@
+{
+ "preset": "glm-vision-tp2-1112-c8",
+ "capacity": 2231808,
+ "verdict": "PASS",
+ "waves": 2,
+ "long_ok": 16,
+ "long_total": 16,
+ "ping_ok": 139,
+ "ping_total": 139,
+ "prompt_tokens": 9370665,
+ "min_free_mib": 96,
+ "bad_log_lines": [],
+ "wall_min": 16.34819670120875
+}

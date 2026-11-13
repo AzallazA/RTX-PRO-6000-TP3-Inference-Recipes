@@ -1,0 +1,36 @@
+{
+ "target": 128000,
+ "request_sha256": "ccbd4fec77a320262c8ae50e75640206be28a80900ea3b0e39a7daef8989f9df",
+ "attempts": [
+  {
+   "records": 12800,
+   "tokens": 115284
+  },
+  {
+   "records": 14212,
+   "tokens": 127992
+  }
+ ],
+ "settings": {
+  "model": "GLM-5.3-Flash",
+  "temperature": 1.0,
+  "top_p": 0.95,
+  "seed": 128000,
+  "min_tokens": 0,
+  "ignore_eos": false,
+  "max_completion_tokens": 2048,
+  "repetition_penalty": 1,
+  "tool_choice": "none",
+  "cache_salt": "glm53-release-retrieval-128000",
+  "reasoning_effort": "max"
+ },
+ "expected": {
+  "A": "ALPHA-R34-7K2M9Q",
+  "B": "BETA-R34-8P6V3X",
+  "C": "GAMMA-R34-4T9N2Z"
+ },
+ "runtime": {
+  "server": "flare",
+  "cmdline": "<fork>/flare-cli/target/release/flare run <disk> --gpus 0,1 --port 15015 --host 127.0.0.1 --served-model-name GLM-5.3-Flash --prefix-cache-memory 32G --mtp-draft-tokens 5 --scheduler-policy balanced"
+ }
+}

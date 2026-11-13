@@ -1,0 +1,1 @@
+detprobe FRESH (8 first-token reps, 3 multi runs, nonce seed detprobe-1112): first.ids5=8 first.text=8 first.sql=8 multi.code=3 multi.prose=3 multi.math=3 cache hits 0

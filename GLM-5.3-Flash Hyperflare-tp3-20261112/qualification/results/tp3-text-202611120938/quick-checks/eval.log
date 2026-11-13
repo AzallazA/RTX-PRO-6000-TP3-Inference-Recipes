@@ -1,0 +1,6 @@
+== running eval: glm-c32-sync-1112 (model GLM-5.3-Flash, effort low, max_tokens 8192) ==
+  intelligence: 42/43 correct (97.7%)
+  refusals:     0/37 refused (0.0%)
+  truncated 0, errors 0, markup leaks 0
+  wrong IQ items: Two towns are 100 miles apart. Two train
+  saved -> qual/eval_glm-c32-sync-1112.json

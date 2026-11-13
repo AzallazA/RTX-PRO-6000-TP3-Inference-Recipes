@@ -1,0 +1,1 @@
+IMAGE_LATENCY glm-tp3-staged cold 0.14 s warm 0.13 s seq8_med 0.12 s large8000 first 1.48 s second 1.50 s (8021 prompt tok) mid4096 0.69 s par4_wall 0.52 s text 0.00 s ok True

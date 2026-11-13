@@ -1,0 +1,32 @@
+{
+ "metadata": {
+  "version": "0.8.0",
+  "mode": "tool_eval",
+  "timestamp": "2026-11-12T15:12:20.243395",
+  "model": "GLM-5.3-Flash",
+  "base_url": "http://localhost:15015/"
+ },
+ "tool_eval": {
+  "status": "failed",
+  "settings": {
+   "backend": "vllm",
+   "hardmode": true,
+   "seed": 42,
+   "temperature": 0.0,
+   "parallel": 4,
+   "max_turns": 30,
+   "timeout": 600.0,
+   "extra_args": [],
+   "differs_from_leaderboard": [],
+   "leaderboard": true
+  },
+  "tool_eval_bench": {},
+  "artifacts_dir": "qual/tooleval.tool-eval",
+  "duration_seconds": 0.0,
+  "error": {
+   "kind": "server",
+   "message": "Cannot connect to the OpenAI-compatible server at http://localhost:15015: ConnectError: [Errno 111] Connection refused",
+   "hint": "Check --host/--port (and --api-key); the server must be up before tool-eval-bench starts."
+  }
+ }
+}

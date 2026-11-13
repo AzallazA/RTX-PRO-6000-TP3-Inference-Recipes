@@ -1,0 +1,5 @@
+[glm-hyperflare-tp3-c32-c32] capacity=13,523,712 tok -> 2 waves x 32 x ~530,000 tok unique prompts (+ pinger)
+  wave 1/2: 32/32 ok, 18,735,049 prompt tok, 2072s, minfree so far 98 MiB
+  wave 2/2: 32/32 ok, 18,736,000 prompt tok, 2067s, minfree so far 78 MiB
+(Flare log: 0 preemption lines, reported separately)
+[glm-hyperflare-tp3-c32-c32] PASS: 64/64 long requests ok, pinger 237/237 ok, 37,471,049 prompt tok pushed, min free VRAM 78 MiB (2011 samples), health=200, bad log lines=0, wall 69.1 min

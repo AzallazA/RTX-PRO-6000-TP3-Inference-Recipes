@@ -1,0 +1,7 @@
+[ PENDING  ] Verify core.  0.0s
+[    OK    ] Verify core.  signatures  0.1s
+[ PENDING  ] Verify stored data.  0.0s
+[    OK    ] Verify stored data.  0.0 GiB  0.0s
+[ PENDING  ] Prepare model.  0.0s
+[  FAILED  ] Prepare model.  0.0s
+Error: Execution(Manifest(Failure { message: "rank 0 lacks init graph for batch 1 within selected generation geometry", source: None }))

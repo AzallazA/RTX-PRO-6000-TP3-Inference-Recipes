@@ -1,0 +1,1 @@
+IMAGE_SMOKE glm-tp3-staged served 5/5 correct 5/5 | small: ok 309p 0.2s | near-max 2800x1876 (6700 tok): ok 6729p 1.2s | over-max 4480x3040 (downscaled): ok 8021p 1.7s | two images: ok 588p 0.2s | four images: ok 1152p 0.3s

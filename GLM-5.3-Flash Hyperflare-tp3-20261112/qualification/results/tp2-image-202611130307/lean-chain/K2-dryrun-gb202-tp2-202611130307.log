@@ -1,0 +1,37 @@
+[ PENDING  ] Verify core.  0.0s
+[    OK    ] Verify core.  signatures  0.1s
+[ PENDING  ] Verify stored data.  0.0s
+[    OK    ] Verify stored data.  0.0 GiB  0.0s
+Memory dry run: no CUDA context was created, no GPU memory was allocated, and no weights were read.
+Assumed free memory per GPU: --dry-run-free-memory.
+Kernel and graph memory is an estimate from the selected module and graph node counts; fixed allocations, cache geometry, headroom, and the prefix cache's device share are exact.
+
+GPU 0 · 95.06 GiB total · 95.00 GiB assumed free
+  weights, execution state, and scratch (fixed device allocations)           86.04 GiB
+  kernels and graphs (estimate: 3,591 modules, 110,587 graph nodes)          575.8 MiB
+  headroom left free (reserve and engine)                                     64.0 MiB
+  host prefix cache transfer streams and intake                               46.9 MiB
+  cache budget                                                                8.29 GiB
+  cache planned (9 execution rows + 4,716 KV pages)                           8.26 GiB
+  mapped host allocations                                                     1.55 GiB
+
+GPU 1 · 95.06 GiB total · 95.00 GiB assumed free
+  weights, execution state, and scratch (fixed device allocations)           86.04 GiB
+  kernels and graphs (estimate: 3,591 modules, 110,587 graph nodes)          575.8 MiB
+  headroom left free (reserve and engine)                                     64.0 MiB
+  host prefix cache transfer streams and intake                               46.9 MiB
+  cache budget                                                                8.29 GiB
+  cache planned (9 execution rows + 4,716 KV pages)                           8.26 GiB
+  mapped host allocations                                                     1.55 GiB
+
+Allocate cache: 16.5 GiB · 2,414,592 KV tokens · 93 shared snapshot slots · limited by memory
+  concurrency 8 · 1 continuation rows per request · 512 tokens per page · KV cache limit memory
+
+Host RAM committed by the load
+  mixed expert banks, host part, all ranks                                         0 B
+  mapped host allocations, all ranks                                          3.09 GiB
+  embedding table planes resident in RAM                                           0 B
+  embedding gather staging                                                         0 B
+  embedding row cache                                                              0 B
+  host prefix cache (32.00 GiB configured plus intake, input staging, and index)     35.05 GiB
+  prepared image inputs                                                      147.5 MiB

@@ -1,0 +1,14 @@
+{
+ "preset": "glm-hyperflare-tp3-c32",
+ "capacity": 13523712,
+ "verdict": "FAIL",
+ "waves": 2,
+ "long_ok": 44,
+ "long_total": 64,
+ "ping_ok": 197,
+ "ping_total": 197,
+ "prompt_tokens": 25766822,
+ "min_free_mib": 98,
+ "bad_log_lines": [],
+ "wall_min": 60.151335048675534
+}

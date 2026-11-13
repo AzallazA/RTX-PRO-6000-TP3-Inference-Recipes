@@ -1,0 +1,62 @@
+[
+ {
+  "case": "small",
+  "served": true,
+  "correct": true,
+  "answer": "C",
+  "ok": true,
+  "secs": 0.151,
+  "content": "C",
+  "finish": "stop",
+  "prompt_tokens": 309,
+  "completion_tokens": 3
+ },
+ {
+  "case": "near-max 2800x1876 (6700 tok)",
+  "served": true,
+  "correct": true,
+  "answer": "B",
+  "ok": true,
+  "secs": 1.262,
+  "content": "B",
+  "finish": "stop",
+  "prompt_tokens": 6729,
+  "completion_tokens": 3
+ },
+ {
+  "case": "over-max 4480x3040 (downscaled)",
+  "served": true,
+  "correct": true,
+  "answer": "A",
+  "ok": true,
+  "secs": 1.722,
+  "content": "A",
+  "finish": "stop",
+  "prompt_tokens": 8021,
+  "completion_tokens": 3
+ },
+ {
+  "case": "two images",
+  "served": true,
+  "correct": true,
+  "answer": "2",
+  "ok": true,
+  "secs": 0.206,
+  "content": "2",
+  "finish": "stop",
+  "prompt_tokens": 588,
+  "completion_tokens": 3
+ },
+ {
+  "case": "four images",
+  "served": true,
+  "correct": true,
+  "answer": "4",
+  "ok": true,
+  "secs": 0.311,
+  "content": "4",
+  "finish": "stop",
+  "prompt_tokens": 1152,
+  "completion_tokens": 3
+ }
+]

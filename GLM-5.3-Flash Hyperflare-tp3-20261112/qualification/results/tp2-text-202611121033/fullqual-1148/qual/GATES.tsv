@@ -1,0 +1,9 @@
+18:41:32	eval	PASS	REUSED from qual: 43/43
+18:41:32	tools	PASS	REUSED from qual: tool calls: 60/60 OK (0 chose a different tool), concurrency 8, 20 s
+18:41:32	verify	PASS	REUSED from qual: 20 runs, 6000 tokens: TRUE corruptions 0, natural-uncertainty flags 35
+19:12:17	hotel-lights	FAIL	DONE hotel-lights-c8 rc=0 | exact 26 / wrong 4 / truncated 0 | [(5, 'unparseable: multiple numbers without answer anchor', 33815), (14, 'unparseable: multiple numbers without answer anchor', 33221), (19, 'expected 48, got 49', 9301), (29, 'expected 48, got 47', 78831)]
+19:14:26	retrieval	PASS	DONE long retrieval rc=0: DONE 128000 pass DONE 900000 pass
+19:17:40	longgen	PASS	2/2 runs, fails [], completions [11164, 17340], worst 8-gram 0.0004
+20:12:19	gpqa	INFO	175/189 = 92.6% (Wilson95 88.0-95.5), truncated 2, hit max_tokens 2, errors 9; no baseline: this run can serve as one
+20:12:20	tooleval	FAIL	exit 1, {'kind': 'server', 'message': 'Cannot connect to the OpenAI-compatible server at http://localhost:15015: ConnectError: [Errno 111] Connection refused', 'hint': 
+20:12:20	stress	FAIL	no flare_total_kv_tokens metric

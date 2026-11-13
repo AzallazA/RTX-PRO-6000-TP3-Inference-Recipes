@@ -1,0 +1,1176 @@
+[ STARTED  ] Resolve checkpoint.
+[    OK    ] Resolve checkpoint.  glm-5.3-flash · <ckpt>/glm53-…  0.4s
+[ STARTED  ] Select GPUs.
+[    OK    ] Select GPUs.  GPUs 0-2 · concurrency 32 · images 4 · up to 5…  0.1s
+[ STARTED  ] Connect tensor-parallel ranks.
+[    OK    ] Connect tensor-parallel ranks.  4.2s
+[ STARTED  ] Inspect checkpoint.
+[    OK    ] Inspect checkpoint.  2.5s
+[ STARTED  ] Load weights.
+b12x routing checkpoint shards: 0/42 shards routed, 0.00 GB selected on rank 0, 0:00
+b12x routing checkpoint shards: 42/42 shards routed, 0.00 GB selected on rank 0, 0:03
+b12x reading and scattering weights: 42/42 shards routed, 0.00 GB selected on rank 0, 0:04
+b12x reading and scattering weights: 42/42 shards routed, 12.77 GB selected on rank 0, 0:14
+b12x reading and scattering weights: 42/42 shards routed, 25.28 GB selected on rank 0, 0:24
+b12x reading and scattering weights: 42/42 shards routed, 37.84 GB selected on rank 0, 0:34
+b12x reading and scattering weights: 42/42 shards routed, 50.33 GB selected on rank 0, 0:44
+b12x reading and scattering weights: 42/42 shards routed, 64.40 GB selected on rank 0, 0:54
+b12x weights loaded: 69.07 GB selected on rank 0 · 105.40 GB physical reads; 57.80 s total loading; ROUTE 4.02s · SETUP 0.00s · PLAN 0.00s · READ 53.78s · SYNC 0.00s
+[    OK    ] Load weights.  57.8s
+[ STARTED  ] Load vision weights.
+b12x routing checkpoint shards: 0/1 shards routed, 0.00 GB selected on rank 0, 0:00
+b12x routing checkpoint shards: 1/1 shards routed, 0.00 GB selected on rank 0, 0:00
+b12x reading and scattering weights: 1/1 shards routed, 0.00 GB selected on rank 0, 0:00
+b12x weights loaded: 0.39 GB selected on rank 0 · 0.39 GB physical reads; 0.25 s total loading; ROUTE 0.12s · SETUP 0.00s · PLAN 0.00s · READ 0.13s · SYNC 0.00s
+[    OK    ] Load vision weights.  0.2s
+  vision weights parked in device-visible host memory and staged per image 
+(FLARE_GLM53_VISION_STAGE=1)
+  after weights: free=36491 MiB, allocated=59616 MiB, reserved=60112 MiB, 
+rss=3242 MiB
+[ STARTED  ] Allocate model state and collectives.
+[    OK    ] Allocate model state and collectives.  626.3s
+  after model state (continuation 2000 MiB, 33 rows): free=29219 MiB, 
+allocated=61923 MiB, reserved=64524 MiB, rss=3243 MiB
+[ STARTED  ] Construct graph catalog.
+  vision staging slots 22 MiB (tail aliased: True, parked 373 MiB): free=29219 
+MiB, allocated=61945 MiB, reserved=64524 MiB, rss=3243 MiB
+[    OK    ] Construct graph catalog.  vision staging slots 22 MiB…  74/74  6.3s
+  after graph catalog (operator scratch 0 MiB): free=29191 MiB, allocated=63890 
+MiB, reserved=64550 MiB, rss=3768 MiB
+[ STARTED  ] Prepare and tune kernels.
+b12x waiting for ranks: 0/46245 ready, 0 measured, 0 cached, 0 restored, 0 rejected, 0 compilations, 0:00
+b12x planning gemm.bf16_gemv: 0/1357 ready, candidates 0/10 prepared, 0 measured, 0 cached, 0 restored, 0 rejected, 0 compilations, 0:00
+b12x planning gemm.blockscaled_precision: 0/1357 ready, candidates 0/28 prepared, 0 measured, 0 cached, 0 restored, 0 rejected, 0 compilations, 0:01
+b12x planning sequence.kda_prefill: 0/1357 ready, candidates 0/352 prepared, 0 measured, 0 cached, 0 restored, 0 rejected, 0 compilations, 0:01
+b12x planning comm.pcie: 0/1357 ready, candidates 0/110 prepared, 0 measured, 0 cached, 0 restored, 0 rejected, 0 compilations, 0:01
+b12x planning norm.mhc: 0/1357 ready, 0 measured, 0 cached, 0 restored, 0 rejected, 0 compilations, 0:01
+b12x planning moe.decode: 0/1357 ready, 0 measured, 0 cached, 0 restored, 0 rejected, 0 compilations, 0:02
+b12x planning moe.decode: 0/1357 ready, candidates 0/114 prepared, 0 measured, 0 cached, 0 restored, 0 rejected, 0 compilations, 0:12
+b12x planning comm.pcie: 0/1357 ready, candidates 0/207 prepared, 0 measured, 0 cached, 0 restored, 0 rejected, 0 compilations, 0:22
+b12x planning moe.decode: 0/1357 ready, 0 measured, 0 cached, 0 restored, 0 rejected, 0 compilations, 0:32
+b12x planning attention.dsa_indexer: 0/1357 ready, candidates 0/1 prepared, 0 measured, 0 cached, 0 restored, 0 rejected, 0 compilations, 0:35
+b12x planning moe.decode: 0/1357 ready, candidates 0/116 prepared, 0 measured, 0 cached, 0 restored, 0 rejected, 0 compilations, 0:45
+b12x planning norm.mhc: 0/1357 ready, candidates 0/1 prepared, 0 measured, 246 cached, 0 restored, 0 rejected, 0 compilations, 0:56
+b12x planning norm.mhc: 0/1357 ready, candidates 0/1 prepared, 0 measured, 609 cached, 0 restored, 0 rejected, 0 compilations, 1:06
+b12x materializing attention.varlen: 15/1357 ready, candidates 0/42 prepared, 0 measured, 640 cached, 0 restored, 0 rejected, 0 compilations, 1:07
+b12x selecting sequence.short_conv: 67/1357 ready, candidates 0/1 prepared, 0 measured, 640 cached, 0 restored, 0 rejected, 0 compilations, 1:07
+b12x materializing gemm.blockscaled.fixed: 74/1357 ready, candidates 0/1 prepared, 0 measured, 640 cached, 0 restored, 0 rejected, 0 compilations, 1:07
+b12x selecting attention.dsa_indexer: 81/1357 ready, candidates 0/1 prepared, 0 measured, 640 cached, 0 restored, 0 rejected, 0 compilations, 1:07
+b12x materializing attention.dsa_indexer: 81/1357 ready, candidates 0/1 prepared, 0 measured, 640 cached, 0 restored, 0 rejected, 0 compilations, 1:07
+b12x selecting attention.sparse_mla: 83/1357 ready, candidates 0/1 prepared, 0 measured, 640 cached, 0 restored, 0 rejected, 0 compilations, 1:08
+b12x materializing moe.decode: 93/1357 ready, candidates 0/57 prepared, 0 measured, 643 cached, 0 restored, 0 rejected, 0 compilations, 1:08
+b12x materializing gemm.blockscaled_precision: 112/1357 ready, candidates 0/29 prepared, 0 measured, 643 cached, 0 restored, 0 rejected, 0 compilations, 1:08
+b12x materializing sequence.kda_prefill: 147/1357 ready, candidates 0/320 prepared, 0 measured, 646 cached, 0 restored, 0 rejected, 0 compilations, 1:08
+b12x materializing sequence.short_conv: 184/1357 ready, candidates 0/1 prepared, 0 measured, 649 cached, 0 restored, 0 rejected, 0 compilations, 1:08
+b12x materializing gemm.bf16_gemv: 218/1357 ready, candidates 0/9 prepared, 0 measured, 652 cached, 0 restored, 0 rejected, 0 compilations, 1:08
+b12x selecting norm.mhc: 252/1357 ready, candidates 0/1 prepared, 0 measured, 653 cached, 0 restored, 0 rejected, 0 compilations, 1:09
+b12x planning programs moe.decode: 395/1357 ready, candidates 0/57 prepared, 0 measured, 696 cached, 0 restored, 0 rejected, 0 compilations, 1:09
+b12x selecting gemm.blockscaled.fixed: 432/1357 ready, candidates 0/1 prepared, 0 measured, 697 cached, 0 restored, 0 rejected, 0 compilations, 1:10
+b12x materializing attention.gdn: 443/1357 ready, candidates 0/2 prepared, 0 measured, 698 cached, 0 restored, 0 rejected, 0 compilations, 1:10
+b12x materializing attention.sparse_mla: 498/1357 ready, candidates 0/1 prepared, 0 measured, 700 cached, 0 restored, 0 rejected, 0 compilations, 1:10
+b12x selecting attention.dsa_indexer.glm_pool: 515/1357 ready, candidates 0/1 prepared, 0 measured, 701 cached, 0 restored, 0 rejected, 0 compilations, 1:10
+b12x materializing moe.route_topk: 810/1357 ready, candidates 0/1 prepared, 0 measured, 709 cached, 0 restored, 0 rejected, 0 compilations, 1:12
+b12x materializing quantization.csf_block_expansion: 991/1357 ready, candidates 0/30 prepared, 0 measured, 714 cached, 0 restored, 0 rejected, 0 compilations, 1:13
+b12x materializing norm.hyperconnection: 1105/1357 ready, candidates 0/1 prepared, 0 measured, 718 cached, 0 restored, 0 rejected, 0 compilations, 1:14
+b12x waiting for ranks comm.pcie: 1250/1357 ready, candidates 0/110 prepared, 0 measured, 723 cached, 0 restored, 0 rejected, 0 compilations, 1:18
+b12x planning programs comm.pcie: 1255/1357 ready, candidates 0/205 prepared, 0 measured, 728 cached, 0 restored, 0 rejected, 0 compilations, 1:22
+b12x ready comm.pcie: 1357/1357 ready, candidates 0/12 prepared, 0 measured, 830 cached, 0 restored, 0 rejected, 0 compilations, 1:31
+[    OK    ] Prepare and tune kernels.  128.3s
+  selected kernels: {'cached': 31793, 'fixed': 14452}
+  after tuning: free=20877 MiB, allocated=64750 MiB, reserved=72796 MiB, 
+weights=59616 MiB, continuation=2000 MiB, operator scratch=578 MiB
+Graph catalog: 74 graphs (before compilation/capture)                           
+ Kind         Spec  B              W                     P    D  Prefill  Count 
+ vision       -     1              64,256,1024,4096,163  -    -  -        6     
+                                   84,32768                                     
+ prefill      on    1              128,256,512,1024,153  -    -  -        10    
+                                   6,2048,2560,3072,358                         
+                                   4,4096                                       
+ speculative  on    32             4                     128  3  -        1     
+ speculative  on    16             4                     64   3  -        1     
+ speculative  on    8              4                     32   3  -        1     
+ speculative  on    4              4                     16   3  -        1     
+ speculative  on    2              4                     8    3  -        1     
+ speculative  on    1              4                     4    3  -        1     
+ speculative  on    16             6                     96   5  -        1     
+ speculative  on    8              6                     48   5  -        1     
+ speculative  on    4              6                     24   5  -        1     
+ speculative  on    2              6                     12   5  -        1     
+ speculative  on    1              6                     6    5  -        1     
+ speculative  on    32             3                     96   2  -        1     
+ speculative  on    16             3                     48   2  -        1     
+ speculative  on    8              3                     24   2  -        1     
+ speculative  on    4              3                     12   2  -        1     
+ speculative  on    2              3                     6    2  -        1     
+ speculative  on    1              3                     3    2  -        1     
+ speculative  on    16             5                     80   4  -        1     
+ speculative  on    8              5                     40   4  -        1     
+ speculative  on    4              5                     20   4  -        1     
+ speculative  on    2              5                     10   4  -        1     
+ speculative  on    1              5                     5    4  -        1     
+ speculative  on    32             2                     64   1  -        1     
+ speculative  on    16             2                     32   1  -        1     
+ speculative  on    8              2                     16   1  -        1     
+ speculative  on    4              2                     8    1  -        1     
+ speculative  on    2              2                     4    1  -        1     
+ speculative  on    1              2                     2    1  -        1     
+ speculative  on    32             1                     32   -  -        1     
+ speculative  on    16             1                     16   -  -        1     
+ speculative  on    8              1                     8    -  -        1     
+ speculative  on    4              1                     4    -  -        1     
+ speculative  on    2              1                     2    -  -        1     
+ speculative  on    1              1                     1    -  -        1     
+ resume       on    1,2,4,8,16,32  1                     -    -  -        6     
+ init         on    1,2,4,8,16,32  1                     -    -  -        6     
+ restore      on    1,2,4,8,16,32  1                     -    -  -        6     
+ snapshot     on    1,2,4,8,16,32  1                     -    -  -        6     
+B=batch  W=logical width/tokens  P=packed rows  D=draft depth                   
+[ STARTED  ] Warm serving graphs.
+[    OK    ] Warm serving graphs.  74/74  10.4s
+[ STARTED  ] Measure graph memory.
+  capturing vision32768: 20725 MiB free, 64815 MiB allocated, 72864 MiB 
+reserved, 3752 MiB outside PyTorch
+  captured vision32768 in 0.17s
+  capturing vision16384: 20539 MiB free, 64815 MiB allocated, 73018 MiB 
+reserved, 3784 MiB outside PyTorch
+  captured vision16384 in 0.15s
+  capturing vision4096: 20507 MiB free, 64815 MiB allocated, 73018 MiB reserved,
+3816 MiB outside PyTorch
+  captured vision4096 in 0.15s
+  capturing vision1024: 20469 MiB free, 64815 MiB allocated, 73026 MiB reserved,
+3846 MiB outside PyTorch
+  captured vision1024 in 0.14s
+  capturing vision256: 20437 MiB free, 64815 MiB allocated, 73026 MiB reserved, 
+3878 MiB outside PyTorch
+  captured vision256 in 0.16s
+  capturing vision64: 20403 MiB free, 64815 MiB allocated, 73026 MiB reserved, 
+3912 MiB outside PyTorch
+  captured vision64 in 0.14s
+  capturing prefill4096: 20371 MiB free, 64815 MiB allocated, 73026 MiB 
+reserved, 3944 MiB outside PyTorch
+  captured prefill4096 in 0.28s
+  capturing prefill3584: 20227 MiB free, 64815 MiB allocated, 73160 MiB 
+reserved, 3954 MiB outside PyTorch
+  captured prefill3584 in 0.27s
+  capturing prefill3072: 20217 MiB free, 64815 MiB allocated, 73160 MiB 
+reserved, 3964 MiB outside PyTorch
+  captured prefill3072 in 0.27s
+  capturing prefill2560: 20207 MiB free, 64815 MiB allocated, 73160 MiB 
+reserved, 3974 MiB outside PyTorch
+  captured prefill2560 in 0.25s
+  capturing prefill2048: 20197 MiB free, 64815 MiB allocated, 73160 MiB 
+reserved, 3984 MiB outside PyTorch
+  captured prefill2048 in 0.21s
+  capturing prefill1536: 20189 MiB free, 64815 MiB allocated, 73160 MiB 
+reserved, 3992 MiB outside PyTorch
+  captured prefill1536 in 0.21s
+  capturing prefill1024: 20179 MiB free, 64815 MiB allocated, 73160 MiB 
+reserved, 4002 MiB outside PyTorch
+  captured prefill1024 in 0.19s
+  capturing prefill512: 20171 MiB free, 64815 MiB allocated, 73160 MiB reserved,
+4010 MiB outside PyTorch
+  captured prefill512 in 0.17s
+  capturing prefill256: 20163 MiB free, 64815 MiB allocated, 73160 MiB reserved,
+4018 MiB outside PyTorch
+  captured prefill256 in 0.18s
+  capturing prefill128: 20133 MiB free, 64815 MiB allocated, 73182 MiB reserved,
+4026 MiB outside PyTorch
+  captured prefill128 in 0.18s
+  capturing speculative32x4: 20127 MiB free, 64815 MiB allocated, 73182 MiB 
+reserved, 4032 MiB outside PyTorch
+  captured speculative32x4 in 0.19s
+  capturing speculative16x6: 19661 MiB free, 64815 MiB allocated, 73638 MiB 
+reserved, 4042 MiB outside PyTorch
+  captured speculative16x6 in 0.20s
+  capturing speculative32x3: 19651 MiB free, 64815 MiB allocated, 73638 MiB 
+reserved, 4052 MiB outside PyTorch
+  captured speculative32x3 in 0.19s
+  capturing speculative16x5: 19641 MiB free, 64815 MiB allocated, 73638 MiB 
+reserved, 4062 MiB outside PyTorch
+  captured speculative16x5 in 0.20s
+  capturing speculative16x4: 19629 MiB free, 64815 MiB allocated, 73638 MiB 
+reserved, 4074 MiB outside PyTorch
+  captured speculative16x4 in 0.19s
+  capturing speculative32x2: 19617 MiB free, 64815 MiB allocated, 73638 MiB 
+reserved, 4086 MiB outside PyTorch
+  captured speculative32x2 in 0.19s
+  capturing speculative8x6: 19607 MiB free, 64815 MiB allocated, 73638 MiB 
+reserved, 4096 MiB outside PyTorch
+  captured speculative8x6 in 0.20s
+  capturing speculative16x3: 19597 MiB free, 64815 MiB allocated, 73638 MiB 
+reserved, 4106 MiB outside PyTorch
+  captured speculative16x3 in 0.18s
+  capturing speculative8x5: 19587 MiB free, 64815 MiB allocated, 73638 MiB 
+reserved, 4116 MiB outside PyTorch
+  captured speculative8x5 in 0.19s
+  capturing speculative8x4: 19577 MiB free, 64815 MiB allocated, 73638 MiB 
+reserved, 4126 MiB outside PyTorch
+  captured speculative8x4 in 0.19s
+  capturing speculative16x2: 19565 MiB free, 64815 MiB allocated, 73638 MiB 
+reserved, 4138 MiB outside PyTorch
+  captured speculative16x2 in 0.18s
+  capturing speculative32x1: 19555 MiB free, 64815 MiB allocated, 73638 MiB 
+reserved, 4148 MiB outside PyTorch
+  captured speculative32x1 in 0.17s
+  capturing speculative4x6: 19545 MiB free, 64815 MiB allocated, 73638 MiB 
+reserved, 4158 MiB outside PyTorch
+  captured speculative4x6 in 0.19s
+  capturing speculative8x3: 19537 MiB free, 64815 MiB allocated, 73638 MiB 
+reserved, 4166 MiB outside PyTorch
+  captured speculative8x3 in 0.18s
+  capturing speculative4x5: 19529 MiB free, 64815 MiB allocated, 73638 MiB 
+reserved, 4174 MiB outside PyTorch
+  captured speculative4x5 in 0.20s
+  capturing speculative4x4: 19519 MiB free, 64815 MiB allocated, 73638 MiB 
+reserved, 4184 MiB outside PyTorch
+  captured speculative4x4 in 0.20s
+  capturing speculative8x2: 19511 MiB free, 64815 MiB allocated, 73638 MiB 
+reserved, 4192 MiB outside PyTorch
+  captured speculative8x2 in 0.17s
+  capturing speculative16x1: 19501 MiB free, 64815 MiB allocated, 73638 MiB 
+reserved, 4202 MiB outside PyTorch
+  captured speculative16x1 in 0.16s
+  capturing speculative2x6: 19495 MiB free, 64815 MiB allocated, 73638 MiB 
+reserved, 4208 MiB outside PyTorch
+  captured speculative2x6 in 0.19s
+  capturing speculative4x3: 19483 MiB free, 64815 MiB allocated, 73638 MiB 
+reserved, 4220 MiB outside PyTorch
+  captured speculative4x3 in 0.17s
+  capturing speculative2x5: 19475 MiB free, 64815 MiB allocated, 73638 MiB 
+reserved, 4228 MiB outside PyTorch
+  captured speculative2x5 in 0.18s
+  capturing speculative2x4: 19467 MiB free, 64815 MiB allocated, 73638 MiB 
+reserved, 4236 MiB outside PyTorch
+  captured speculative2x4 in 0.17s
+  capturing speculative4x2: 19459 MiB free, 64815 MiB allocated, 73638 MiB 
+reserved, 4244 MiB outside PyTorch
+  captured speculative4x2 in 0.17s
+  capturing speculative8x1: 19453 MiB free, 64815 MiB allocated, 73638 MiB 
+reserved, 4250 MiB outside PyTorch
+  captured speculative8x1 in 0.15s
+  capturing speculative1x6: 19445 MiB free, 64815 MiB allocated, 73638 MiB 
+reserved, 4258 MiB outside PyTorch
+  captured speculative1x6 in 0.19s
+  capturing speculative2x3: 19435 MiB free, 64815 MiB allocated, 73638 MiB 
+reserved, 4268 MiB outside PyTorch
+  captured speculative2x3 in 0.17s
+  capturing speculative1x5: 19425 MiB free, 64815 MiB allocated, 73638 MiB 
+reserved, 4278 MiB outside PyTorch
+  captured speculative1x5 in 0.19s
+  capturing speculative1x4: 19415 MiB free, 64815 MiB allocated, 73638 MiB 
+reserved, 4288 MiB outside PyTorch
+  captured speculative1x4 in 0.17s
+  capturing speculative2x2: 19409 MiB free, 64815 MiB allocated, 73638 MiB 
+reserved, 4294 MiB outside PyTorch
+  captured speculative2x2 in 0.17s
+  capturing speculative4x1: 19401 MiB free, 64815 MiB allocated, 73638 MiB 
+reserved, 4302 MiB outside PyTorch
+  captured speculative4x1 in 0.16s
+  capturing speculative1x3: 19393 MiB free, 64815 MiB allocated, 73638 MiB 
+reserved, 4310 MiB outside PyTorch
+  captured speculative1x3 in 0.17s
+  capturing speculative1x2: 19385 MiB free, 64815 MiB allocated, 73638 MiB 
+reserved, 4318 MiB outside PyTorch
+  captured speculative1x2 in 0.17s
+  capturing speculative2x1: 19379 MiB free, 64815 MiB allocated, 73638 MiB 
+reserved, 4324 MiB outside PyTorch
+  captured speculative2x1 in 0.16s
+  capturing speculative1x1: 19367 MiB free, 64815 MiB allocated, 73638 MiB 
+reserved, 4336 MiB outside PyTorch
+  captured speculative1x1 in 0.16s
+  capturing resume32: 19359 MiB free, 64815 MiB allocated, 73638 MiB reserved, 
+4344 MiB outside PyTorch
+  captured resume32 in 0.01s
+  capturing init32: 19359 MiB free, 64815 MiB allocated, 73638 MiB reserved, 
+4344 MiB outside PyTorch
+  captured init32 in 0.00s
+  capturing restore32: 19359 MiB free, 64815 MiB allocated, 73638 MiB reserved, 
+4344 MiB outside PyTorch
+  captured restore32 in 0.00s
+  capturing snapshot32: 19359 MiB free, 64815 MiB allocated, 73638 MiB reserved,
+4344 MiB outside PyTorch
+  captured snapshot32 in 0.00s
+  capturing resume16: 19359 MiB free, 64815 MiB allocated, 73638 MiB reserved, 
+4344 MiB outside PyTorch
+  captured resume16 in 0.00s
+  capturing init16: 19359 MiB free, 64815 MiB allocated, 73638 MiB reserved, 
+4344 MiB outside PyTorch
+  captured init16 in 0.00s
+  capturing restore16: 19359 MiB free, 64815 MiB allocated, 73638 MiB reserved, 
+4344 MiB outside PyTorch
+  captured restore16 in 0.00s
+  capturing snapshot16: 19359 MiB free, 64815 MiB allocated, 73638 MiB reserved,
+4344 MiB outside PyTorch
+  captured snapshot16 in 0.00s
+  capturing resume8: 19359 MiB free, 64815 MiB allocated, 73638 MiB reserved, 
+4344 MiB outside PyTorch
+  captured resume8 in 0.00s
+  capturing init8: 19359 MiB free, 64815 MiB allocated, 73638 MiB reserved, 4344
+MiB outside PyTorch
+  captured init8 in 0.00s
+  capturing restore8: 19357 MiB free, 64815 MiB allocated, 73638 MiB reserved, 
+4346 MiB outside PyTorch
+  captured restore8 in 0.00s
+  capturing snapshot8: 19357 MiB free, 64815 MiB allocated, 73638 MiB reserved, 
+4346 MiB outside PyTorch
+  captured snapshot8 in 0.00s
+  capturing resume4: 19357 MiB free, 64815 MiB allocated, 73638 MiB reserved, 
+4346 MiB outside PyTorch
+  captured resume4 in 0.00s
+  capturing init4: 19357 MiB free, 64815 MiB allocated, 73638 MiB reserved, 4346
+MiB outside PyTorch
+  captured init4 in 0.00s
+  capturing restore4: 19357 MiB free, 64815 MiB allocated, 73638 MiB reserved, 
+4346 MiB outside PyTorch
+  captured restore4 in 0.00s
+  capturing snapshot4: 19357 MiB free, 64815 MiB allocated, 73638 MiB reserved, 
+4346 MiB outside PyTorch
+  captured snapshot4 in 0.00s
+  capturing resume2: 19357 MiB free, 64815 MiB allocated, 73638 MiB reserved, 
+4346 MiB outside PyTorch
+  captured resume2 in 0.00s
+  capturing init2: 19355 MiB free, 64815 MiB allocated, 73638 MiB reserved, 4348
+MiB outside PyTorch
+  captured init2 in 0.00s
+  capturing restore2: 19355 MiB free, 64815 MiB allocated, 73638 MiB reserved, 
+4348 MiB outside PyTorch
+  captured restore2 in 0.00s
+  capturing snapshot2: 19355 MiB free, 64815 MiB allocated, 73638 MiB reserved, 
+4348 MiB outside PyTorch
+  captured snapshot2 in 0.00s
+  capturing resume1: 19355 MiB free, 64815 MiB allocated, 73638 MiB reserved, 
+4348 MiB outside PyTorch
+  captured resume1 in 0.00s
+  capturing init1: 19355 MiB free, 64815 MiB allocated, 73638 MiB reserved, 4348
+MiB outside PyTorch
+  captured init1 in 0.00s
+  capturing restore1: 19355 MiB free, 64815 MiB allocated, 73638 MiB reserved, 
+4348 MiB outside PyTorch
+  captured restore1 in 0.00s
+  capturing snapshot1: 19355 MiB free, 64815 MiB allocated, 73638 MiB reserved, 
+4348 MiB outside PyTorch
+  captured snapshot1 in 0.00s
+[    OK    ] Measure graph memory.  captured snapshot1 in 0.00s  74/74  9.3s
+  after graph measurement (the core backs 64 preparation KV pages): free=19355 
+MiB, allocated=64814 MiB, reserved=73638 MiB, rss=7015 MiB
+[ STARTED  ] Compile model forwards.
+[    OK    ] Compile model forwards.  12 compiler workers; per r…  19/19  135.5s
+[ STARTED  ] Allocate KV cache.
+[    OK    ] Allocate KV cache.  0.10 GiB per GPU · 49,152 tokens  0.3s
+  after KV allocation: free=19353 MiB, allocated=64782 MiB, reserved=73640 MiB, 
+rss=7005 MiB
+[ STARTED  ] Load and warm compiled forwards.
+[    OK    ] Load and warm compiled forwards.  450 MiB portable …  56/56  180.9s
+[ STARTED  ] Release serialized compiler state.
+[    OK    ] Release serialized compiler state.  0 MiB; guards and…  56/56  0.0s
+[ STARTED  ] Warm serving graphs.
+[    OK    ] Warm serving graphs.  74/74  0.2s
+[ STARTED  ] Prepare serving graphs.
+  capturing vision32768: 19113 MiB free, 64815 MiB allocated, 73736 MiB 
+reserved, 4492 MiB outside PyTorch
+  captured vision32768 in 0.10s
+  capturing vision16384: 19113 MiB free, 64815 MiB allocated, 73736 MiB 
+reserved, 4492 MiB outside PyTorch
+  captured vision16384 in 0.08s
+  capturing vision4096: 19113 MiB free, 64815 MiB allocated, 73736 MiB reserved,
+4492 MiB outside PyTorch
+  captured vision4096 in 0.08s
+  capturing vision1024: 19111 MiB free, 64815 MiB allocated, 73738 MiB reserved,
+4492 MiB outside PyTorch
+  captured vision1024 in 0.08s
+  capturing vision256: 19111 MiB free, 64815 MiB allocated, 73738 MiB reserved, 
+4492 MiB outside PyTorch
+  captured vision256 in 0.09s
+  capturing vision64: 19111 MiB free, 64815 MiB allocated, 73738 MiB reserved, 
+4492 MiB outside PyTorch
+  captured vision64 in 0.08s
+  capturing prefill4096: 19111 MiB free, 64815 MiB allocated, 73738 MiB 
+reserved, 4492 MiB outside PyTorch
+  captured prefill4096 in 0.35s
+  capturing prefill3584: 19111 MiB free, 64815 MiB allocated, 73738 MiB 
+reserved, 4492 MiB outside PyTorch
+  captured prefill3584 in 0.34s
+  capturing prefill3072: 19111 MiB free, 64815 MiB allocated, 73738 MiB 
+reserved, 4492 MiB outside PyTorch
+  captured prefill3072 in 0.33s
+  capturing prefill2560: 19111 MiB free, 64815 MiB allocated, 73738 MiB 
+reserved, 4492 MiB outside PyTorch
+  captured prefill2560 in 0.32s
+  capturing prefill2048: 19111 MiB free, 64815 MiB allocated, 73738 MiB 
+reserved, 4492 MiB outside PyTorch
+  captured prefill2048 in 0.28s
+  capturing prefill1536: 19111 MiB free, 64815 MiB allocated, 73738 MiB 
+reserved, 4492 MiB outside PyTorch
+  captured prefill1536 in 0.27s
+  capturing prefill1024: 19111 MiB free, 64815 MiB allocated, 73738 MiB 
+reserved, 4492 MiB outside PyTorch
+  captured prefill1024 in 0.25s
+  capturing prefill512: 19111 MiB free, 64815 MiB allocated, 73738 MiB reserved,
+4492 MiB outside PyTorch
+  captured prefill512 in 0.23s
+  capturing prefill256: 19111 MiB free, 64815 MiB allocated, 73738 MiB reserved,
+4492 MiB outside PyTorch
+  captured prefill256 in 0.24s
+  capturing prefill128: 19111 MiB free, 64815 MiB allocated, 73738 MiB reserved,
+4492 MiB outside PyTorch
+  captured prefill128 in 0.24s
+  capturing speculative32x4: 19111 MiB free, 64815 MiB allocated, 73738 MiB 
+reserved, 4492 MiB outside PyTorch
+  captured speculative32x4 in 0.23s
+  capturing speculative16x6: 19111 MiB free, 64815 MiB allocated, 73738 MiB 
+reserved, 4492 MiB outside PyTorch
+  captured speculative16x6 in 0.25s
+  capturing speculative32x3: 19111 MiB free, 64815 MiB allocated, 73738 MiB 
+reserved, 4492 MiB outside PyTorch
+  captured speculative32x3 in 0.24s
+  capturing speculative16x5: 19111 MiB free, 64815 MiB allocated, 73738 MiB 
+reserved, 4492 MiB outside PyTorch
+  captured speculative16x5 in 0.24s
+  capturing speculative16x4: 19111 MiB free, 64815 MiB allocated, 73738 MiB 
+reserved, 4492 MiB outside PyTorch
+  captured speculative16x4 in 0.24s
+  capturing speculative32x2: 19111 MiB free, 64815 MiB allocated, 73738 MiB 
+reserved, 4492 MiB outside PyTorch
+  captured speculative32x2 in 0.23s
+  capturing speculative8x6: 19111 MiB free, 64815 MiB allocated, 73738 MiB 
+reserved, 4492 MiB outside PyTorch
+  captured speculative8x6 in 0.28s
+  capturing speculative16x3: 19111 MiB free, 64815 MiB allocated, 73738 MiB 
+reserved, 4492 MiB outside PyTorch
+  captured speculative16x3 in 0.23s
+  capturing speculative8x5: 19111 MiB free, 64815 MiB allocated, 73738 MiB 
+reserved, 4492 MiB outside PyTorch
+  captured speculative8x5 in 0.25s
+  capturing speculative8x4: 19111 MiB free, 64815 MiB allocated, 73738 MiB 
+reserved, 4492 MiB outside PyTorch
+  captured speculative8x4 in 0.24s
+  capturing speculative16x2: 19111 MiB free, 64815 MiB allocated, 73738 MiB 
+reserved, 4492 MiB outside PyTorch
+  captured speculative16x2 in 0.22s
+  capturing speculative32x1: 19111 MiB free, 64815 MiB allocated, 73738 MiB 
+reserved, 4492 MiB outside PyTorch
+  captured speculative32x1 in 0.22s
+  capturing speculative4x6: 19111 MiB free, 64815 MiB allocated, 73738 MiB 
+reserved, 4492 MiB outside PyTorch
+  captured speculative4x6 in 0.24s
+  capturing speculative8x3: 19111 MiB free, 64815 MiB allocated, 73738 MiB 
+reserved, 4492 MiB outside PyTorch
+  captured speculative8x3 in 0.22s
+  capturing speculative4x5: 19111 MiB free, 64815 MiB allocated, 73738 MiB 
+reserved, 4492 MiB outside PyTorch
+  captured speculative4x5 in 0.24s
+  capturing speculative4x4: 19111 MiB free, 64815 MiB allocated, 73738 MiB 
+reserved, 4492 MiB outside PyTorch
+  captured speculative4x4 in 0.24s
+  capturing speculative8x2: 19111 MiB free, 64815 MiB allocated, 73738 MiB 
+reserved, 4492 MiB outside PyTorch
+  captured speculative8x2 in 0.21s
+  capturing speculative16x1: 19111 MiB free, 64815 MiB allocated, 73738 MiB 
+reserved, 4492 MiB outside PyTorch
+  captured speculative16x1 in 0.21s
+  capturing speculative2x6: 19111 MiB free, 64815 MiB allocated, 73738 MiB 
+reserved, 4492 MiB outside PyTorch
+  captured speculative2x6 in 0.25s
+  capturing speculative4x3: 19111 MiB free, 64815 MiB allocated, 73738 MiB 
+reserved, 4492 MiB outside PyTorch
+  captured speculative4x3 in 0.22s
+  capturing speculative2x5: 19111 MiB free, 64815 MiB allocated, 73738 MiB 
+reserved, 4492 MiB outside PyTorch
+  captured speculative2x5 in 0.24s
+  capturing speculative2x4: 19111 MiB free, 64815 MiB allocated, 73738 MiB 
+reserved, 4492 MiB outside PyTorch
+  captured speculative2x4 in 0.24s
+  capturing speculative4x2: 19111 MiB free, 64815 MiB allocated, 73738 MiB 
+reserved, 4492 MiB outside PyTorch
+  captured speculative4x2 in 0.21s
+  capturing speculative8x1: 19111 MiB free, 64815 MiB allocated, 73738 MiB 
+reserved, 4492 MiB outside PyTorch
+  captured speculative8x1 in 0.21s
+  capturing speculative1x6: 19111 MiB free, 64815 MiB allocated, 73738 MiB 
+reserved, 4492 MiB outside PyTorch
+  captured speculative1x6 in 0.24s
+  capturing speculative2x3: 19111 MiB free, 64815 MiB allocated, 73738 MiB 
+reserved, 4492 MiB outside PyTorch
+  captured speculative2x3 in 0.22s
+  capturing speculative1x5: 19111 MiB free, 64815 MiB allocated, 73738 MiB 
+reserved, 4492 MiB outside PyTorch
+  captured speculative1x5 in 0.24s
+  capturing speculative1x4: 19111 MiB free, 64815 MiB allocated, 73738 MiB 
+reserved, 4492 MiB outside PyTorch
+  captured speculative1x4 in 0.23s
+  capturing speculative2x2: 19111 MiB free, 64815 MiB allocated, 73738 MiB 
+reserved, 4492 MiB outside PyTorch
+  captured speculative2x2 in 0.22s
+  capturing speculative4x1: 19111 MiB free, 64815 MiB allocated, 73738 MiB 
+reserved, 4492 MiB outside PyTorch
+  captured speculative4x1 in 0.22s
+  capturing speculative1x3: 19111 MiB free, 64815 MiB allocated, 73738 MiB 
+reserved, 4492 MiB outside PyTorch
+  captured speculative1x3 in 0.24s
+  capturing speculative1x2: 19111 MiB free, 64815 MiB allocated, 73738 MiB 
+reserved, 4492 MiB outside PyTorch
+  captured speculative1x2 in 0.22s
+  capturing speculative2x1: 19111 MiB free, 64815 MiB allocated, 73738 MiB 
+reserved, 4492 MiB outside PyTorch
+  captured speculative2x1 in 0.21s
+  capturing speculative1x1: 19111 MiB free, 64815 MiB allocated, 73738 MiB 
+reserved, 4492 MiB outside PyTorch
+  captured speculative1x1 in 0.21s
+  capturing resume32: 19111 MiB free, 64815 MiB allocated, 73738 MiB reserved, 
+4492 MiB outside PyTorch
+  captured resume32 in 0.01s
+  capturing init32: 19111 MiB free, 64815 MiB allocated, 73738 MiB reserved, 
+4492 MiB outside PyTorch
+  captured init32 in 0.00s
+  capturing restore32: 19111 MiB free, 64815 MiB allocated, 73738 MiB reserved, 
+4492 MiB outside PyTorch
+  captured restore32 in 0.00s
+  capturing snapshot32: 19111 MiB free, 64815 MiB allocated, 73738 MiB reserved,
+4492 MiB outside PyTorch
+  captured snapshot32 in 0.00s
+  capturing resume16: 19111 MiB free, 64815 MiB allocated, 73738 MiB reserved, 
+4492 MiB outside PyTorch
+  captured resume16 in 0.01s
+  capturing init16: 19111 MiB free, 64815 MiB allocated, 73738 MiB reserved, 
+4492 MiB outside PyTorch
+  captured init16 in 0.00s
+  capturing restore16: 19111 MiB free, 64815 MiB allocated, 73738 MiB reserved, 
+4492 MiB outside PyTorch
+  captured restore16 in 0.00s
+  capturing snapshot16: 19111 MiB free, 64815 MiB allocated, 73738 MiB reserved,
+4492 MiB outside PyTorch
+  captured snapshot16 in 0.00s
+  capturing resume8: 19111 MiB free, 64815 MiB allocated, 73738 MiB reserved, 
+4492 MiB outside PyTorch
+  captured resume8 in 0.01s
+  capturing init8: 19111 MiB free, 64815 MiB allocated, 73738 MiB reserved, 4492
+MiB outside PyTorch
+  captured init8 in 0.00s
+  capturing restore8: 19111 MiB free, 64815 MiB allocated, 73738 MiB reserved, 
+4492 MiB outside PyTorch
+  captured restore8 in 0.00s
+  capturing snapshot8: 19111 MiB free, 64815 MiB allocated, 73738 MiB reserved, 
+4492 MiB outside PyTorch
+  captured snapshot8 in 0.00s
+  capturing resume4: 19111 MiB free, 64815 MiB allocated, 73738 MiB reserved, 
+4492 MiB outside PyTorch
+  captured resume4 in 0.01s
+  capturing init4: 19111 MiB free, 64815 MiB allocated, 73738 MiB reserved, 4492
+MiB outside PyTorch
+  captured init4 in 0.00s
+  capturing restore4: 19111 MiB free, 64815 MiB allocated, 73738 MiB reserved, 
+4492 MiB outside PyTorch
+  captured restore4 in 0.00s
+  capturing snapshot4: 19111 MiB free, 64815 MiB allocated, 73738 MiB reserved, 
+4492 MiB outside PyTorch
+  captured snapshot4 in 0.00s
+  capturing resume2: 19111 MiB free, 64815 MiB allocated, 73738 MiB reserved, 
+4492 MiB outside PyTorch
+  captured resume2 in 0.01s
+  capturing init2: 19111 MiB free, 64815 MiB allocated, 73738 MiB reserved, 4492
+MiB outside PyTorch
+  captured init2 in 0.00s
+  capturing restore2: 19111 MiB free, 64815 MiB allocated, 73738 MiB reserved, 
+4492 MiB outside PyTorch
+  captured restore2 in 0.00s
+  capturing snapshot2: 19111 MiB free, 64815 MiB allocated, 73738 MiB reserved, 
+4492 MiB outside PyTorch
+  captured snapshot2 in 0.00s
+  capturing resume1: 19111 MiB free, 64815 MiB allocated, 73738 MiB reserved, 
+4492 MiB outside PyTorch
+  captured resume1 in 0.01s
+  capturing init1: 19111 MiB free, 64815 MiB allocated, 73738 MiB reserved, 4492
+MiB outside PyTorch
+  captured init1 in 0.00s
+  capturing restore1: 19111 MiB free, 64815 MiB allocated, 73738 MiB reserved, 
+4492 MiB outside PyTorch
+  captured restore1 in 0.00s
+  capturing snapshot1: 19111 MiB free, 64815 MiB allocated, 73738 MiB reserved, 
+4492 MiB outside PyTorch
+  captured snapshot1 in 0.00s
+[    OK    ] Prepare serving graphs.  captured snapshot1 in 0.00s  74/74  11.4s
+  memory breakdown (MiB): weights=59616, continuation=2000, kv=105, 
+operator_scratch=578, decoder_scratch=1577, other_allocated=936, 
+cached_unallocated=8923, collective_pinned_host=0, 
+compiled_forward_reservation=0, headroom=1024, peak_rss=8412, available=19111, 
+cuda_free=19111
+[ STARTED  ] Wait for tensor-parallel ranks.
+[    OK    ] Wait for tensor-parallel ranks.  2/2  0.1s
+[ PENDING  ] Clear disposable storage.  0.0s
+[    OK    ] Clear disposable storage.  12567435132 bytes  0.0s
+[ PENDING  ] Inspect CUDA graph functions.  0.0s
+[    OK    ] Inspect CUDA graph functions.  4238 functions, 4199 modules  0.4s
+[ PENDING  ] Serialize CUDA graphs.  0.0s
+[    OK    ] Serialize CUDA graphs.  74 graphs, 103455983 bytes  0.4s
+[ PENDING  ] Capture compiled modules and globals.  0.0s
+[    OK    ] Capture compiled modules and globals.  316727419 bytes, 596655 global bytes downloaded  0.4s
+[ PENDING  ] Scan and copy reachable storage.  0.0s
+[    OK    ] Scan and copy reachable storage.  65861943172 bytes scanned, 65470533508 bytes downloaded, 0 bytes stored; 23 allocations omitted  2.1s
+[ PENDING  ] Materialize weight payloads.  0.0s
+[ PENDING  ] Materialize weight payloads.  10.0s
+[ PENDING  ] Materialize weight payloads.  20.0s
+[ PENDING  ] Materialize weight payloads.  30.0s
+[ PENDING  ] Materialize weight payloads.  40.0s
+[ PENDING  ] Materialize weight payloads.  50.0s
+[ PENDING  ] Materialize weight payloads.  60.0s
+[ PENDING  ] Materialize weight payloads.  70.0s
+[ PENDING  ] Materialize weight payloads.  80.0s
+[ PENDING  ] Materialize weight payloads.  90.0s
+[ PENDING  ] Materialize weight payloads.  100.0s
+[ PENDING  ] Export frontend assets.  0.0s
+[    OK    ] Export frontend assets.  0.0s
+[    OK    ] Materialize weight payloads.  100.7s
+[ STARTED  ] Wait for rank exports.
+[    OK    ] Wait for rank exports.  2/2  123.7s
+[ STARTED  ] Release preparation resources.
+[    OK    ] Release preparation resources.  7.2s
+[ PENDING  ] Assemble core payloads.  0.0s
+[ PENDING  ] Assemble core payloads.  rank 0  10.0s
+[ PENDING  ] Assemble core payloads.  rank 1  20.0s
+[ PENDING  ] Assemble core payloads.  rank 2  30.0s
+[    OK    ] Assemble core payloads.  3 ranks  33.9s
+[ PENDING  ] Validate core publication.  0.0s
+[    OK    ] Validate core publication.  1 deployments  0.0s
+[ PENDING  ] Verify frontend payloads.  0.0s
+[    OK    ] Verify frontend payloads.  20228464 bytes  0.0s
+[ PENDING  ] Compress and publish rank 0 executables.  0.0s
+[    OK    ] Compress and publish rank 0 executables.  419586747 plaintext bytes  0.5s
+[ PENDING  ] Verify and publish rank 0 data.  0.0s
+[    OK    ] Verify and publish rank 0 data.  63946649991 source bytes verified  4.9s
+[ PENDING  ] Compress and publish rank 1 executables.  0.0s
+[    OK    ] Compress and publish rank 1 executables.  419588794 plaintext bytes  0.5s
+[ PENDING  ] Verify and publish rank 1 data.  0.0s
+[    OK    ] Verify and publish rank 1 data.  63896035615 source bytes verified  6.0s
+[ PENDING  ] Compress and publish rank 2 executables.  0.0s
+[    OK    ] Compress and publish rank 2 executables.  419588282 plaintext bytes  0.8s
+[ PENDING  ] Verify and publish rank 2 data.  0.0s
+[    OK    ] Verify and publish rank 2 data.  61360366287 source bytes verified  6.0s
+[ PENDING  ] Verify and publish shared data.  0.0s
+[    OK    ] Verify and publish shared data.  0 source bytes verified  0.0s
+[ PENDING  ] Sign and publish core metadata.  0.0s
+[    OK    ] Sign and publish core metadata.  27130638 metadata bytes  0.1s
+[ PENDING  ] Commit core.  0.0s
+[    OK    ] Commit core.  <disk>  0.0s
+VRAM inventory at export (physical bytes; aliased storage counted once)
+Rank 0 / CUDA 0: 78,231.56 MiB used, 19,109.31 MiB free
+  Core fixed mappings: 65,910.00 MiB; kernel globals: 582.67 KiB
+  Retained storage: 65,910.57 MiB
+    Weights / numeric constants: 60,331.86 MiB
+      33,264.00 MiB  
+resources[1]<ModelWeights>.layers[*]<LayerWeights>.mlp<MoEWeights>.experts<Prepa
+redExperts>._impl<B12XFP4ExpertWeights>.w1_fp4 — 
+.b12x-overlay/b12x_tree/moe/fused_moe/_impl.py:430
+      16,632.00 MiB  
+resources[1]<ModelWeights>.layers[*]<LayerWeights>.mlp<MoEWeights>.experts<Prepa
+redExperts>._impl<B12XFP4ExpertWeights>.w2_fp4 — 
+.b12x-overlay/b12x_tree/moe/fused_moe/_impl.py:430
+      2,150.49 MiB  
+resources[1]<ModelWeights>.layers[*]<LayerWeights>.mlp<MoEWeights>.experts<Prepa
+redExperts>._impl<B12XFP4ExpertWeights>.nvfp4_csf<Nvfp4CsfDecoder>.first<Nvfp4Co
+mpactBlockPlane>.scales<CsfBlockPayload>.storage — 
+.b12x-overlay/b12x_tree/_lib/quant/csf_blocks.py:114
+      1,224.00 MiB  
+resources[1]<ModelWeights>.layers[*]<LayerWeights>.attention['input_proj']<Group
+edLinearWeights>.parts[*]<MXFP8LinearWeight>.weight<MXFP8Rows>.values — 
+.b12x-overlay/b12x_tree/gemm/_shared/wo_mxfp8.py:64
+      1,210.00 MiB  
+resources[9]['prefill4096']<PreparedDecoder>.embedding<PreparedEmbedding>.weight
+— ignition/components/embedding.py:15
+      5,851.37 MiB  in 402 other source groups
+    Disposable storage: 2,130.35 MiB
+      386.58 MiB  resources[11]<DecoderScratch>.mla<MLAScratch>.slab — 
+ignition/recipes/glm53/mla.py:40
+      256.00 MiB  resources[24]<VisionState>.arena — 
+ignition/components/vision_state.py:25
+      128.00 MiB  resources[11]<DecoderScratch>.residual — 
+ignition/recipes/glm53/stack.py:27
+      128.00 MiB  resources[27]<VisionScratch>.merger_up — 
+ignition/recipes/glm53/vision.py:51
+      118.50 MiB  resources[27]<VisionScratch>.qkv — 
+ignition/recipes/glm53/vision.py:51
+      1,113.27 MiB  in 1061 other source groups
+    Other owned tensors: 1,159.73 MiB
+      108.38 MiB  
+resources[22]<SpeculativePreparation>.kda_records<KDARecords>.corrections — 
+ignition/components/kda_speculation.py:16
+      108.38 MiB  
+resources[22]<SpeculativePreparation>.kda_records<KDARecords>.keys_and_gates — 
+ignition/components/kda_speculation.py:16
+      67.50 MiB  
+resources[1]<ModelWeights>.layers[*]<LayerWeights>.residual['hc_attn_fn'] — 
+ignition/recipes/glm53/weights.py:37
+      67.50 MiB  
+resources[1]<ModelWeights>.layers[*]<LayerWeights>.residual['hc_ffn_fn'] — 
+ignition/recipes/glm53/weights.py:37
+      37.83 MiB  
+resources[8]['speculative32x4']<PreparedRound>.decoder<PreparedDecoder>.lm_head<
+PreparedVocabularyProjection>.gathered — ignition/components/vocabulary.py:13
+      770.15 MiB  in 4648 other source groups
+    TP communication: 714.00 MiB
+      714.00 MiB  PeerStorage.owned — ignition/preparation/peer_storage.py
+    Operator scratch: 578.29 MiB
+      576.29 MiB  
+resources[28][*]<PreparedVision>.merger<SimpleNamespace>.proj<QuantizedProjectio
+n>.workspace — ignition/components/linear.py:154
+      2.00 MiB  
+resources[28][*]<PreparedVision>.attention<PreparedVarlenAttention>.scratch — 
+ignition/components/varlen_attention.py:17
+    Graph capture pool: 396.00 MiB
+      396.00 MiB  shared CUDA graph pool — ignition/preparation/capture.py
+    Graph scratch pools: 289.39 MiB
+      56.72 MiB  resources[8]['speculative32x4']<PreparedRound>.probabilities — 
+ignition/recipes/glm53/speculative.py:169
+      47.27 MiB  
+resources[8]['speculative32x4']<PreparedRound>.sampling_scratch['verify']['safe_
+target_probs'] — ignition/recipes/glm53/speculative.py:169
+      28.36 MiB  resources[8]['speculative16x4']<PreparedRound>.probabilities — 
+ignition/recipes/glm53/speculative.py:169
+      18.91 MiB  resources[8]['speculative16x3']<PreparedRound>.probabilities — 
+ignition/recipes/glm53/speculative.py:169
+      18.91 MiB  resources[8]['speculative32x2']<PreparedRound>.probabilities — 
+ignition/recipes/glm53/speculative.py:169
+      119.23 MiB  in 48 other source groups
+    Graph I/O / persistent state: 168.38 MiB
+      147.00 MiB  resources[25]<VisionInputs>.vision_pixel_values — 
+ignition/recipes/glm53/vision_state.py:18
+      18.91 MiB  resources[5]<AdmissionBuffers>.admission_histogram — 
+ignition/components/sampling.py:159
+      605.00 KiB  resources[3]<DeviceRequestState>.grammar_mask — 
+ignition/components/sampling.py:64
+      605.00 KiB  resources[5]<AdmissionBuffers>.admission_grammar_mask — 
+ignition/components/sampling.py:159
+      512.00 KiB  resources[25]<VisionInputs>.vision_position_ids — 
+ignition/recipes/glm53/vision_state.py:18
+      813.07 KiB  in 42 other source groups
+    Allocator slack: 78.00 MiB
+      78.00 MiB  inactive blocks / alignment
+    Unknown storage: 64.00 MiB
+      64.00 MiB  unattributed
+    Kernel globals: 582.67 KiB
+      100.00 KiB  module-447.precalc_xorwow_matrix
+      100.00 KiB  module-447.precalc_xorwow_offset_matrix
+      100.00 KiB  module-449.precalc_xorwow_matrix
+      100.00 KiB  module-449.precalc_xorwow_offset_matrix
+      2.25 KiB  module-447.mrg32k3aM1
+      180.42 KiB  in 5813 other source groups
+  Preparation-only storage: 10,752.13 MiB
+    Allocator slack: 8,132.81 MiB
+      8,132.81 MiB  inactive blocks / alignment
+    Preparation cache backing: 2,146.00 MiB
+      2,002.00 MiB  continuations — 
+ignition/preparation/core_storage.py:CoreStorage.device_allocate
+      10.00 MiB  kv-11-latent — 
+ignition/preparation/core_storage.py:CoreStorage.device_allocate
+      10.00 MiB  kv-15-latent — 
+ignition/preparation/core_storage.py:CoreStorage.device_allocate
+      10.00 MiB  kv-19-latent — 
+ignition/preparation/core_storage.py:CoreStorage.device_allocate
+      10.00 MiB  kv-23-latent — 
+ignition/preparation/core_storage.py:CoreStorage.device_allocate
+      104.00 MiB  in 20 other source groups
+    Graph capture pool: 380.00 MiB
+      380.00 MiB  shared CUDA graph pool — ignition/preparation/capture.py
+    Unknown storage: 64.13 MiB
+      64.13 MiB  unattributed
+    Other owned tensors: 27.19 MiB
+      4.59 MiB  
+resources[9]['prefill3584']<PreparedDecoder>.layers[*]<PreparedGlmLayer>.mlp<Pre
+paredGlmMoe>.experts<PreparedRoutedExperts>.scale_plan<Plan>._prepared<_Prepared
+>.owners[*]<_Binding>.ids — 
+.b12x-overlay/b12x_tree/_lib/quant/csf_blocks_tuning.py:222
+      3.94 MiB  
+resources[9]['prefill3072']<PreparedDecoder>.layers[*]<PreparedGlmLayer>.mlp<Pre
+paredGlmMoe>.experts<PreparedRoutedExperts>.scale_plan<Plan>._prepared<_Prepared
+>.owners[*]<_Binding>.ids — 
+.b12x-overlay/b12x_tree/_lib/quant/csf_blocks_tuning.py:222
+      3.75 MiB  
+resources[9]['prefill4096']<PreparedDecoder>.layers[*]<PreparedGlmLayer>.mlp<Pre
+paredGlmMoe>.experts<PreparedRoutedExperts>.scale_plan<Plan>._prepared<_Prepared
+>.owners[*]<_Binding>.ids — 
+.b12x-overlay/b12x_tree/_lib/quant/csf_blocks_tuning.py:222
+      3.28 MiB  
+resources[9]['prefill2560']<PreparedDecoder>.layers[*]<PreparedGlmLayer>.mlp<Pre
+paredGlmMoe>.experts<PreparedRoutedExperts>.scale_plan<Plan>._prepared<_Prepared
+>.owners[*]<_Binding>.ids — 
+.b12x-overlay/b12x_tree/_lib/quant/csf_blocks_tuning.py:222
+      2.56 MiB  
+resources[9]['prefill2048']<PreparedDecoder>.layers[*]<PreparedGlmLayer>.mlp<Pre
+paredGlmMoe>.experts<PreparedRoutedExperts>.scale_plan<Plan>._prepared<_Prepared
+>.owners[*]<_Binding>.ids — 
+.b12x-overlay/b12x_tree/_lib/quant/csf_blocks_tuning.py:222
+      9.07 MiB  in 78 other source groups
+    Weights / numeric constants: 2.00 MiB
+      1.00 MiB  
+resources[1]<ModelWeights>.layers[*]<LayerWeights>.mlp<MLPWeights>.down<MXFP8Lin
+earWeight>.weight<MXFP8Rows>.scale_rows — 
+.b12x-overlay/b12x_tree/gemm/_shared/wo_mxfp8.py:64
+      1.00 MiB  
+resources[1]<ModelWeights>.layers[*]<LayerWeights>.mlp<MLPWeights>.gate_up<MXFP8
+LinearWeight>.weight<MXFP8Rows>.scale_rows — 
+.b12x-overlay/b12x_tree/gemm/_shared/wo_mxfp8.py:64
+  PyTorch allocated / reserved: 64,814.74 MiB / 73,738.00 MiB (overlaps storage 
+above)
+  Cache physically backed for preparation: 2,146.00 MiB; serving capacity is 
+sized at load
+  Mapped host: 373.28 MiB; imported peers: 1,648.00 MiB (excluded from local 
+VRAM)
+  Graphs: 74; kernels: 4238 in 4199 modules (301.49 MiB cubin data, not resident
+VRAM)
+  Device usage minus tracked physical storage: 1,568.87 MiB
+Rank 1 / CUDA 1: 78,227.50 MiB used, 19,113.38 MiB free
+  Core fixed mappings: 65,866.00 MiB; kernel globals: 582.67 KiB
+  Retained storage: 65,866.57 MiB
+    Weights / numeric constants: 60,283.83 MiB
+      33,264.00 MiB  
+resources[1]<ModelWeights>.layers[*]<LayerWeights>.mlp<MoEWeights>.experts<Prepa
+redExperts>._impl<B12XFP4ExpertWeights>.w1_fp4 — 
+.b12x-overlay/b12x_tree/moe/fused_moe/_impl.py:430
+      16,632.00 MiB  
+resources[1]<ModelWeights>.layers[*]<LayerWeights>.mlp<MoEWeights>.experts<Prepa
+redExperts>._impl<B12XFP4ExpertWeights>.w2_fp4 — 
+.b12x-overlay/b12x_tree/moe/fused_moe/_impl.py:430
+      2,150.49 MiB  
+resources[1]<ModelWeights>.layers[*]<LayerWeights>.mlp<MoEWeights>.experts<Prepa
+redExperts>._impl<B12XFP4ExpertWeights>.nvfp4_csf<Nvfp4CsfDecoder>.first<Nvfp4Co
+mpactBlockPlane>.scales<CsfBlockPayload>.storage — 
+.b12x-overlay/b12x_tree/_lib/quant/csf_blocks.py:114
+      1,224.00 MiB  
+resources[1]<ModelWeights>.layers[*]<LayerWeights>.attention['input_proj']<Group
+edLinearWeights>.parts[*]<MXFP8LinearWeight>.weight<MXFP8Rows>.values — 
+.b12x-overlay/b12x_tree/gemm/_shared/wo_mxfp8.py:64
+      1,210.00 MiB  
+resources[9]['prefill4096']<PreparedDecoder>.embedding<PreparedEmbedding>.weight
+— ignition/components/embedding.py:15
+      5,803.34 MiB  in 394 other source groups
+    Disposable storage: 2,130.35 MiB
+      386.58 MiB  resources[11]<DecoderScratch>.mla<MLAScratch>.slab — 
+ignition/recipes/glm53/mla.py:40
+      256.00 MiB  resources[24]<VisionState>.arena — 
+ignition/components/vision_state.py:25
+      128.00 MiB  resources[11]<DecoderScratch>.residual — 
+ignition/recipes/glm53/stack.py:27
+      128.00 MiB  resources[27]<VisionScratch>.merger_up — 
+ignition/recipes/glm53/vision.py:51
+      118.50 MiB  resources[27]<VisionScratch>.qkv — 
+ignition/recipes/glm53/vision.py:51
+      1,113.27 MiB  in 1061 other source groups
+    Other owned tensors: 1,159.73 MiB
+      108.38 MiB  
+resources[22]<SpeculativePreparation>.kda_records<KDARecords>.corrections — 
+ignition/components/kda_speculation.py:16
+      108.38 MiB  
+resources[22]<SpeculativePreparation>.kda_records<KDARecords>.keys_and_gates — 
+ignition/components/kda_speculation.py:16
+      67.50 MiB  
+resources[1]<ModelWeights>.layers[*]<LayerWeights>.residual['hc_attn_fn'] — 
+ignition/recipes/glm53/weights.py:37
+      67.50 MiB  
+resources[1]<ModelWeights>.layers[*]<LayerWeights>.residual['hc_ffn_fn'] — 
+ignition/recipes/glm53/weights.py:37
+      37.83 MiB  
+resources[8]['speculative32x4']<PreparedRound>.decoder<PreparedDecoder>.lm_head<
+PreparedVocabularyProjection>.gathered — ignition/components/vocabulary.py:13
+      770.15 MiB  in 4648 other source groups
+    TP communication: 714.00 MiB
+      714.00 MiB  PeerStorage.owned — ignition/preparation/peer_storage.py
+    Operator scratch: 578.29 MiB
+      576.29 MiB  
+resources[28][*]<PreparedVision>.merger<SimpleNamespace>.proj<QuantizedProjectio
+n>.workspace — ignition/components/linear.py:154
+      2.00 MiB  
+resources[28][*]<PreparedVision>.attention<PreparedVarlenAttention>.scratch — 
+ignition/components/varlen_attention.py:17
+    Graph capture pool: 396.00 MiB
+      396.00 MiB  shared CUDA graph pool — ignition/preparation/capture.py
+    Graph scratch pools: 289.39 MiB
+      56.72 MiB  resources[8]['speculative32x4']<PreparedRound>.probabilities — 
+ignition/recipes/glm53/speculative.py:169
+      47.27 MiB  
+resources[8]['speculative32x4']<PreparedRound>.sampling_scratch['verify']['safe_
+target_probs'] — ignition/recipes/glm53/speculative.py:169
+      28.36 MiB  resources[8]['speculative16x4']<PreparedRound>.probabilities — 
+ignition/recipes/glm53/speculative.py:169
+      18.91 MiB  resources[8]['speculative16x3']<PreparedRound>.probabilities — 
+ignition/recipes/glm53/speculative.py:169
+      18.91 MiB  resources[8]['speculative32x2']<PreparedRound>.probabilities — 
+ignition/recipes/glm53/speculative.py:169
+      119.23 MiB  in 48 other source groups
+    Graph I/O / persistent state: 168.38 MiB
+      147.00 MiB  resources[25]<VisionInputs>.vision_pixel_values — 
+ignition/recipes/glm53/vision_state.py:18
+      18.91 MiB  resources[5]<AdmissionBuffers>.admission_histogram — 
+ignition/components/sampling.py:159
+      605.00 KiB  resources[3]<DeviceRequestState>.grammar_mask — 
+ignition/components/sampling.py:64
+      605.00 KiB  resources[5]<AdmissionBuffers>.admission_grammar_mask — 
+ignition/components/sampling.py:159
+      512.00 KiB  resources[25]<VisionInputs>.vision_position_ids — 
+ignition/recipes/glm53/vision_state.py:18
+      813.07 KiB  in 42 other source groups
+    Allocator slack: 82.04 MiB
+      82.04 MiB  inactive blocks / alignment
+    Unknown storage: 64.00 MiB
+      64.00 MiB  unattributed
+    Kernel globals: 582.67 KiB
+      100.00 KiB  module-444.precalc_xorwow_matrix
+      100.00 KiB  module-444.precalc_xorwow_offset_matrix
+      100.00 KiB  module-445.precalc_xorwow_matrix
+      100.00 KiB  module-445.precalc_xorwow_offset_matrix
+      2.25 KiB  module-444.mrg32k3aM1
+      180.42 KiB  in 5813 other source groups
+  Preparation-only storage: 10,792.13 MiB
+    Allocator slack: 8,124.81 MiB
+      8,124.81 MiB  inactive blocks / alignment
+    Preparation cache backing: 2,146.00 MiB
+      2,002.00 MiB  continuations — 
+ignition/preparation/core_storage.py:CoreStorage.device_allocate
+      10.00 MiB  kv-11-latent — 
+ignition/preparation/core_storage.py:CoreStorage.device_allocate
+      10.00 MiB  kv-15-latent — 
+ignition/preparation/core_storage.py:CoreStorage.device_allocate
+      10.00 MiB  kv-19-latent — 
+ignition/preparation/core_storage.py:CoreStorage.device_allocate
+      10.00 MiB  kv-23-latent — 
+ignition/preparation/core_storage.py:CoreStorage.device_allocate
+      104.00 MiB  in 20 other source groups
+    Graph capture pool: 380.00 MiB
+      380.00 MiB  shared CUDA graph pool — ignition/preparation/capture.py
+    Unknown storage: 64.13 MiB
+      64.13 MiB  unattributed
+    Weights / numeric constants: 50.00 MiB
+      6.00 MiB  
+resources[8]['prefill1024']<PreparedPrefill>.absorb<PreparedMTP>.attention<Prepa
+redGlmMLA>.absorb_weights — ignition/recipes/glm53/mla.py:209
+      6.00 MiB  
+resources[8]['prefill1024']<PreparedPrefill>.absorb<PreparedMTP>.attention<Prepa
+redGlmMLA>.expand_weights — ignition/recipes/glm53/mla.py:209
+      6.00 MiB  
+resources[8]['prefill128']<PreparedPrefill>.absorb<PreparedMTP>.attention<Prepar
+edGlmMLA>.absorb_weights — ignition/recipes/glm53/mla.py:209
+      6.00 MiB  
+resources[8]['prefill128']<PreparedPrefill>.absorb<PreparedMTP>.attention<Prepar
+edGlmMLA>.expand_weights — ignition/recipes/glm53/mla.py:209
+      6.00 MiB  
+resources[8]['prefill256']<PreparedPrefill>.absorb<PreparedMTP>.attention<Prepar
+edGlmMLA>.absorb_weights — ignition/recipes/glm53/mla.py:209
+      20.00 MiB  in 5 other source groups
+    Other owned tensors: 27.19 MiB
+      4.59 MiB  
+resources[9]['prefill3584']<PreparedDecoder>.layers[*]<PreparedGlmLayer>.mlp<Pre
+paredGlmMoe>.experts<PreparedRoutedExperts>.scale_plan<Plan>._prepared<_Prepared
+>.owners[*]<_Binding>.ids — 
+.b12x-overlay/b12x_tree/_lib/quant/csf_blocks_tuning.py:222
+      3.94 MiB  
+resources[9]['prefill3072']<PreparedDecoder>.layers[*]<PreparedGlmLayer>.mlp<Pre
+paredGlmMoe>.experts<PreparedRoutedExperts>.scale_plan<Plan>._prepared<_Prepared
+>.owners[*]<_Binding>.ids — 
+.b12x-overlay/b12x_tree/_lib/quant/csf_blocks_tuning.py:222
+      3.75 MiB  
+resources[9]['prefill4096']<PreparedDecoder>.layers[*]<PreparedGlmLayer>.mlp<Pre
+paredGlmMoe>.experts<PreparedRoutedExperts>.scale_plan<Plan>._prepared<_Prepared
+>.owners[*]<_Binding>.ids — 
+.b12x-overlay/b12x_tree/_lib/quant/csf_blocks_tuning.py:222
+      3.28 MiB  
+resources[9]['prefill2560']<PreparedDecoder>.layers[*]<PreparedGlmLayer>.mlp<Pre
+paredGlmMoe>.experts<PreparedRoutedExperts>.scale_plan<Plan>._prepared<_Prepared
+>.owners[*]<_Binding>.ids — 
+.b12x-overlay/b12x_tree/_lib/quant/csf_blocks_tuning.py:222
+      2.56 MiB  
+resources[9]['prefill2048']<PreparedDecoder>.layers[*]<PreparedGlmLayer>.mlp<Pre
+paredGlmMoe>.experts<PreparedRoutedExperts>.scale_plan<Plan>._prepared<_Prepared
+>.owners[*]<_Binding>.ids — 
+.b12x-overlay/b12x_tree/_lib/quant/csf_blocks_tuning.py:222
+      9.07 MiB  in 78 other source groups
+  PyTorch allocated / reserved: 64,812.84 MiB / 73,734.00 MiB (overlaps storage 
+above)
+  Cache physically backed for preparation: 2,146.00 MiB; serving capacity is 
+sized at load
+  Mapped host: 373.28 MiB; imported peers: 1,648.00 MiB (excluded from local 
+VRAM)
+  Graphs: 74; kernels: 4238 in 4199 modules (301.49 MiB cubin data, not resident
+VRAM)
+  Device usage minus tracked physical storage: 1,568.81 MiB
+Rank 2 / CUDA 2: 78,249.62 MiB used, 19,091.25 MiB free
+  Core fixed mappings: 65,862.00 MiB; kernel globals: 582.67 KiB
+  Retained storage: 65,862.57 MiB
+    Weights / numeric constants: 60,276.82 MiB
+      33,264.00 MiB  
+resources[1]<ModelWeights>.layers[*]<LayerWeights>.mlp<MoEWeights>.experts<Prepa
+redExperts>._impl<B12XFP4ExpertWeights>.w1_fp4 — 
+.b12x-overlay/b12x_tree/moe/fused_moe/_impl.py:430
+      16,632.00 MiB  
+resources[1]<ModelWeights>.layers[*]<LayerWeights>.mlp<MoEWeights>.experts<Prepa
+redExperts>._impl<B12XFP4ExpertWeights>.w2_fp4 — 
+.b12x-overlay/b12x_tree/moe/fused_moe/_impl.py:430
+      2,147.08 MiB  
+resources[1]<ModelWeights>.layers[*]<LayerWeights>.mlp<MoEWeights>.experts<Prepa
+redExperts>._impl<B12XFP4ExpertWeights>.nvfp4_csf<Nvfp4CsfDecoder>.first<Nvfp4Co
+mpactBlockPlane>.scales<CsfBlockPayload>.storage — 
+.b12x-overlay/b12x_tree/_lib/quant/csf_blocks.py:114
+      1,224.00 MiB  
+resources[1]<ModelWeights>.layers[*]<LayerWeights>.attention['input_proj']<Group
+edLinearWeights>.parts[*]<MXFP8LinearWeight>.weight<MXFP8Rows>.values — 
+.b12x-overlay/b12x_tree/gemm/_shared/wo_mxfp8.py:64
+      1,210.00 MiB  
+resources[9]['prefill4096']<PreparedDecoder>.embedding<PreparedEmbedding>.weight
+— ignition/components/embedding.py:15
+      5,799.74 MiB  in 394 other source groups
+    Disposable storage: 2,130.35 MiB
+      386.58 MiB  resources[11]<DecoderScratch>.mla<MLAScratch>.slab — 
+ignition/recipes/glm53/mla.py:40
+      256.00 MiB  resources[24]<VisionState>.arena — 
+ignition/components/vision_state.py:25
+      128.00 MiB  resources[11]<DecoderScratch>.residual — 
+ignition/recipes/glm53/stack.py:27
+      128.00 MiB  resources[27]<VisionScratch>.merger_up — 
+ignition/recipes/glm53/vision.py:51
+      118.50 MiB  resources[27]<VisionScratch>.qkv — 
+ignition/recipes/glm53/vision.py:51
+      1,113.27 MiB  in 1061 other source groups
+    Other owned tensors: 1,161.92 MiB
+      108.38 MiB  
+resources[22]<SpeculativePreparation>.kda_records<KDARecords>.corrections — 
+ignition/components/kda_speculation.py:16
+      108.38 MiB  
+resources[22]<SpeculativePreparation>.kda_records<KDARecords>.keys_and_gates — 
+ignition/components/kda_speculation.py:16
+      67.50 MiB  
+resources[1]<ModelWeights>.layers[*]<LayerWeights>.residual['hc_attn_fn'] — 
+ignition/recipes/glm53/weights.py:37
+      67.50 MiB  
+resources[1]<ModelWeights>.layers[*]<LayerWeights>.residual['hc_ffn_fn'] — 
+ignition/recipes/glm53/weights.py:37
+      37.83 MiB  
+resources[8]['speculative32x4']<PreparedRound>.decoder<PreparedDecoder>.lm_head<
+PreparedVocabularyProjection>.gathered — ignition/components/vocabulary.py:13
+      772.35 MiB  in 4652 other source groups
+    TP communication: 714.00 MiB
+      714.00 MiB  PeerStorage.owned — ignition/preparation/peer_storage.py
+    Operator scratch: 578.29 MiB
+      576.29 MiB  
+resources[28][*]<PreparedVision>.merger<SimpleNamespace>.proj<QuantizedProjectio
+n>.workspace — ignition/components/linear.py:154
+      2.00 MiB  
+resources[28][*]<PreparedVision>.attention<PreparedVarlenAttention>.scratch — 
+ignition/components/varlen_attention.py:17
+    Graph capture pool: 396.00 MiB
+      396.00 MiB  shared CUDA graph pool — ignition/preparation/capture.py
+    Graph scratch pools: 289.39 MiB
+      56.72 MiB  resources[8]['speculative32x4']<PreparedRound>.probabilities — 
+ignition/recipes/glm53/speculative.py:169
+      47.27 MiB  
+resources[8]['speculative32x4']<PreparedRound>.sampling_scratch['verify']['safe_
+target_probs'] — ignition/recipes/glm53/speculative.py:169
+      28.36 MiB  resources[8]['speculative16x4']<PreparedRound>.probabilities — 
+ignition/recipes/glm53/speculative.py:169
+      18.91 MiB  resources[8]['speculative16x3']<PreparedRound>.probabilities — 
+ignition/recipes/glm53/speculative.py:169
+      18.91 MiB  resources[8]['speculative32x2']<PreparedRound>.probabilities — 
+ignition/recipes/glm53/speculative.py:169
+      119.23 MiB  in 48 other source groups
+    Graph I/O / persistent state: 168.38 MiB
+      147.00 MiB  resources[25]<VisionInputs>.vision_pixel_values — 
+ignition/recipes/glm53/vision_state.py:18
+      18.91 MiB  resources[5]<AdmissionBuffers>.admission_histogram — 
+ignition/components/sampling.py:159
+      605.00 KiB  resources[3]<DeviceRequestState>.grammar_mask — 
+ignition/components/sampling.py:64
+      605.00 KiB  resources[5]<AdmissionBuffers>.admission_grammar_mask — 
+ignition/components/sampling.py:159
+      512.00 KiB  resources[25]<VisionInputs>.vision_position_ids — 
+ignition/recipes/glm53/vision_state.py:18
+      813.07 KiB  in 42 other source groups
+    Allocator slack: 82.85 MiB
+      82.85 MiB  inactive blocks / alignment
+    Unknown storage: 64.00 MiB
+      64.00 MiB  unattributed
+    Kernel globals: 582.67 KiB
+      100.00 KiB  module-443.precalc_xorwow_matrix
+      100.00 KiB  module-443.precalc_xorwow_offset_matrix
+      100.00 KiB  module-444.precalc_xorwow_matrix
+      100.00 KiB  module-444.precalc_xorwow_offset_matrix
+      2.25 KiB  module-443.mrg32k3aM1
+      180.42 KiB  in 5813 other source groups
+  Preparation-only storage: 10,788.13 MiB
+    Allocator slack: 8,120.81 MiB
+      8,120.81 MiB  inactive blocks / alignment
+    Preparation cache backing: 2,146.00 MiB
+      2,002.00 MiB  continuations — 
+ignition/preparation/core_storage.py:CoreStorage.device_allocate
+      10.00 MiB  kv-11-latent — 
+ignition/preparation/core_storage.py:CoreStorage.device_allocate
+      10.00 MiB  kv-15-latent — 
+ignition/preparation/core_storage.py:CoreStorage.device_allocate
+      10.00 MiB  kv-19-latent — 
+ignition/preparation/core_storage.py:CoreStorage.device_allocate
+      10.00 MiB  kv-23-latent — 
+ignition/preparation/core_storage.py:CoreStorage.device_allocate
+      104.00 MiB  in 20 other source groups
+    Graph capture pool: 380.00 MiB
+      380.00 MiB  shared CUDA graph pool — ignition/preparation/capture.py
+    Unknown storage: 64.13 MiB
+      64.13 MiB  unattributed
+    Weights / numeric constants: 50.00 MiB
+      6.00 MiB  
+resources[8]['prefill1024']<PreparedPrefill>.absorb<PreparedMTP>.attention<Prepa
+redGlmMLA>.absorb_weights — ignition/recipes/glm53/mla.py:209
+      6.00 MiB  
+resources[8]['prefill1024']<PreparedPrefill>.absorb<PreparedMTP>.attention<Prepa
+redGlmMLA>.expand_weights — ignition/recipes/glm53/mla.py:209
+      6.00 MiB  
+resources[8]['prefill128']<PreparedPrefill>.absorb<PreparedMTP>.attention<Prepar
+edGlmMLA>.absorb_weights — ignition/recipes/glm53/mla.py:209
+      6.00 MiB  
+resources[8]['prefill128']<PreparedPrefill>.absorb<PreparedMTP>.attention<Prepar
+edGlmMLA>.expand_weights — ignition/recipes/glm53/mla.py:209
+      6.00 MiB  
+resources[8]['prefill256']<PreparedPrefill>.absorb<PreparedMTP>.attention<Prepar
+edGlmMLA>.absorb_weights — ignition/recipes/glm53/mla.py:209
+      20.00 MiB  in 5 other source groups
+    Other owned tensors: 27.19 MiB
+      4.59 MiB  
+resources[9]['prefill3584']<PreparedDecoder>.layers[*]<PreparedGlmLayer>.mlp<Pre
+paredGlmMoe>.experts<PreparedRoutedExperts>.scale_plan<Plan>._prepared<_Prepared
+>.owners[*]<_Binding>.ids — 
+.b12x-overlay/b12x_tree/_lib/quant/csf_blocks_tuning.py:222
+      3.94 MiB  
+resources[9]['prefill3072']<PreparedDecoder>.layers[*]<PreparedGlmLayer>.mlp<Pre
+paredGlmMoe>.experts<PreparedRoutedExperts>.scale_plan<Plan>._prepared<_Prepared
+>.owners[*]<_Binding>.ids — 
+.b12x-overlay/b12x_tree/_lib/quant/csf_blocks_tuning.py:222
+      3.75 MiB  
+resources[9]['prefill4096']<PreparedDecoder>.layers[*]<PreparedGlmLayer>.mlp<Pre
+paredGlmMoe>.experts<PreparedRoutedExperts>.scale_plan<Plan>._prepared<_Prepared
+>.owners[*]<_Binding>.ids — 
+.b12x-overlay/b12x_tree/_lib/quant/csf_blocks_tuning.py:222
+      3.28 MiB  
+resources[9]['prefill2560']<PreparedDecoder>.layers[*]<PreparedGlmLayer>.mlp<Pre
+paredGlmMoe>.experts<PreparedRoutedExperts>.scale_plan<Plan>._prepared<_Prepared
+>.owners[*]<_Binding>.ids — 
+.b12x-overlay/b12x_tree/_lib/quant/csf_blocks_tuning.py:222
+      2.56 MiB  
+resources[9]['prefill2048']<PreparedDecoder>.layers[*]<PreparedGlmLayer>.mlp<Pre
+paredGlmMoe>.experts<PreparedRoutedExperts>.scale_plan<Plan>._prepared<_Prepared
+>.owners[*]<_Binding>.ids — 
+.b12x-overlay/b12x_tree/_lib/quant/csf_blocks_tuning.py:222
+      9.07 MiB  in 78 other source groups
+  PyTorch allocated / reserved: 64,814.23 MiB / 73,726.00 MiB (overlaps storage 
+above)
+  Cache physically backed for preparation: 2,146.00 MiB; serving capacity is 
+sized at load
+  Mapped host: 373.28 MiB; imported peers: 1,648.00 MiB (excluded from local 
+VRAM)
+  Graphs: 74; kernels: 4238 in 4199 modules (301.49 MiB cubin data, not resident
+VRAM)
+  Device usage minus tracked physical storage: 1,598.93 MiB
+Graph executable overhead, resident kernel code, untracked driver/library 
+allocations, and other processes are included in device usage but cannot be 
+separated by this snapshot.
+Shared scratch lists representative tensor owners; source lines identify owning 
+classes or closures.
+Scratch totals count reserved storage, including chunk padding; they do not 
+measure a peak of live values.
+[ STARTED  ] Clear export staging.
+[    OK    ] Clear export staging.  0.5s
+[    OK    ] Export native core.  <disk>  311.1s
+Exported cache entry: <disk>

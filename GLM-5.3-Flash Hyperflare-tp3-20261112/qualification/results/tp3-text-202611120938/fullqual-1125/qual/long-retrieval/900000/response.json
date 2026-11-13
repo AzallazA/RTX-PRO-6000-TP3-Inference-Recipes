@@ -1,0 +1,28 @@
+{
+ "id": "chatcmpl-d7085787998132b7-32",
+ "object": "chat.completion",
+ "created": 1794501862,
+ "model": "glm53-fp4-local",
+ "choices": [
+  {
+   "index": 0,
+   "message": {
+    "role": "assistant",
+    "content": "```json\n{\n  \"A\": \"ALPHA-R34-7K2M9Q\",\n  \"B\": \"BETA-R34-8P6V3X\",\n  \"C\": \"GAMMA-R34-4T9N2Z\"\n}\n```",
+    "reasoning_content": "The user wants me to extract three marker values from the archive. Let me find them:\n\nMarker A = ALPHA-R34-7K2M9Q (at the top)\nMarker B = BETA-R34-8P6V3X (in the middle, after all the \"ordinary\" entries)\nMarker C = GAMMA-R34-4T9N2Z (near the end)\n\nThey want a JSON object with keys A, B, C."
+   },
+   "finish_reason": "stop"
+  }
+ ],
+ "usage": {
+  "prompt_tokens": 899994,
+  "completion_tokens": 155,
+  "total_tokens": 900149,
+  "prompt_tokens_details": {
+   "cached_tokens": 9
+  },
+  "completion_tokens_details": {
+   "reasoning_tokens": 95
+  }
+ }
+}

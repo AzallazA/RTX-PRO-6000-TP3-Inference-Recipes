@@ -1,0 +1,62 @@
+{
+ "usage": {
+  "prompt_tokens": 530058,
+  "completion_tokens": 20363,
+  "total_tokens": 550421,
+  "prompt_tokens_details": {
+   "cached_tokens": 530058
+  },
+  "completion_tokens_details": {
+   "reasoning_tokens": 9510
+  }
+ },
+ "finish_reasons": [
+  "stop"
+ ],
+ "saw_done": true,
+ "wall_s": 70.6754449850414,
+ "first_visible_s": 0.04877792694605887,
+ "tool_calls": {},
+ "first_tool_completion": null,
+ "stop_reasons": [],
+ "quality": {
+  "content": {
+   "chars": 43191,
+   "longest_word": 51,
+   "char_run": 0,
+   "global_punct": 0.084,
+   "worst_window_punct": 0.122,
+   "worst_window_punct_at": 8000,
+   "worst_window_ttr": 0.683,
+   "worst_window_ttr_at": 7000,
+   "repeat_8gram": 0.0,
+   "head_punct": 0.0824,
+   "tail_punct": 0.0857
+  },
+  "reasoning": {
+   "chars": 33231,
+   "longest_word": 44,
+   "char_run": 0,
+   "global_punct": 0.0924,
+   "worst_window_punct": 0.1425,
+   "worst_window_punct_at": 29000,
+   "worst_window_ttr": 0.583,
+   "worst_window_ttr_at": 10000,
+   "repeat_8gram": 0.0054,
+   "head_punct": 0.0947,
+   "tail_punct": 0.0902
+  }
+ },
+ "flags": {
+  "content": [],
+  "reasoning": []
+ },
+ "markup_leaks": {
+  "content": [],
+  "reasoning": []
+ },
+ "qualifying_length": false,
+ "content_chars": 43156,
+ "reasoning_chars": 33208,
+ "note": "generated text and token ids removed for the release (metrics kept)"
+}

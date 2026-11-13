@@ -1,0 +1,6 @@
+== running eval: glm-tp2-sync-1112 (model GLM-5.3-Flash, effort low, max_tokens 8192) ==
+  intelligence: 43/43 correct (100.0%)
+  refusals:     1/37 refused (2.7%)
+  truncated 0, errors 0, markup leaks 0
+  wrong IQ items: (none)
+  saved -> qual/eval_glm-tp2-sync-1112.json
