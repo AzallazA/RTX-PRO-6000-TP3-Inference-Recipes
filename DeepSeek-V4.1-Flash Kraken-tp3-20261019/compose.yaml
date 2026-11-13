@@ -1,4 +1,5 @@
-# DeepSeek-V4.1-Flash-1017 TP3 release, image azallaza/ds41-kraken-tp3:20261019.12
+# DeepSeek-V4.1-Flash-1017 TP3 release, image azallaza/ds41-kraken-tp3:20261019.12.1 (= .12 with block rejection
+# baked in and deterministic serving off by default)
 # (karmic-kraken-beta-20261016.2 + FlashInfer b12x ea74ea61 + the TP3 port in src/, patch-nvfp4/, patch-brrr/,
 #  patch-fused/ and patch-12/; .12 adds vision staging, tool-call fixes, KV-aware prefill admission, lazy Engram
 #  host tables, the FP32 draft-logit cache and deterministic serving).
@@ -12,7 +13,7 @@
 # and ~256 GB host RAM. Qualified at 450 W/GPU (350 W works; power mostly affects prefill).
 services:
   ds41-kraken-tp3:
-    image: "${DS41_IMAGE:-azallaza/ds41-kraken-tp3:20261019.12}"
+    image: "${DS41_IMAGE:-azallaza/ds41-kraken-tp3:20261019.12.1}"
     container_name: ds41-kraken-tp3
     # unless-stopped: auto-start on host reboot / daemon restart, but respect a manual `stop`.
     restart: "unless-stopped"
@@ -103,8 +104,9 @@ services:
       BRRR_RADIX_TOPK: "${BRRR_RADIX_TOPK:-0}"
       # Run-to-run deterministic serving (.12): the target model's MoE reduces in a fixed order (b12x deterministic
       # top-k output) and BRRR's fused decoder accumulates in paired slots for launches up to DS41_BRRR_DET_ROWS rows.
-      # Identical requests in identical batches give identical output; c1 -1.5%, c8 -2% decode. 0 = previous arithmetic.
-      DS41_DETERMINISTIC: "${DS41_DETERMINISTIC:-1}"
+      # Identical requests in identical batches give identical output; c1 -1.5%, c8 -2% decode, 8-stream TTFT p90
+      # 0.30 -> 0.72 s. Off by default since .12.1 (0 = previous arithmetic); set DS41_DETERMINISTIC=1 to opt in.
+      DS41_DETERMINISTIC: "${DS41_DETERMINISTIC:-0}"
       DS41_BRRR_DET_ROWS: "${DS41_BRRR_DET_ROWS:-64}"
       # b12x kernel-compile processes per GPU worker. 8 (b12x default) x 3 ranks OOM-killed a worker during the cold
       # first start next to ~150 GB of pinned host tables; 2 compiles longer and fits. Only matters while compiling.

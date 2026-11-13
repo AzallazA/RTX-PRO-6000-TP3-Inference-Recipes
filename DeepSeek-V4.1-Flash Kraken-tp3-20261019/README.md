@@ -18,7 +18,7 @@ run-to-run deterministic; see [Coming from .11](#coming-from-11) to roll back), 
 tables only). The development history with per-step measurements is kept in [README-history.md](README-history.md).
 
 ```bash
-docker pull azallaza/ds41-kraken-tp3:20261019.12
+docker pull azallaza/ds41-kraken-tp3:20261019.12.1
 # one-time: hard-link NVIDIA's Engram shards next to the stock weights (both repos in the same HF cache)
 python3 patch-nvfp4/make_engram_nvidia_variant.py --cache "$HF_CACHE_DIR"
 # the tested setup: the engram-nvidia variant with both 4-bit Engram tables in host RAM
@@ -30,9 +30,58 @@ docker logs -f ds41-kraken-tp3 2>&1 | grep -m1 'expert promotion armed and warme
 Host settings: 450 W/GPU for the `.12` measurements (the earlier-tag tables below are 350 W; 450 W raises prefill ~10%,
 decode about level), +6000 memory offset, 256 GB host RAM, the checkpoint on a local NVMe drive.
 
+## Update: .12.1 (2026-11-13): block verification baked in, deterministic mode off by default
+
+**`azallaza/ds41-kraken-tp3:20261019.12.1`** (`sha256:19cd5a7b84dcb7f5b8680c7fabce0f876fb90843067234556b18215ef304207c`) = `.12` plus two changes, nothing else
+(same layers otherwise, KV-aware admission still on):
+
+1. **Block rejection sampling is baked in.** The image's own speculative profile now says
+   `rejection_sample_method: block`, with the matching image contract. The `.11` and `.12` images carry the stock lil
+   profile, which says `standard`; block was active only when this folder's `compose.yaml` mounted the patched profile
+   and contract over it. `.12`'s compose does that, so `.12` started from this folder already ran block; `.11`'s
+   compose did not, so **`.11` as published served standard rejection**, and any `.12` started another way (plain
+   `docker run`, your own compose) still gets standard. With `.12.1` block is the default however the image is
+   started. Thanks to a user who found this on production agent traffic: block alone gave +4.2% / +5.3% / −1.0%
+   decode per turn at 1 / 4 / 8 streams over standard on `.11`, most of `.12`'s gain.
+2. **Deterministic serving is off by default** (`DS41_DETERMINISTIC=0`, image ENV and compose default). `.12` turned
+   it on; on `.12.1` it costs decode speed and adds a time-to-first-token tail under load, and most users do not need
+   bit-identical reruns. It is still in the image: opt in as shown below.
+
+Measured on `.12.1` started with no profile or contract mounts (one round per arm, 450 W): the container's profile
+and contract carry block with the matching hash, vLLM logs `rejection_sample_method: block`, 17×23 = 391, corruption
+check 20 runs with 0 true corruptions. Deterministic on (as `.12`) vs off (the `.12.1` default):
+
+| | deterministic on (`.12` default) | off (`.12.1` default) |
+|---|---|---|
+| decode 32K c1 / c4 / c8, tok/s | 286 / 573 / 965 | 290 / 610 / 995 |
+| short-request TTFT next to 4 busy streams, p50 / p90 | 0.29 / 0.31 s | 0.29 / 0.30 s |
+| short-request TTFT next to 8 busy streams, p50 / p90 | 0.29 / **0.72** s | 0.29 / **0.30** s |
+| agent replay, 4 streams: output tok/s; TTFT p50 / p90 | 399; 1.05 / 2.04 s | 412; 1.11 / 2.06 s |
+| agent replay, 4 streams: per-turn decode median; accept length | 176 tok/s; 4.40 | 177 tok/s; 4.53 |
+| agent replay, 8 streams: output tok/s; TTFT p50 / p90 | 409; 3.81 / 4.94 s | 366; 3.87 / 4.86 s |
+| agent replay, 8 streams: per-turn decode median; accept length | 162 tok/s; 4.41 | 185 tok/s; 4.36 |
+
+KV 2,185,581 tokens either way. The agent replay is real recorded agent turns played back for 300 s; its aggregate
+output depends on which turns land in the window (8 streams: fewer output tokens off, but faster per turn), so
+read the per-turn and benchmark rows for speed. Turning KV-aware admission off as well (`DS41_KV_ADMISSION=0`) gained
+nothing (8-stream TTFT p90 0.72 s, c8 929 tok/s with deterministic on), so it stays on.
+
+To use it: `docker pull azallaza/ds41-kraken-tp3:20261019.12.1`; this folder's `compose.yaml` now defaults to it
+(or set `DS41_IMAGE`). The profile and contract mounts in `compose.yaml` are kept; they match the baked files and
+still give block on `.12` and `.11`.
+
+**Opting back in to deterministic serving** (identical requests in identical batches give identical output; see
+"New in .12"):
+
+- compose: add `DS41_DETERMINISTIC=1` to `.env` (or run `DS41_DETERMINISTIC=1 docker compose up -d`).
+  `DS41_BRRR_DET_ROWS` (default 64) applies only when it is on.
+- `docker run`: pass `-e DS41_DETERMINISTIC=1` with your other flags, e.g.
+  `docker run -d --gpus all --ipc host -e DS41_DETERMINISTIC=1 ... azallaza/ds41-kraken-tp3:20261019.12.1`.
+  Check it took with `docker exec <container> printenv DS41_DETERMINISTIC`.
+
 ## Contents
 
-0. [New in .12](#new-in-12) · [Coming from .11](#coming-from-11)
+0. [Update: .12.1](#update-121-2026-11-13-block-verification-baked-in) · [New in .12](#new-in-12) · [Coming from .11](#coming-from-11)
 1. [What it is](#what-it-is) · [How it fits in 3 × 96 GB](#how-it-fits-in-3--96-gb)
 2. [What is in this image](#what-is-in-this-image)
 3. [Measurements](#measurements-on-this-image) · [Quality and stress](#quality-and-stress)
@@ -95,7 +144,8 @@ rule stated in the prompt, 1017 on TP3 scores 24.2-25.0/25 ([issue #1](https://g
   both 4-bit tables, the tested setup; empty = both on disk). `.11`'s at-boot tables moved to `ENGRAM_EAGER_RAM_LAYERS`:
   leave it empty on `.12` (setting it brings back the ~19 GB boot low point), set it when rolling back to `.11`.
 - `BRRR_RADIX_TOPK` defaults to `0` (b12x's fused indexer top-k on the new b12x); `.11` used `blocks`.
-- Output is run-to-run deterministic by default; `DS41_DETERMINISTIC=0` gives back ~1.5-2% decode.
+- Output is run-to-run deterministic by default on `.12`; `DS41_DETERMINISTIC=0` gives back ~1.5-2% decode. (`.12.1`
+  defaults to `0`; see the update above.)
 - Roll back with `DS41_IMAGE=azallaza/ds41-kraken-tp3:20261019.11 DS41_CACHE_VOLUME=runtime-cache BRRR_RADIX_TOPK=blocks
   ENGRAM_EAGER_RAM_LAYERS=1,14` (`1` with the stock weights). Without the last one `.11` reads both Engram tables from disk
   (about 7.5% slower c1 decode, measured).
@@ -388,7 +438,8 @@ beyond 128K), `sorted` = that path alone.
 `DS41_VERIFY_ROW_CAP_HIGH=32` above). 32K aggregate: c12 ~973, c16 ~1,097 tok/s (8 sequences top out at ~810);
 c1-c8 unchanged; no promotion cost. See Known limitations before using it with long prompts.
 
-**`.12` switches**: `DS41_DETERMINISTIC=0` (previous arithmetic, ~1.5-2% faster, not reproducible run to run);
+**`.12` switches**: `DS41_DETERMINISTIC=0` (previous arithmetic, ~1.5-2% faster, not reproducible run to run; the
+`.12.1` default, where `1` opts in);
 `DS41_BRRR_DET_ROWS` (largest fused-decoder launch summed in fixed order, 64); `DS41_VISION_STAGE=0` (vision weights read
 from host memory per image, the `.11` path); `DS41_AV_SKIP_UNDER_CAP=0`; `DS41_KV_ADMISSION=0` (the `.11` scheduler).
 The last three are image ENV: set them in an `environment:` block. Block rejection is the mounted lil profile: remove
@@ -492,7 +543,7 @@ layer-1 table (`ENGRAM_RAM_LAYERS=1`), the NVFP4 experts, standard rejection, an
 | `VLLM_DSPARK_SHARD_MARKOV_HEAD` / `VLLM_DSPARK_REPLICATE_MARKOV_W1` | `1` / `1` | TP-sharded DSpark markov head for the vocab-split sampler; `0`/`0` = stock head, split sampler off (= `.6`) |
 | `DS41_FUSED_LAYERS` | `40` | layers run by the fused decoder kernel; `0` = `.7` path |
 | `BRRR_RADIX_TOPK` | `0` | indexer top-k: `0` (b12x, `.12`) / `blocks` (`.11`) / `1` (`.10`) / `sorted` |
-| `DS41_DETERMINISTIC` / `DS41_BRRR_DET_ROWS` | `1` / `64` | run-to-run deterministic reductions; `0` = previous arithmetic |
+| `DS41_DETERMINISTIC` / `DS41_BRRR_DET_ROWS` | `0` / `64` | `1` = run-to-run deterministic reductions (the `.12` default); `0` = previous arithmetic, faster (`.12.1` default) |
 | `B12X_COMPILE_WORKERS` | `2` | b12x kernel compilers per GPU worker (cold first start only; 8 OOM-killed a worker) |
 | `DS41_CACHE_VOLUME` | `runtime-cache-12` | compile-cache volume; `runtime-cache` with the `.11` image |
 | `DS41_VERIFY_ROW_CAP_HIGH` / `DS41_VERIFY_ROW_CAP_REQS` | `0` / `8` | row cap used above `REQS` decoding requests (`0` = off; the seqs12/16 overlays set 32) |
@@ -507,13 +558,14 @@ layer-1 table (`ENGRAM_RAM_LAYERS=1`), the NVFP4 experts, standard rejection, an
 | `ENGRAM_ROW_CACHE_ROWS` | `8388608` | host row cache for disk Engram tables; `0` = off |
 | `DRAFT_NVFP4_HEAD` | `1` | DSpark drafter vocabulary head in NVFP4; `0` = BF16 |
 | `DS41_LAUNCH_SETTINGS` | `/etc/ds41/launch.yaml` | lil launcher settings file (`k7.yaml` points it at `ds41-launch-k7.yaml`) |
-| `DS41_IMAGE` | `azallaza/ds41-kraken-tp3:20261019.12` | image tag (`.11` … `.3` remain valid) |
+| `DS41_IMAGE` | `azallaza/ds41-kraken-tp3:20261019.12.1` | image tag (`.12` … `.3` remain valid; `.12.1` = `.12` with block rejection baked in) |
 | `HOST_PORT`, `GPU0`/`GPU1`/`GPU2` | `15015`, `0`/`1`/`2` | API port, GPU indices |
 
 ## compose.yaml
 
 ```yaml
-# DeepSeek-V4.1-Flash-1017 TP3 release, image azallaza/ds41-kraken-tp3:20261019.12
+# DeepSeek-V4.1-Flash-1017 TP3 release, image azallaza/ds41-kraken-tp3:20261019.12.1 (= .12 with block rejection
+# baked in and deterministic serving off by default)
 # (karmic-kraken-beta-20261016.2 + FlashInfer b12x ea74ea61 + the TP3 port in src/, patch-nvfp4/, patch-brrr/,
 #  patch-fused/ and patch-12/; .12 adds vision staging, tool-call fixes, KV-aware prefill admission, lazy Engram
 #  host tables, the FP32 draft-logit cache and deterministic serving).
@@ -527,7 +579,7 @@ layer-1 table (`ENGRAM_RAM_LAYERS=1`), the NVFP4 experts, standard rejection, an
 # and ~256 GB host RAM. Qualified at 450 W/GPU (350 W works; power mostly affects prefill).
 services:
   ds41-kraken-tp3:
-    image: "${DS41_IMAGE:-azallaza/ds41-kraken-tp3:20261019.12}"
+    image: "${DS41_IMAGE:-azallaza/ds41-kraken-tp3:20261019.12.1}"
     container_name: ds41-kraken-tp3
     # unless-stopped: auto-start on host reboot / daemon restart, but respect a manual `stop`.
     restart: "unless-stopped"
@@ -618,8 +670,9 @@ services:
       BRRR_RADIX_TOPK: "${BRRR_RADIX_TOPK:-0}"
       # Run-to-run deterministic serving (.12): the target model's MoE reduces in a fixed order (b12x deterministic
       # top-k output) and BRRR's fused decoder accumulates in paired slots for launches up to DS41_BRRR_DET_ROWS rows.
-      # Identical requests in identical batches give identical output; c1 -1.5%, c8 -2% decode. 0 = previous arithmetic.
-      DS41_DETERMINISTIC: "${DS41_DETERMINISTIC:-1}"
+      # Identical requests in identical batches give identical output; c1 -1.5%, c8 -2% decode, 8-stream TTFT p90
+      # 0.30 -> 0.72 s. Off by default since .12.1 (0 = previous arithmetic); set DS41_DETERMINISTIC=1 to opt in.
+      DS41_DETERMINISTIC: "${DS41_DETERMINISTIC:-0}"
       DS41_BRRR_DET_ROWS: "${DS41_BRRR_DET_ROWS:-64}"
       # b12x kernel-compile processes per GPU worker. 8 (b12x default) x 3 ranks OOM-killed a worker during the cold
       # first start next to ~150 GB of pinned host tables; 2 compiles longer and fits. Only matters while compiling.
