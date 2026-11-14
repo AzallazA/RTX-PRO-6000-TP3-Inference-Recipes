@@ -3,19 +3,41 @@
 Inference recipes for 3x RTX PRO 6000 Blackwell (TP3) with vLLM and NVIDIA Hyperflare (formerly Flare). Each folder is one build:
 image or export recipe, launch files, measurements and the source changes.
 
-| Folder | Model | Get it |
-| --- | --- | --- |
-| [GLM-5.3-Flash Hyperflare-tp3-20261112](GLM-5.3-Flash%20Hyperflare-tp3-20261112/README.md) | GLM-5.3-Flash (NVIDIA FP4-Local) on NVIDIA Hyperflare (binary still `flare`), fork tag `hyperflare-glm-20261112`: text + images, TP3 on 3 GPUs (32 slots, DCP3, 13.13M KV, 32K c1/c4/c8/c16/c32 279/630/866/1290/1790 tok/s, prefill ~11.7K) and TP2 on 2 GPUs (8 slots, DCP2, 2.23M KV, 248/512/727 tok/s) at 450 W; TTFT guard available, off by default | export it yourself ([EXPORT.md](GLM-5.3-Flash%20Hyperflare-tp3-20261112/EXPORT.md)) |
-| [DeepSeek-V4.1-Flash Hyperflare-tp3-20261111](DeepSeek-V4.1-Flash%20Hyperflare-tp3-20261111/README.md) | DeepSeek-V4.1-Flash-1017 on NVIDIA Hyperflare (formerly Flare; binary still `flare`), fork tag `hyperflare-tp3-20261111`: graph scratch (KV 2.47M -> 3.01M at the same settings, decode level), TTFT guard (`--scheduler-policy interactive`: first token 0.36-0.38 s instead of 2-4 s while 3-7 streams decode); same settings, 3.01M KV, 32K c1/c4/c8 ~301/734/988 tok/s at 450 W, full c8 qualification (LiveBench coding 83.5) | export it yourself ([EXPORT.md](DeepSeek-V4.1-Flash%20Hyperflare-tp3-20261111/EXPORT.md)) |
-| [DeepSeek-V4.1-Flash Flare-tp3-20261108](DeepSeek-V4.1-Flash%20Flare-tp3-20261108/README.md) | DeepSeek-V4.1-Flash-1017 on NVIDIA Flare, fork tag `flare-tp3-20261108`: 20261107 plus BRRR kernel hygiene, vision weight staging (0.11 s per image instead of 1.70 s), Engram per-table storage, `flare run --dry-run`; same settings, 2.46M KV, 32K c1/c4/c8 ~306/719/973 tok/s at 450 W | export it yourself ([EXPORT.md](DeepSeek-V4.1-Flash%20Flare-tp3-20261108/EXPORT.md)) |
-| [DeepSeek-V4.1-Flash Flare-tp3-20261107](DeepSeek-V4.1-Flash%20Flare-tp3-20261107/README.md) | DeepSeek-V4.1-Flash-1017 on NVIDIA Flare, rebased on upstream, BRRR fused layer tail; 1M context, 8 slots, 2.37M KV (6.25M variant), Engram in RAM or on disk. Supersedes 20261105: 32K c1/c4/c8 ~305/738/975 tok/s at 450 W | export it yourself ([EXPORT.md](DeepSeek-V4.1-Flash%20Flare-tp3-20261107/EXPORT.md)) |
-| [DeepSeek-V4.1-Flash Flare-tp3-20261105](DeepSeek-V4.1-Flash%20Flare-tp3-20261105/README.md) | DeepSeek-V4.1-Flash-1017 on NVIDIA Flare (original weights + NVIDIA MXFP4 Engram tables in RAM), 1M context, 8 slots, 2.99M KV | export it yourself ([EXPORT.md](DeepSeek-V4.1-Flash%20Flare-tp3-20261105/EXPORT.md)) |
-| [DeepSeek-V4.1-Flash Kraken-tp3-20261019](DeepSeek-V4.1-Flash%20Kraken-tp3-20261019/README.md) | DeepSeek-V4.1-Flash-1017 (original weights + NVIDIA 4-bit Engram tables), 1M context, 8 slots | `azallaza/ds41-kraken-tp3:20261019.11` |
-| [GLM-5.3-Flash Kraken-tp3-CSF](GLM-5.3-Flash%20Kraken-tp3-CSF/README.md) | GLM-5.3-Flash NVFP4-MXFP8 CSF-QAD | `azallaza/glm53-kraken-tp3:20261015` |
-| [GLM-5.3-Flash Kraken-tp3-20260927](GLM-5.3-Flash%20Kraken-tp3-20260927/README.md) | GLM-5.3-Flash | `azallaza/glm53-kraken-tp3:20260927` |
-| [GLM-5.3-Flash Kraken-tp3](GLM-5.3-Flash%20Kraken-tp3/glm-5.3-flash-tp3-kraken.md) | GLM-5.3-Flash | see folder |
-| [GLM-5.3-Flash Kraken tp3 experimental](GLM-5.3-Flash%20Kraken%20tp3%20experimental/glm-5.3-flash-tp3-kraken.md) | GLM-5.3-Flash (experiments) | see folder |
-| GLM-5.3-Flash Jovian r34, r34-v2, r34-v3 | GLM-5.3-Flash on the Jovian image | see folders |
+All builds run on 3x RTX PRO 6000 Blackwell 96 GB (PCIe), tensor parallel 3 unless a row says otherwise. Power is the
+per-GPU limit the numbers were measured at. Newest first in each table.
+
+## NVIDIA Flare / Hyperflare: DeepSeek-V4.1-Flash
+
+| Release | Date | Hardware / TP | Key numbers | Notes | Get it |
+| --- | --- | --- | --- | --- | --- |
+| [DeepSeek-V4.1-Flash Hyperflare-tp3-20261111](DeepSeek-V4.1-Flash%20Hyperflare-tp3-20261111/README.md) | 2026-11-11 | TP3, 450 W | 3.01M KV (2.47M before graph scratch, same settings); 32K c1/c4/c8 ~301/734/988 tok/s; first token 0.36-0.38 s instead of 2-4 s while 3-7 streams decode (TTFT guard); LiveBench coding 83.5 | DeepSeek-V4.1-Flash-1017 on NVIDIA Hyperflare (formerly Flare; binary still `flare`), fork tag `hyperflare-tp3-20261111`: graph scratch, TTFT guard (`--scheduler-policy interactive`); same settings; full c8 qualification | export it yourself ([EXPORT.md](DeepSeek-V4.1-Flash%20Hyperflare-tp3-20261111/EXPORT.md)) |
+| [DeepSeek-V4.1-Flash Flare-tp3-20261108](DeepSeek-V4.1-Flash%20Flare-tp3-20261108/README.md) | 2026-11-08 | TP3, 450 W | 2.46M KV; 32K c1/c4/c8 ~306/719/973 tok/s; 0.11 s per image instead of 1.70 s | DeepSeek-V4.1-Flash-1017 on NVIDIA Flare, fork tag `flare-tp3-20261108`: 20261107 plus BRRR kernel hygiene, vision weight staging, Engram per-table storage, `flare run --dry-run`; same settings | export it yourself ([EXPORT.md](DeepSeek-V4.1-Flash%20Flare-tp3-20261108/EXPORT.md)) |
+| [DeepSeek-V4.1-Flash Flare-tp3-20261107](DeepSeek-V4.1-Flash%20Flare-tp3-20261107/README.md) | 2026-11-07 | TP3, 450 W | 1M context, 8 slots, 2.37M KV (6.25M variant); 32K c1/c4/c8 ~305/738/975 tok/s | DeepSeek-V4.1-Flash-1017 on NVIDIA Flare, rebased on upstream, BRRR fused layer tail; Engram in RAM or on disk. Supersedes 20261105 | export it yourself ([EXPORT.md](DeepSeek-V4.1-Flash%20Flare-tp3-20261107/EXPORT.md)) |
+| [DeepSeek-V4.1-Flash Flare-tp3-20261105](DeepSeek-V4.1-Flash%20Flare-tp3-20261105/README.md) | 2026-11-05 | TP3, 350 W | 1M context, 8 slots, 2.99M KV | DeepSeek-V4.1-Flash-1017 on NVIDIA Flare (original weights + NVIDIA MXFP4 Engram tables in RAM) | export it yourself ([EXPORT.md](DeepSeek-V4.1-Flash%20Flare-tp3-20261105/EXPORT.md)) |
+
+## NVIDIA Flare / Hyperflare: GLM-5.3-Flash
+
+| Release | Date | Hardware / TP | Key numbers | Notes | Get it |
+| --- | --- | --- | --- | --- | --- |
+| [GLM-5.3-Flash Hyperflare-tp3-20261112](GLM-5.3-Flash%20Hyperflare-tp3-20261112/README.md) | 2026-11-12 | TP3 on 3 GPUs (DCP3) and TP2 on 2 GPUs (DCP2), 450 W | TP3: 32 slots, 13.13M KV, 32K c1/c4/c8/c16/c32 279/630/866/1290/1790 tok/s, prefill ~11.7K; TP2: 8 slots, 2.23M KV, 248/512/727 tok/s | GLM-5.3-Flash (NVIDIA FP4-Local) on NVIDIA Hyperflare (binary still `flare`), fork tag `hyperflare-glm-20261112`: text + images; TTFT guard available, off by default | export it yourself ([EXPORT.md](GLM-5.3-Flash%20Hyperflare-tp3-20261112/EXPORT.md)) |
+
+## vLLM: DeepSeek-V4.1-Flash
+
+| Release | Date | Hardware / TP | Key numbers | Notes | Get it |
+| --- | --- | --- | --- | --- | --- |
+| [DeepSeek-V4.1-Flash Kraken-tp3-20261019](DeepSeek-V4.1-Flash%20Kraken-tp3-20261019/README.md) | 2026-10-19, updated to `.12.2` on 2026-11-14 | TP3, 450 W | 1M context, 8 slots, KV 2,185,581; 32K c1/c4/c8 290/610/995 tok/s (`.12.1`); `.12.2`: agent 8-stream TTFT p50 3.93 → 1.25 s | DeepSeek-V4.1-Flash-1017 (original weights + NVIDIA 4-bit Engram tables) on Local Inference Lab's vLLM "karmic-kraken" image; `.12.2` = prefill compute share 0.6 by default | `azallaza/ds41-kraken-tp3:20261019.12.2` |
+
+## vLLM: GLM-5.3-Flash
+
+| Release | Date | Hardware / TP | Key numbers | Notes | Get it |
+| --- | --- | --- | --- | --- | --- |
+| [GLM-5.3-Flash Kraken-tp3-CSF](GLM-5.3-Flash%20Kraken-tp3-CSF/README.md) | 2026-10-15 | TP3, 350 W | 32 slots; KV 3.96x 1M (MTP3/DCP1), 10.0x 1M (DCP3) | GLM-5.3-Flash NVFP4-MXFP8 CSF-QAD | `azallaza/glm53-kraken-tp3:20261015` |
+| [GLM-5.3-Flash Kraken-tp3-20260927](GLM-5.3-Flash%20Kraken-tp3-20260927/README.md) | 2026-09-27 | TP3, 350 W | 8 slots, MTP3, DCP1 | GLM-5.3-Flash | `azallaza/glm53-kraken-tp3:20260927` |
+| [GLM-5.3-Flash Kraken tp3 experimental](GLM-5.3-Flash%20Kraken%20tp3%20experimental/glm-5.3-flash-tp3-kraken.md) | 2026-09-23 | TP3, 350 W | against 20260921: C1 decode +11.4% (88.2 verifier steps/s), C8 +8.1% (283), prefill +5.5-6.5% | GLM-5.3-Flash (experiments) | see folder |
+| [GLM-5.3-Flash Kraken-tp3](GLM-5.3-Flash%20Kraken-tp3/glm-5.3-flash-tp3-kraken.md) | 2026-09-21 | TP3, 350 W | 8 slots; KV 3,410,670 tokens (MTP3/DCP1) | GLM-5.3-Flash | see folder |
+| [GLM-5.3-Flash Jovian r34-v3](GLM-5.3-Flash%20Jovian%20r34-v3/glm-5.3-flash-tp3-r34.md) | 2026-09-16 | TP3, 350 W | 8 slots; KV 2,091,238 tokens | GLM-5.3-Flash on the Jovian image | see folder |
+| [GLM-5.3-Flash Jovian r34-v2](GLM-5.3-Flash%20Jovian%20r34-v2/glm-5.3-flash-tp3-r34.md) | 2026-09-15 | TP3, 350 W | 8 slots; KV 2,091,238 tokens | GLM-5.3-Flash on the Jovian image | see folder |
+| [GLM-5.3-Flash Jovian r34](GLM-5.3-Flash%20Jovian%20r34/glm-5.3-flash-tp3-r34.md) | 2026-09-10 | TP3, 300 W | 8 slots; KV 2,091,238 (DCP1) / 7,510,219 (DCP3) tokens | GLM-5.3-Flash on the Jovian image | see folder |
 
 ## Tools
 
