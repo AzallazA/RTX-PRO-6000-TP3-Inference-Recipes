@@ -32,7 +32,7 @@ decode about level), +6000 memory offset, 256 GB host RAM, the checkpoint on a l
 
 ## Update: .12.2 (2026-11-14): prefill compute share 0.6 by default
 
-**`azallaza/ds41-kraken-tp3:20261019.12.2`** (`sha256:TBD after push`) = `.12.1` with one change, nothing else (same
+**`azallaza/ds41-kraken-tp3:20261019.12.2`** (`sha256:5dfc3cf4dbab9e04281d12a49b79a89cd27cee614c4e79514f37949f675c8d51`) = `.12.1` with one change, nothing else (same
 layers; one image setting added): the **prefill compute share defaults to 0.6** instead of 0.4.
 
 The prefill compute share is the lil launcher's `prefill-compute-share`: the target fraction of step time given to
