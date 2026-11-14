@@ -18,7 +18,7 @@ run-to-run deterministic; see [Coming from .11](#coming-from-11) to roll back), 
 tables only). The development history with per-step measurements is kept in [README-history.md](README-history.md).
 
 ```bash
-docker pull azallaza/ds41-kraken-tp3:20261019.12.1
+docker pull azallaza/ds41-kraken-tp3:20261019.12.2
 # one-time: hard-link NVIDIA's Engram shards next to the stock weights (both repos in the same HF cache)
 python3 patch-nvfp4/make_engram_nvidia_variant.py --cache "$HF_CACHE_DIR"
 # the tested setup: the engram-nvidia variant with both 4-bit Engram tables in host RAM
@@ -29,6 +29,65 @@ docker logs -f ds41-kraken-tp3 2>&1 | grep -m1 'expert promotion armed and warme
 
 Host settings: 450 W/GPU for the `.12` measurements (the earlier-tag tables below are 350 W; 450 W raises prefill ~10%,
 decode about level), +6000 memory offset, 256 GB host RAM, the checkpoint on a local NVMe drive.
+
+## Update: .12.2 (2026-11-14): prefill compute share 0.6 by default
+
+**`azallaza/ds41-kraken-tp3:20261019.12.2`** (`sha256:TBD after push`) = `.12.1` with one change, nothing else (same
+layers; one image setting added): the **prefill compute share defaults to 0.6** instead of 0.4.
+
+The prefill compute share is the lil launcher's `prefill-compute-share`: the target fraction of step time given to
+prefill when new prompts and running decodes compete for the same steps. Lower favours the streams that are already
+decoding, higher gets new prompts to their first token sooner. The DeepSeek-V4.1-Flash profile sets 0.4; `.12.2` sets
+the launcher's own environment variable `PREFILL_COMPUTE_SHARE=0.6` in the image, which takes precedence over the
+profile (the profile and image contract are unchanged). The server log shows it as `prefill_compute_share=0.6`.
+
+Measured on `.12.1` (`sha256:19cd5a7b…`) with `PREFILL_COMPUTE_SHARE=0.6` passed in (the exact setting `.12.2` bakes)
+against `.12.1` as published (0.4), 2026-11-14: 3x RTX PRO 6000 Blackwell 96 GB at 450 W, this folder's `compose.yaml`
+without the profile and contract mounts, engram-nvidia weights with both Engram tables in host RAM, KV 2,185,581 tokens,
+`DS41_DETERMINISTIC=0`, row cap 24. One fresh start per setting; the 0.4 control was run again at the end of the
+session and moved by 2% or less. Agent replay = recorded agent turns played back by 4 or 8 parallel streams, thinking
+off, 30 s warm-up then 300 s; decode = 32K context, 30 s per concurrency.
+
+| | share 0.4 (`.12.1` default) | share 0.6 (`.12.2` default) |
+|---|---|---|
+| agent replay, 8 streams: TTFT p50 / p90 | 3.93 / 5.02 s | **1.25 / 2.51 s** |
+| agent replay, 8 streams: turns finished in 300 s; output tok/s | 409; 380 | **507; 504** |
+| agent replay, 8 streams: per-turn decode median | 186 tok/s | 103 tok/s |
+| agent replay, 4 streams: TTFT p50 / p90 | 1.00 / 1.96 s | **0.48 / 1.09 s** |
+| agent replay, 4 streams: turns finished in 300 s; output tok/s | 440; 393 | 451; 404 |
+| agent replay, 4 streams: per-turn decode median | 169 tok/s | 150 tok/s |
+| decode 32K c8 (no prefills competing) | 1,008 tok/s | 1,007 tok/s |
+| prefill alone, 8K / 32K prompt | 16.9K / 16.6K tok/s | 16.5K / 16.4K tok/s |
+
+New prompts start much sooner under load, and the server finishes more work in the same time (8 streams: +24% turns,
++33% output tokens). The price is that a stream which is decoding while other streams' prompts are being prefilled
+runs slower per turn (per-turn decode median 186 → 103 tok/s at 8 streams): the prefill now gets more of those
+shared steps. With no prefills competing, decode speed is unchanged (c8 1,008 vs 1,007 tok/s), and a single user
+does not see the difference. `auto` was also measured and landed in between (8 streams: TTFT p50 3.21 s, 480 turns,
+374 output tok/s; 4 streams: TTFT p50 0.92 s, 454 turns), so 0.6 is better at 8 streams and level at 4.
+
+To use it: `docker pull azallaza/ds41-kraken-tp3:20261019.12.2`; this folder's `compose.yaml` now defaults to it (or set
+`DS41_IMAGE`) and passes `PREFILL_COMPUTE_SHARE` (default `0.6`).
+
+**Going back to 0.4** (the `.12.1` behaviour, better per-stream decode while prefills compete, slower first tokens):
+
+- compose: add `PREFILL_COMPUTE_SHARE=0.4` to `.env` (or run `PREFILL_COMPUTE_SHARE=0.4 docker compose up -d`).
+- `docker run`: pass `-e PREFILL_COMPUTE_SHARE=0.4` with your other flags, e.g.
+  `docker run -d --gpus all --ipc host -e PREFILL_COMPUTE_SHARE=0.4 ... azallaza/ds41-kraken-tp3:20261019.12.2`.
+  Check it took with `docker exec <container> printenv PREFILL_COMPUTE_SHARE` and the `prefill_compute_share` value in
+  the server log. Values: a number between 0 and 1, or `auto`; an empty value is rejected by the launcher.
+
+Note: this folder's `compose.yaml` passes the variable to whatever image it starts, so `DS41_IMAGE=...:20261019.12.1`
+with this compose also runs 0.6 unless you set `PREFILL_COMPUTE_SHARE=0.4`.
+
+**Tested the same day and not changed:**
+
+- **Row cap stays 24** (`DS41_VERIFY_ROW_CAP`). Cap 16: prose decode c4 +14% (605 → 681 tok/s) but c8 −4%
+  (1,008 → 960), coding c4 level (730 → 725 tok/s), agent replay 4 streams −10% turns (440 → 395). Cap 12 is worse at
+  every concurrency above 1 (c4 −11%, c8 −38%, coding c4 −22%) and within noise at c1.
+- **The Engram projection split does not run at TP3** (`ENGRAM_PROJECTION_TP=true`): the server fails at model start
+  with `25600 is not divisible by 3` (the Engram projection's 25,600 output columns cannot be split over 3 GPUs). The
+  projection stays replicated on every GPU, as before.
 
 ## Update: .12.1 (2026-11-13): block verification baked in, deterministic mode off by default
 
@@ -66,8 +125,8 @@ output depends on which turns land in the window (8 streams: fewer output tokens
 read the per-turn and benchmark rows for speed. Turning KV-aware admission off as well (`DS41_KV_ADMISSION=0`) gained
 nothing (8-stream TTFT p90 0.72 s, c8 929 tok/s with deterministic on), so it stays on.
 
-To use it: `docker pull azallaza/ds41-kraken-tp3:20261019.12.1`; this folder's `compose.yaml` now defaults to it
-(or set `DS41_IMAGE`). The profile and contract mounts in `compose.yaml` are kept; they match the baked files and
+To use it: `docker pull azallaza/ds41-kraken-tp3:20261019.12.1`; this folder's `compose.yaml` defaulted to it until
+`.12.2` (or set `DS41_IMAGE`). The profile and contract mounts in `compose.yaml` are kept; they match the baked files and
 still give block on `.12` and `.11`.
 
 **Opting back in to deterministic serving** (identical requests in identical batches give identical output; see
@@ -81,7 +140,7 @@ still give block on `.12` and `.11`.
 
 ## Contents
 
-0. [Update: .12.1](#update-121-2026-11-13-block-verification-baked-in) · [New in .12](#new-in-12) · [Coming from .11](#coming-from-11)
+0. [Update: .12.2](#update-122-2026-11-14-prefill-compute-share-06-by-default) · [Update: .12.1](#update-121-2026-11-13-block-verification-baked-in-deterministic-mode-off-by-default) · [New in .12](#new-in-12) · [Coming from .11](#coming-from-11)
 1. [What it is](#what-it-is) · [How it fits in 3 × 96 GB](#how-it-fits-in-3--96-gb)
 2. [What is in this image](#what-is-in-this-image)
 3. [Measurements](#measurements-on-this-image) · [Quality and stress](#quality-and-stress)
@@ -472,6 +531,8 @@ third-party, not audited by us; lavd/hotel-lights 30/30, retrieval pass, 41-43/4
 | LMCache host-RAM prefix tier (`cache-mode: lmcache`, 48 or 16 GiB) | host thrash and OOM-killed workers: the engine-driven DS4.1 mode takes ~80 GB of host memory regardless of tier size, which the Engram tables already occupy |
 | Fused attention prologue for batches above 8 rows (`DS41_FUSED_PROLOGUE_MAXM` 24 / 48) | neutral: c4 190-199 and c8 351-368 steps/s either way; b12x's separate GEMMs already match it there |
 | Higher fixed row caps at 8 sequences (32 / 40 / 48) | c6 690 → 615 / 485 / 477, c8 808 → 787 / 680 / 616: 24 stays |
+| Lower row caps 16 / 12 (`.12.1`, 2026-11-14) | cap 16: c4 +14% but c8 −4%, coding c4 level, agent replay 4 streams −10% turns; cap 12 worse above c1: 24 stays (see [Update: .12.2](#update-122-2026-11-14-prefill-compute-share-06-by-default)) |
+| Engram projection split over the 3 GPUs (`ENGRAM_PROJECTION_TP=true`) | does not start at TP3: `25600 is not divisible by 3`; stays replicated |
 | 7 drafts on `.10` | c1 level, c4 420-425 vs 481-494, c8 746-756 vs 808-820: stays an opt-in coding preset |
 | Decode context parallel (DCP3) | blocked in vLLM for V4.1; measured cost of its per-layer query gather + output merge over PCIe: 89 µs/layer at c1 with NCCL (+35% per step), best case ~8-10% at c1 and 20%+ at c8, no better than the 6x preset |
 | Upstream adaptive verification (cost model, any cost scale) | c8 +19-21% but c1 -11..-28%: a 6-row verify step really costs ~25% more than a 3-row one here, so a lone user gets trimmed to 2 drafts |
@@ -544,6 +605,7 @@ layer-1 table (`ENGRAM_RAM_LAYERS=1`), the NVFP4 experts, standard rejection, an
 | `DS41_FUSED_LAYERS` | `40` | layers run by the fused decoder kernel; `0` = `.7` path |
 | `BRRR_RADIX_TOPK` | `0` | indexer top-k: `0` (b12x, `.12`) / `blocks` (`.11`) / `1` (`.10`) / `sorted` |
 | `DS41_DETERMINISTIC` / `DS41_BRRR_DET_ROWS` | `0` / `64` | `1` = run-to-run deterministic reductions (the `.12` default); `0` = previous arithmetic, faster (`.12.1` default) |
+| `PREFILL_COMPUTE_SHARE` | `0.6` | share of contended step time given to prefill (`.12.2` default); `0.4` = the `.12.1` behaviour, `auto` = adaptive |
 | `B12X_COMPILE_WORKERS` | `2` | b12x kernel compilers per GPU worker (cold first start only; 8 OOM-killed a worker) |
 | `DS41_CACHE_VOLUME` | `runtime-cache-12` | compile-cache volume; `runtime-cache` with the `.11` image |
 | `DS41_VERIFY_ROW_CAP_HIGH` / `DS41_VERIFY_ROW_CAP_REQS` | `0` / `8` | row cap used above `REQS` decoding requests (`0` = off; the seqs12/16 overlays set 32) |
@@ -558,14 +620,14 @@ layer-1 table (`ENGRAM_RAM_LAYERS=1`), the NVFP4 experts, standard rejection, an
 | `ENGRAM_ROW_CACHE_ROWS` | `8388608` | host row cache for disk Engram tables; `0` = off |
 | `DRAFT_NVFP4_HEAD` | `1` | DSpark drafter vocabulary head in NVFP4; `0` = BF16 |
 | `DS41_LAUNCH_SETTINGS` | `/etc/ds41/launch.yaml` | lil launcher settings file (`k7.yaml` points it at `ds41-launch-k7.yaml`) |
-| `DS41_IMAGE` | `azallaza/ds41-kraken-tp3:20261019.12.1` | image tag (`.12` … `.3` remain valid; `.12.1` = `.12` with block rejection baked in) |
+| `DS41_IMAGE` | `azallaza/ds41-kraken-tp3:20261019.12.2` | image tag (`.12.1` … `.3` remain valid; `.12.2` = `.12.1` with prefill compute share 0.6; `.12.1` = `.12` with block rejection baked in) |
 | `HOST_PORT`, `GPU0`/`GPU1`/`GPU2` | `15015`, `0`/`1`/`2` | API port, GPU indices |
 
 ## compose.yaml
 
 ```yaml
-# DeepSeek-V4.1-Flash-1017 TP3 release, image azallaza/ds41-kraken-tp3:20261019.12.1 (= .12 with block rejection
-# baked in and deterministic serving off by default)
+# DeepSeek-V4.1-Flash-1017 TP3 release, image azallaza/ds41-kraken-tp3:20261019.12.2 (= .12 with block rejection
+# baked in, deterministic serving off by default (.12.1) and prefill compute share 0.6 by default (.12.2))
 # (karmic-kraken-beta-20261016.2 + FlashInfer b12x ea74ea61 + the TP3 port in src/, patch-nvfp4/, patch-brrr/,
 #  patch-fused/ and patch-12/; .12 adds vision staging, tool-call fixes, KV-aware prefill admission, lazy Engram
 #  host tables, the FP32 draft-logit cache and deterministic serving).
@@ -579,7 +641,7 @@ layer-1 table (`ENGRAM_RAM_LAYERS=1`), the NVFP4 experts, standard rejection, an
 # and ~256 GB host RAM. Qualified at 450 W/GPU (350 W works; power mostly affects prefill).
 services:
   ds41-kraken-tp3:
-    image: "${DS41_IMAGE:-azallaza/ds41-kraken-tp3:20261019.12.1}"
+    image: "${DS41_IMAGE:-azallaza/ds41-kraken-tp3:20261019.12.2}"
     container_name: ds41-kraken-tp3
     # unless-stopped: auto-start on host reboot / daemon restart, but respect a manual `stop`.
     restart: "unless-stopped"
@@ -674,6 +736,11 @@ services:
       # 0.30 -> 0.72 s. Off by default since .12.1 (0 = previous arithmetic); set DS41_DETERMINISTIC=1 to opt in.
       DS41_DETERMINISTIC: "${DS41_DETERMINISTIC:-0}"
       DS41_BRRR_DET_ROWS: "${DS41_BRRR_DET_ROWS:-64}"
+      # Share of contended step time given to prefill when new prompts and running decodes compete (lil launcher
+      # prefill-compute-share; overrides the profile's 0.4). 0.6 = .12.2 default: agent replay 8 streams TTFT p50
+      # 3.93 -> 1.25 s, +24% turns, decode without competing prefills level. 0.4 = the .12.1 behaviour (faster per-stream
+      # decode while prefills compete, slower first tokens); auto = adaptive. Must not be empty.
+      PREFILL_COMPUTE_SHARE: "${PREFILL_COMPUTE_SHARE:-0.6}"
       # b12x kernel-compile processes per GPU worker. 8 (b12x default) x 3 ranks OOM-killed a worker during the cold
       # first start next to ~150 GB of pinned host tables; 2 compiles longer and fits. Only matters while compiling.
       B12X_COMPILE_WORKERS: "${B12X_COMPILE_WORKERS:-2}"
