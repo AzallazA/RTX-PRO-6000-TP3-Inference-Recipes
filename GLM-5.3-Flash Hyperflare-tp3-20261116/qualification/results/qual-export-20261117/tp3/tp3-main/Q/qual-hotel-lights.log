@@ -1,0 +1,4 @@
+model GLM-5.3-Flash, effort max, temperature 1.0, top-p 0.95
+START hotel-lights-c32
+DONE hotel-lights-c32 rc=0 | exact 26 / wrong 2 / truncated 2 | [(28, 'unparseable: multiple numbers without answer anchor', 40321), (30, 'expected 48, got 49', 10946)]
+done (top-p 0.95)

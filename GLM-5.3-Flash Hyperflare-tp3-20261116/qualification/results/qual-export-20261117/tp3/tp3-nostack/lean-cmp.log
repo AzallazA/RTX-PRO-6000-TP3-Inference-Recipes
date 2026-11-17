@@ -1,0 +1,1 @@
+LEAN_PROBE cmp bootcheck-tp3 vs glmchk-tp3-nostack: compared 12/12, exact 8, top-1 same 10, max |dlogprob| 1.645

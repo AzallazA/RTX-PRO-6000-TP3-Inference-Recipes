@@ -1,0 +1,6 @@
+== running eval: glmchk-tp3-main-11171444 (model GLM-5.3-Flash, effort low, max_tokens 8192) ==
+  intelligence: 43/43 correct (100.0%)
+  refusals:     0/37 refused (0.0%)
+  truncated 0, errors 0, markup leaks 0
+  wrong IQ items: (none)
+  saved -> <results>/glm-check-export-1117-1443/tp3-main/Q/eval_glmchk-tp3-main-11171444.json

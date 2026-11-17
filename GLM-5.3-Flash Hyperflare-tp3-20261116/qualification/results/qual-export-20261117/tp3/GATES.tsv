@@ -1,0 +1,14 @@
+topo	arm	gate	level	detail
+tp3	nostack	boot	PASS	gb202-tp3-202611170053 on 1bdcce7378e4 (ttft shortest, no stack override), up in 29 s, KV 14834688 (export-chain nostack reference 14834688, other binary, INFO: +0.00%)
+tp3	nostack	lean	PASS	LEAN_PROBE glmchk-tp3-nostack: ok 24/24, with logprobs 24/24, same-server repeat identical 12/12
+tp3	nostack	lean-cmp	INFO	 compared 12/12, exact 8, top-1 same 10, max |dlogprob| 1.645 (vs the recorded reference boot; report only, C.27)
+tp3	main	stack-line	PASS	CUDA stack limit 256 B per thread (recorded 1024 B, largest kernel stack 32 B)
+tp3	main	kv-stack	PASS	KV 14929920 with stack 256 vs 14834688 without: +95232 tokens (expected ~+95232)
+tp3	main	boot	PASS	up in 28 s; FLARE_CUDA_STACK_LIMIT=256; served KV 14929920
+tp3	main	kv-ref	PASS	KV 14929920 vs 14929920 (seq307, same binary + stack 256): +0.00%
+tp3	main	consistency	INFO	QC 32: 192 positions (0 sequences cut at ambiguous tokens): top-1 agree 0.953, decode top-1 missing from prefill top-5 0, |dlogprob| median 0.0239 p90 0.1751 p99 0.5951 max 0.8574
+tp3	main	eval	PASS	QC 32: 43/43
+tp3	main	long128	INFO	c1 128K 287.3 tok/s steps/s 112.2
+tp3	main	tooleval	INFO	QC 32: score 93/100 ★★★★★ Excellent; no baseline: this run can serve as one
+tp3	main	retrieval	PASS	QC 32: DONE long retrieval rc=0: DONE 128000 pass DONE 900000 pass
+tp3	main	hotel-lights	FAIL	20:12:29 hotel-lights FAIL DONE hotel-lights-c32 rc=0 | exact 26 / wrong 2 / truncated 2 | [(28, 'unparseable: multiple numbers without answer anchor', 40321), (30, 'expected 48, got 49', 10946)]

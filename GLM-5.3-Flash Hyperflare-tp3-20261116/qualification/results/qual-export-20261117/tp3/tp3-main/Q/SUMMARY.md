@@ -1,0 +1,15 @@
+# qualification Q
+
+profile: core  
+stages: stress  
+reused: none  
+gates: 2 PASS, 0 WARN, 2 FAIL
+
+| time | gate | result | detail |
+|---|---|---|---|
+| 19:44:56 | consistency | INFO | 192 positions (0 sequences cut at ambiguous tokens): top-1 agree 0.953, decode top-1 missing from prefill top-5 0, /dlogprob/ median 0.0239 p90 0.1751 p99 0.5951 max 0.8574 |
+| 19:45:29 | eval | PASS | 43/43 |
+| 19:49:36 | tooleval | INFO | score 93/100 ★★★★★ Excellent; no baseline: this run can serve as one |
+| 19:51:48 | retrieval | PASS | DONE long retrieval rc=0: DONE 128000 pass DONE 900000 pass |
+| 20:12:29 | hotel-lights | FAIL | DONE hotel-lights-c32 rc=0 / exact 26 / wrong 2 / truncated 2 / [(28, 'unparseable: multiple numbers without answer anchor', 40321), (30, 'expected 48, got 49', 10946)] |
+| 20:13:26 | stress | FAIL | no result (FileNotFoundError(2, 'No such file or directory'); timeout = hang) |

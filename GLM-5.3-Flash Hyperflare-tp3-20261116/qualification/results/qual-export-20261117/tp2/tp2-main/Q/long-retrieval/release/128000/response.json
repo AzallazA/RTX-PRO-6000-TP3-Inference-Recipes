@@ -1,0 +1,28 @@
+{
+  "id": "chatcmpl-25756c129925ba10-277",
+  "object": "chat.completion",
+  "created": 1794946541,
+  "model": "glm53-fp4-local",
+  "choices": [
+    {
+      "index": 0,
+      "message": {
+        "role": "assistant",
+        "content": "{\"A\": \"ALPHA-R34-7K2M9Q\", \"B\": \"BETA-R34-8P6V3X\", \"C\": \"GAMMA-R34-4T9N2Z\"}",
+        "reasoning_content": "The user has provided a long archive text and asked me to retrieve three marker values: Marker A, Marker B, and Marker C. Looking at the text, I can see the marker values are explicitly stated:\n\n- Marker A = ALPHA-R34-7K2M9Q\n- Marker B = BETA-R34-8P6V3X\n- Marker C = GAMMA-R34-4T9N2Z\n\nThe rest of the text consists of repeated \"This ordinary archived entry contains no requested marker.\" entries, which are just filler.\n\nThe user asked me to return only a JSON object with keys A, B, C and their exact marker values."
+      },
+      "finish_reason": "stop"
+    }
+  ],
+  "usage": {
+    "prompt_tokens": 127992,
+    "completion_tokens": 188,
+    "total_tokens": 128180,
+    "prompt_tokens_details": {
+      "cached_tokens": 0
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 137
+    }
+  }
+}

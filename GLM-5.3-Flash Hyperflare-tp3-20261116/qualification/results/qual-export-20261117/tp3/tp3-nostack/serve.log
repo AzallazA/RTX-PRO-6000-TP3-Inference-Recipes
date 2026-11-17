@@ -1,0 +1,64 @@
+[ PENDING  ] Verify core.  0.0s
+[    OK    ] Verify core.  signatures  0.2s
+[ PENDING  ] Verify stored data.  0.0s
+[    OK    ] Verify stored data.  0.0 GiB  0.0s
+[ PENDING  ] Prepare model.  0.0s
+[    OK    ] Prepare model.  3 ranks  0.1s
+[ PENDING  ] Initialize GPUs.  0.0s
+[    OK    ] Initialize GPUs.  GPU 0 · SM120 / GPU 1 · SM120 / GPU 2 · SM120  0.4s
+[ PENDING  ] Allocate model memory.  0.0s
+[    OK    ] Allocate model memory.  182.9 GiB GPU · 1.1 GiB host  0.1s
+[ PENDING  ] Load weights.  0.0s
+[ PENDING  ] Load weights.  98.9 / 173.4 GiB  10.0s
+[    OK    ] Load weights.  173.4 GiB  17.5s
+[ PENDING  ] Prepare kernels.  0.0s
+[    OK    ] Prepare kernels.  16746 kernels  0.7s
+[ PENDING  ] Prepare execution.  0.0s
+[    OK    ] Prepare execution.  concurrency 32  1.6s
+[ PENDING  ] Plan cache.  0.0s
+[    OK    ] Plan cache.  per GPU: 61.48–61.49 GiB loaded · 32.92 GiB cache budget  0.0s
+[ PENDING  ] Allocate cache.  0.0s
+Cache peer access: owner_rank=0 allocation="kv-11-latent" address=0x8b37c400000 bytes=2610954240 mappings=549 readers(rank,device)=[(0, 0), (1, 1), (2, 2)] success=true free_before_bytes=[125435904, 35456155648, 35462447104] free_after_bytes=[125435904, 35456155648, 35462447104] used_delta_bytes=[0, 0, 0]
+Cache peer access: owner_rank=0 allocation="kv-15-latent" address=0x8b577600000 bytes=2610954240 mappings=550 readers(rank,device)=[(0, 0), (1, 1), (2, 2)] success=true free_before_bytes=[125435904, 35456155648, 35462447104] free_after_bytes=[125435904, 35456155648, 35462447104] used_delta_bytes=[0, 0, 0]
+Cache peer access: owner_rank=0 allocation="kv-19-latent" address=0x8b772800000 bytes=2610954240 mappings=551 readers(rank,device)=[(0, 0), (1, 1), (2, 2)] success=true free_before_bytes=[125435904, 35456155648, 35462447104] free_after_bytes=[125435904, 35456155648, 35462447104] used_delta_bytes=[0, 0, 0]
+Cache peer access: owner_rank=0 allocation="kv-23-latent" address=0x8b96da00000 bytes=2610954240 mappings=550 readers(rank,device)=[(0, 0), (1, 1), (2, 2)] success=true free_before_bytes=[125435904, 35456155648, 35462447104] free_after_bytes=[125435904, 35456155648, 35462447104] used_delta_bytes=[0, 0, 0]
+Cache peer access: owner_rank=0 allocation="kv-27-latent" address=0x8bb68c00000 bytes=2610954240 mappings=549 readers(rank,device)=[(0, 0), (1, 1), (2, 2)] success=true free_before_bytes=[125435904, 35456155648, 35462447104] free_after_bytes=[125435904, 35456155648, 35462447104] used_delta_bytes=[0, 0, 0]
+Cache peer access: owner_rank=0 allocation="kv-3-latent" address=0x8af86000000 bytes=2610954240 mappings=552 readers(rank,device)=[(0, 0), (1, 1), (2, 2)] success=true free_before_bytes=[125435904, 35456155648, 35462447104] free_after_bytes=[125435904, 35456155648, 35462447104] used_delta_bytes=[0, 0, 0]
+Cache peer access: owner_rank=0 allocation="kv-31-latent" address=0x8bd63e00000 bytes=2610954240 mappings=550 readers(rank,device)=[(0, 0), (1, 1), (2, 2)] success=true free_before_bytes=[125435904, 35456155648, 35462447104] free_after_bytes=[125435904, 35456155648, 35462447104] used_delta_bytes=[0, 0, 0]
+Cache peer access: owner_rank=0 allocation="kv-35-latent" address=0x8bf5f000000 bytes=2610954240 mappings=551 readers(rank,device)=[(0, 0), (1, 1), (2, 2)] success=true free_before_bytes=[125435904, 35456155648, 35462447104] free_after_bytes=[125435904, 35456155648, 35462447104] used_delta_bytes=[0, 0, 0]
+Cache peer access: owner_rank=0 allocation="kv-39-latent" address=0x8c15a200000 bytes=2610954240 mappings=548 readers(rank,device)=[(0, 0), (1, 1), (2, 2)] success=true free_before_bytes=[125435904, 35456155648, 35462447104] free_after_bytes=[125435904, 35456155648, 35462447104] used_delta_bytes=[0, 0, 0]
+Cache peer access: owner_rank=0 allocation="kv-43-latent" address=0x8c355400000 bytes=2610954240 mappings=551 readers(rank,device)=[(0, 0), (1, 1), (2, 2)] success=true free_before_bytes=[125435904, 35456155648, 35462447104] free_after_bytes=[125435904, 35456155648, 35462447104] used_delta_bytes=[0, 0, 0]
+Cache peer access: owner_rank=0 allocation="kv-7-latent" address=0x8b181200000 bytes=2610954240 mappings=552 readers(rank,device)=[(0, 0), (1, 1), (2, 2)] success=true free_before_bytes=[125435904, 35456155648, 35462447104] free_after_bytes=[125435904, 35456155648, 35462447104] used_delta_bytes=[0, 0, 0]
+Cache peer access: owner_rank=1 allocation="kv-11-latent" address=0x9b37c400000 bytes=2610954240 mappings=549 readers(rank,device)=[(0, 0), (1, 1), (2, 2)] success=true free_before_bytes=[125435904, 125435904, 35462447104] free_after_bytes=[125435904, 125435904, 35462447104] used_delta_bytes=[0, 0, 0]
+Cache peer access: owner_rank=1 allocation="kv-15-latent" address=0x9b577600000 bytes=2610954240 mappings=550 readers(rank,device)=[(0, 0), (1, 1), (2, 2)] success=true free_before_bytes=[125435904, 125435904, 35462447104] free_after_bytes=[125435904, 125435904, 35462447104] used_delta_bytes=[0, 0, 0]
+Cache peer access: owner_rank=1 allocation="kv-19-latent" address=0x9b772800000 bytes=2610954240 mappings=551 readers(rank,device)=[(0, 0), (1, 1), (2, 2)] success=true free_before_bytes=[125435904, 125435904, 35462447104] free_after_bytes=[125435904, 125435904, 35462447104] used_delta_bytes=[0, 0, 0]
+Cache peer access: owner_rank=1 allocation="kv-23-latent" address=0x9b96da00000 bytes=2610954240 mappings=550 readers(rank,device)=[(0, 0), (1, 1), (2, 2)] success=true free_before_bytes=[125435904, 125435904, 35462447104] free_after_bytes=[125435904, 125435904, 35462447104] used_delta_bytes=[0, 0, 0]
+Cache peer access: owner_rank=1 allocation="kv-27-latent" address=0x9bb68c00000 bytes=2610954240 mappings=549 readers(rank,device)=[(0, 0), (1, 1), (2, 2)] success=true free_before_bytes=[125435904, 125435904, 35462447104] free_after_bytes=[125435904, 125435904, 35462447104] used_delta_bytes=[0, 0, 0]
+Cache peer access: owner_rank=1 allocation="kv-3-latent" address=0x9af86000000 bytes=2610954240 mappings=552 readers(rank,device)=[(0, 0), (1, 1), (2, 2)] success=true free_before_bytes=[125435904, 125435904, 35462447104] free_after_bytes=[125435904, 125435904, 35462447104] used_delta_bytes=[0, 0, 0]
+Cache peer access: owner_rank=1 allocation="kv-31-latent" address=0x9bd63e00000 bytes=2610954240 mappings=550 readers(rank,device)=[(0, 0), (1, 1), (2, 2)] success=true free_before_bytes=[125435904, 125435904, 35462447104] free_after_bytes=[125435904, 125435904, 35462447104] used_delta_bytes=[0, 0, 0]
+Cache peer access: owner_rank=1 allocation="kv-35-latent" address=0x9bf5f000000 bytes=2610954240 mappings=551 readers(rank,device)=[(0, 0), (1, 1), (2, 2)] success=true free_before_bytes=[125435904, 125435904, 35462447104] free_after_bytes=[125435904, 125435904, 35462447104] used_delta_bytes=[0, 0, 0]
+Cache peer access: owner_rank=1 allocation="kv-39-latent" address=0x9c15a200000 bytes=2610954240 mappings=548 readers(rank,device)=[(0, 0), (1, 1), (2, 2)] success=true free_before_bytes=[125435904, 125435904, 35462447104] free_after_bytes=[125435904, 125435904, 35462447104] used_delta_bytes=[0, 0, 0]
+Cache peer access: owner_rank=1 allocation="kv-43-latent" address=0x9c355400000 bytes=2610954240 mappings=551 readers(rank,device)=[(0, 0), (1, 1), (2, 2)] success=true free_before_bytes=[125435904, 125435904, 35462447104] free_after_bytes=[125435904, 125435904, 35462447104] used_delta_bytes=[0, 0, 0]
+Cache peer access: owner_rank=1 allocation="kv-7-latent" address=0x9b181200000 bytes=2610954240 mappings=552 readers(rank,device)=[(0, 0), (1, 1), (2, 2)] success=true free_before_bytes=[125435904, 125435904, 35462447104] free_after_bytes=[125435904, 125435904, 35462447104] used_delta_bytes=[0, 0, 0]
+Cache peer access: owner_rank=2 allocation="kv-11-latent" address=0xab37c400000 bytes=2610954240 mappings=549 readers(rank,device)=[(0, 0), (1, 1), (2, 2)] success=true free_before_bytes=[125435904, 125435904, 131727360] free_after_bytes=[125435904, 125435904, 131727360] used_delta_bytes=[0, 0, 0]
+Cache peer access: owner_rank=2 allocation="kv-15-latent" address=0xab577600000 bytes=2610954240 mappings=550 readers(rank,device)=[(0, 0), (1, 1), (2, 2)] success=true free_before_bytes=[125435904, 125435904, 131727360] free_after_bytes=[125435904, 125435904, 131727360] used_delta_bytes=[0, 0, 0]
+Cache peer access: owner_rank=2 allocation="kv-19-latent" address=0xab772800000 bytes=2610954240 mappings=551 readers(rank,device)=[(0, 0), (1, 1), (2, 2)] success=true free_before_bytes=[125435904, 125435904, 131727360] free_after_bytes=[125435904, 125435904, 131727360] used_delta_bytes=[0, 0, 0]
+Cache peer access: owner_rank=2 allocation="kv-23-latent" address=0xab96da00000 bytes=2610954240 mappings=550 readers(rank,device)=[(0, 0), (1, 1), (2, 2)] success=true free_before_bytes=[125435904, 125435904, 131727360] free_after_bytes=[125435904, 125435904, 131727360] used_delta_bytes=[0, 0, 0]
+Cache peer access: owner_rank=2 allocation="kv-27-latent" address=0xabb68c00000 bytes=2610954240 mappings=549 readers(rank,device)=[(0, 0), (1, 1), (2, 2)] success=true free_before_bytes=[125435904, 125435904, 131727360] free_after_bytes=[123338752, 123338752, 131727360] used_delta_bytes=[2097152, 2097152, 0]
+Cache peer access: owner_rank=2 allocation="kv-3-latent" address=0xaaf86000000 bytes=2610954240 mappings=552 readers(rank,device)=[(0, 0), (1, 1), (2, 2)] success=true free_before_bytes=[123338752, 123338752, 131727360] free_after_bytes=[123338752, 123338752, 131727360] used_delta_bytes=[0, 0, 0]
+Cache peer access: owner_rank=2 allocation="kv-31-latent" address=0xabd63e00000 bytes=2610954240 mappings=550 readers(rank,device)=[(0, 0), (1, 1), (2, 2)] success=true free_before_bytes=[123338752, 123338752, 131727360] free_after_bytes=[123338752, 123338752, 129630208] used_delta_bytes=[0, 0, 2097152]
+Cache peer access: owner_rank=2 allocation="kv-35-latent" address=0xabf5f000000 bytes=2610954240 mappings=551 readers(rank,device)=[(0, 0), (1, 1), (2, 2)] success=true free_before_bytes=[123338752, 123338752, 129630208] free_after_bytes=[123338752, 123338752, 129630208] used_delta_bytes=[0, 0, 0]
+Cache peer access: owner_rank=2 allocation="kv-39-latent" address=0xac15a200000 bytes=2610954240 mappings=548 readers(rank,device)=[(0, 0), (1, 1), (2, 2)] success=true free_before_bytes=[123338752, 123338752, 129630208] free_after_bytes=[123338752, 123338752, 129630208] used_delta_bytes=[0, 0, 0]
+Cache peer access: owner_rank=2 allocation="kv-43-latent" address=0xac355400000 bytes=2610954240 mappings=551 readers(rank,device)=[(0, 0), (1, 1), (2, 2)] success=true free_before_bytes=[123338752, 123338752, 129630208] free_after_bytes=[123338752, 123338752, 129630208] used_delta_bytes=[0, 0, 0]
+Cache peer access: owner_rank=2 allocation="kv-7-latent" address=0xab181200000 bytes=2610954240 mappings=552 readers(rank,device)=[(0, 0), (1, 1), (2, 2)] success=true free_before_bytes=[123338752, 123338752, 129630208] free_after_bytes=[123338752, 123338752, 129630208] used_delta_bytes=[0, 0, 0]
+[    OK    ] Allocate cache.  98.7 GiB · 14834688 KV tokens · 507 shared snapshot slots · limited by memory  3.2s
+[ PENDING  ] Prepare host prefix cache.  0.0s
+[    OK    ] Prepare host prefix cache.  memory 39.7 GiB (8031 slots, split by rank) · CPU inputs 4.0 GiB limit, 0.1 GiB staging  3.7s
+[ PENDING  ] Read model configuration.  0.0s
+[    OK    ] Read model configuration.  glm53-fp4-local  0.0s
+[ PENDING  ] Load tokenizer.  0.0s
+[    OK    ] Load tokenizer.  tokenizer ready  0.3s
+[ PENDING  ] Start server.  0.0s
+[    OK    ] Start server.  http://127.0.0.1:15015  0.8s
+[ PENDING  ] Shut down server.  0.0s
+[    OK    ] Shut down server.  drain 1.5s · release 3.1s  4.6s

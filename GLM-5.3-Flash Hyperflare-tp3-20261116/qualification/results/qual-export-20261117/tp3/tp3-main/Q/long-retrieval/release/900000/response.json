@@ -1,0 +1,28 @@
+{
+  "id": "chatcmpl-a52cf2216f3de567-572",
+  "object": "chat.completion",
+  "created": 1794945012,
+  "model": "glm53-fp4-local",
+  "choices": [
+    {
+      "index": 0,
+      "message": {
+        "role": "assistant",
+        "content": "```json\n{\n  \"A\": \"ALPHA-R34-7K2M9Q\",\n  \"B\": \"BETA-R34-8P6V3X\",\n  \"C\": \"GAMMA-R34-4T9N2Z\"\n}\n```",
+        "reasoning_content": "The user wants me to find three marker values from the archive. Marker A = ALPHA-R34-7K2M9Q, Marker B = BETA-R34-8P6V3X, and Marker C = GAMMA-R34-4T9N2Z.\n\nLooking at the archive text, I can see that Marker A is defined at the very beginning: \"Marker A = ALPHA-R34-7K2M9Q\". Similarly, near the end, \"Marker B = BETA-R34-8P6V3X\" and \"Marker C = GAMMA-R34-4T9N2Z\".\n\nThe rest of the entries are all \"This ordinary archived entry contains no requested marker.\" so they don't contain any additional markers.\n\nSo the three marker values are:\n- Marker A = ALPHA-R34-7K2M9Q\n- Marker B = BETA-R34-8P6V3X\n- Marker C = GAMMA-R34-4T9N2Z\n\nThe user wants the answer as a JSON object with keys A, B, C and their exact marker values."
+      },
+      "finish_reason": "stop"
+    }
+  ],
+  "usage": {
+    "prompt_tokens": 899994,
+    "completion_tokens": 293,
+    "total_tokens": 900287,
+    "prompt_tokens_details": {
+      "cached_tokens": 9
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 233
+    }
+  }
+}

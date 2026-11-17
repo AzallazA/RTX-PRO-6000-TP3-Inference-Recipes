@@ -1,0 +1,45 @@
+2026-11-17T20:14:46 — outputs: <results>/glm-check-export-1117-1513/tp2-main/Q
+2026-11-17T20:14:46 — qualification start:  stages: consistency
+2026-11-17T20:14:46 — model GLM-5.3-Flash, effort max (eval low, tools high), temperature 1.0, top-p 0.95
+2026-11-17T20:14:46 — KV 3113472, power 450.00 W 450.00 W 450.00 W 
+2026-11-17T20:14:46 — profile: core; longgen seeds 201 202
+2026-11-17T20:14:51 — consistency: 192 positions (0 sequences cut at ambiguous tokens): top-1 agree 0.958, decode top-1 missing from prefill top-5 0, |dlogprob| median 0.0088 p90 0.1335 p99 0.3294 max 0.6894
+2026-11-17T20:14:51 — GATE consistency INFO: 192 positions (0 sequences cut at ambiguous tokens): top-1 agree 0.958, decode top-1 missing from prefill top-5 0, |dlogprob| median 0.0088 p90 0.1335 p99 0.3294 max 0.6894
+2026-11-17T20:14:51 — gates: 0 PASS, 0 WARN, 0 FAIL (profile core; SUMMARY.md)
+2026-11-17T20:14:51 — qualification done
+2026-11-17T20:14:52 — outputs: <results>/glm-check-export-1117-1513/tp2-main/Q
+2026-11-17T20:14:52 — qualification start:  stages: eval
+2026-11-17T20:14:52 — model GLM-5.3-Flash, effort max (eval low, tools high), temperature 1.0, top-p 0.95
+2026-11-17T20:14:52 — KV 3113472, power 450.00 W 450.00 W 450.00 W 
+2026-11-17T20:14:52 — profile: core; longgen seeds 201 202
+2026-11-17T20:15:31 — eval-43: 42/43 | refused 0/37 | truncated 0 errors 0 markup leaks 0 (thinking on, effort low)
+2026-11-17T20:15:31 — GATE eval PASS: 42/43
+2026-11-17T20:15:31 — gates: 1 PASS, 0 WARN, 0 FAIL (profile core; SUMMARY.md)
+2026-11-17T20:15:31 — qualification done
+2026-11-17T20:15:31 — outputs: <results>/glm-check-export-1117-1513/tp2-main/Q
+2026-11-17T20:15:31 — qualification start:  stages: retrieval
+2026-11-17T20:15:31 — model GLM-5.3-Flash, effort max (eval low, tools high), temperature 1.0, top-p 0.95
+2026-11-17T20:15:31 — KV 3113472, power 450.00 W 450.00 W 450.00 W 
+2026-11-17T20:15:31 — profile: core; longgen seeds 201 202
+2026-11-17T20:17:36 —  DONE long retrieval rc=0: DONE 128000 pass DONE 900000 pass
+2026-11-17T20:17:36 — GATE retrieval PASS: DONE long retrieval rc=0: DONE 128000 pass DONE 900000 pass
+2026-11-17T20:17:36 — gates: 2 PASS, 0 WARN, 0 FAIL (profile core; SUMMARY.md)
+2026-11-17T20:17:36 — qualification done
+2026-11-17T20:17:38 — outputs: <results>/glm-check-export-1117-1513/tp2-main/Q
+2026-11-17T20:17:38 — qualification start:  stages: hotel
+2026-11-17T20:17:38 — model GLM-5.3-Flash, effort max (eval low, tools high), temperature 1.0, top-p 0.95
+2026-11-17T20:17:38 — KV 3113472, power 450.00 W 450.00 W 450.00 W 
+2026-11-17T20:17:38 — profile: core; longgen seeds 201 202
+2026-11-17T20:46:27 —  DONE hotel-lights-c8 rc=0 | exact 29 / wrong 1 / truncated 0 | [(25, 'expected 48, got 49', 7768)]
+2026-11-17T20:46:27 — GATE hotel-lights WARN: DONE hotel-lights-c8 rc=0 | exact 29 / wrong 1 / truncated 0 | [(25, 'expected 48, got 49', 7768)]
+2026-11-17T20:46:27 — gates: 2 PASS, 1 WARN, 0 FAIL (profile core; SUMMARY.md)
+2026-11-17T20:46:27 — qualification done
+2026-11-17T20:46:27 — outputs: <results>/glm-check-export-1117-1513/tp2-main/Q
+2026-11-17T20:46:27 — qualification start:  stages: stress
+2026-11-17T20:46:27 — model GLM-5.3-Flash, effort max (eval low, tools high), temperature 1.0, top-p 0.95
+2026-11-17T20:46:27 — KV 3113472, power 450.00 W 450.00 W 450.00 W 
+2026-11-17T20:46:28 — profile: core; longgen seeds 201 202
+2026-11-17T21:01:43 — stress: [glmchk-tp2-main-11171546-c8] PASS: 16/16 long requests ok, pinger 92/92 ok, 9,367,312 prompt tok pushed, min free VRAM 84 MiB (450 samples), health=200, bad log lines=0, wall 15.3 min
+2026-11-17T21:01:43 — GATE stress WARN: PASS 16/16 long, ping 92/92, min free 84 MiB, bad lines 0, wall 15.3 min (every request passed; min free below the 480 MiB margin)
+2026-11-17T21:01:43 — gates: 2 PASS, 2 WARN, 0 FAIL (profile core; SUMMARY.md)
+2026-11-17T21:01:43 — qualification done

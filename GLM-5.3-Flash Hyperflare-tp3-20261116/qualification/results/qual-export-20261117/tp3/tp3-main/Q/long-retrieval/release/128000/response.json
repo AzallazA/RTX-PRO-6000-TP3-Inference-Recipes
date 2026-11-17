@@ -1,0 +1,28 @@
+{
+  "id": "chatcmpl-a52cf2216f3de567-571",
+  "object": "chat.completion",
+  "created": 1794944988,
+  "model": "glm53-fp4-local",
+  "choices": [
+    {
+      "index": 0,
+      "message": {
+        "role": "assistant",
+        "content": "{\"A\": \"ALPHA-R34-7K2M9Q\", \"B\": \"BETA-R34-8P6V3X\", \"C\": \"GAMMA-R34-4T9N2Z\"}",
+        "reasoning_content": "The user is asking me to read an archive and retrieve three marker values. Let me look through the text.\n\nAt the top: \"Marker A = ALPHA-R34-7K2M9Q\"\n\nThen many lines of \"This ordinary archived entry contains no requested marker.\"\n\nLater: \"Marker B = BETA-R34-8P6V3X\"\n\nMore filler lines.\n\nThen: \"Marker C = GAMMA-R34-4T9N2Z\"\n\nThen \"Return only a JSON object with keys A, B, C and their exact marker values.\"\n\nSo the answer is:\n{\"A\": \"ALPHA-R34-7K2M9Q\", \"B\": \"BETA-R34-8P6V3X\", \"C\": \"GAMMA-R34-4T9N2Z\"}\n\nThe user asks to return only a JSON object. I should comply."
+      },
+      "finish_reason": "stop"
+    }
+  ],
+  "usage": {
+    "prompt_tokens": 127992,
+    "completion_tokens": 234,
+    "total_tokens": 128226,
+    "prompt_tokens_details": {
+      "cached_tokens": 9
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 183
+    }
+  }
+}

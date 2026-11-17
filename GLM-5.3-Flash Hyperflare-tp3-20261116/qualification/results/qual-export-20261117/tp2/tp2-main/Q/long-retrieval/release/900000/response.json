@@ -1,0 +1,28 @@
+{
+  "id": "chatcmpl-25756c129925ba10-278",
+  "object": "chat.completion",
+  "created": 1794946565,
+  "model": "glm53-fp4-local",
+  "choices": [
+    {
+      "index": 0,
+      "message": {
+        "role": "assistant",
+        "content": "{\"A\": \"ALPHA-R34-7K2M9Q\", \"B\": \"BETA-R34-8P6V3X\", \"C\": \"GAMMA-R34-4T9N2Z\"}",
+        "reasoning_content": "The user wants me to find three markers in this archive text:\n- Marker A = ALPHA-R34-7K2M9Q\n- Marker B = BETA-R34-8P6V3X\n- Marker C = GAMMA-R34-4T9N2Z\n\nThe markers appear to be defined at the top/bottom of the document. Let me verify each marker value is present in the text.\n\nLooking at the text:\n- \"Marker A = ALPHA-R34-7K2M9Q\" appears near the beginning.\n- \"Marker B = BETA-R34-8P6V3X\" appears partway through.\n- \"Marker C = GAMMA-R34-4T9N2Z\" appears near the end.\n\nThe user asks: \"Return only a JSON object with keys A, B, C and their exact marker values.\"\n\nSo the answer should be a JSON object:\n{\"A\": \"ALPHA-R34-7K2M9Q\", \"B\": \"BETA-R34-8P6V3X\", \"C\": \"GAMMA-R34-4T9N2Z\"}"
+      },
+      "finish_reason": "stop"
+    }
+  ],
+  "usage": {
+    "prompt_tokens": 899994,
+    "completion_tokens": 289,
+    "total_tokens": 900283,
+    "prompt_tokens_details": {
+      "cached_tokens": 9
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 238
+    }
+  }
+}

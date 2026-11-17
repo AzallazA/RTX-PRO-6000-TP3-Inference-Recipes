@@ -1,0 +1,1 @@
+192 positions (0 sequences cut at ambiguous tokens): top-1 agree 0.958, decode top-1 missing from prefill top-5 0, |dlogprob| median 0.0088 p90 0.1335 p99 0.3294 max 0.6894

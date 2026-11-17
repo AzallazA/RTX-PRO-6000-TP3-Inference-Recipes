@@ -1,0 +1,53 @@
+2026-11-17T19:44:50 — outputs: <results>/glm-check-export-1117-1443/tp3-main/Q
+2026-11-17T19:44:50 — qualification start:  stages: consistency
+2026-11-17T19:44:50 — model GLM-5.3-Flash, effort max (eval low, tools high), temperature 1.0, top-p 0.95
+2026-11-17T19:44:50 — KV 14929920, power 450.00 W 450.00 W 450.00 W 
+2026-11-17T19:44:50 — profile: core; longgen seeds 201 202
+2026-11-17T19:44:56 — consistency: 192 positions (0 sequences cut at ambiguous tokens): top-1 agree 0.953, decode top-1 missing from prefill top-5 0, |dlogprob| median 0.0239 p90 0.1751 p99 0.5951 max 0.8574
+2026-11-17T19:44:56 — GATE consistency INFO: 192 positions (0 sequences cut at ambiguous tokens): top-1 agree 0.953, decode top-1 missing from prefill top-5 0, |dlogprob| median 0.0239 p90 0.1751 p99 0.5951 max 0.8574
+2026-11-17T19:44:56 — gates: 0 PASS, 0 WARN, 0 FAIL (profile core; SUMMARY.md)
+2026-11-17T19:44:56 — qualification done
+2026-11-17T19:44:56 — outputs: <results>/glm-check-export-1117-1443/tp3-main/Q
+2026-11-17T19:44:56 — qualification start:  stages: eval
+2026-11-17T19:44:56 — model GLM-5.3-Flash, effort max (eval low, tools high), temperature 1.0, top-p 0.95
+2026-11-17T19:44:56 — KV 14929920, power 450.00 W 450.00 W 450.00 W 
+2026-11-17T19:44:57 — profile: core; longgen seeds 201 202
+2026-11-17T19:45:29 — eval-43: 43/43 | refused 0/37 | truncated 0 errors 0 markup leaks 0 (thinking on, effort low)
+2026-11-17T19:45:29 — GATE eval PASS: 43/43
+2026-11-17T19:45:29 — gates: 1 PASS, 0 WARN, 0 FAIL (profile core; SUMMARY.md)
+2026-11-17T19:45:29 — qualification done
+2026-11-17T19:46:39 — outputs: <results>/glm-check-export-1117-1443/tp3-main/Q
+2026-11-17T19:46:39 — qualification start:  stages: tooleval
+2026-11-17T19:46:39 — model GLM-5.3-Flash, effort max (eval low, tools high), temperature 1.0, top-p 0.95
+2026-11-17T19:46:39 — KV 14929920, power 450.00 W 450.00 W 450.00 W 
+2026-11-17T19:46:40 — profile: core; longgen seeds 201 202
+2026-11-17T19:49:36 — GATE tooleval INFO: score 93/100 ★★★★★ Excellent; no baseline: this run can serve as one
+2026-11-17T19:49:36 — gates: 1 PASS, 0 WARN, 0 FAIL (profile core; SUMMARY.md)
+2026-11-17T19:49:36 — qualification done
+2026-11-17T19:49:38 — outputs: <results>/glm-check-export-1117-1443/tp3-main/Q
+2026-11-17T19:49:38 — qualification start:  stages: retrieval
+2026-11-17T19:49:38 — model GLM-5.3-Flash, effort max (eval low, tools high), temperature 1.0, top-p 0.95
+2026-11-17T19:49:38 — KV 14929920, power 450.00 W 450.00 W 450.00 W 
+2026-11-17T19:49:38 — profile: core; longgen seeds 201 202
+2026-11-17T19:51:48 —  DONE long retrieval rc=0: DONE 128000 pass DONE 900000 pass
+2026-11-17T19:51:48 — GATE retrieval PASS: DONE long retrieval rc=0: DONE 128000 pass DONE 900000 pass
+2026-11-17T19:51:48 — gates: 2 PASS, 0 WARN, 0 FAIL (profile core; SUMMARY.md)
+2026-11-17T19:51:48 — qualification done
+2026-11-17T19:51:49 — outputs: <results>/glm-check-export-1117-1443/tp3-main/Q
+2026-11-17T19:51:49 — qualification start:  stages: hotel
+2026-11-17T19:51:49 — model GLM-5.3-Flash, effort max (eval low, tools high), temperature 1.0, top-p 0.95
+2026-11-17T19:51:50 — KV 14929920, power 450.00 W 450.00 W 450.00 W 
+2026-11-17T19:51:50 — profile: core; longgen seeds 201 202
+2026-11-17T20:12:29 —  DONE hotel-lights-c32 rc=0 | exact 26 / wrong 2 / truncated 2 | [(28, 'unparseable: multiple numbers without answer anchor', 40321), (30, 'expected 48, got 49', 10946)]
+2026-11-17T20:12:29 — GATE hotel-lights FAIL: DONE hotel-lights-c32 rc=0 | exact 26 / wrong 2 / truncated 2 | [(28, 'unparseable: multiple numbers without answer anchor', 40321), (30, 'expected 48, got 49', 10946)]
+2026-11-17T20:12:29 — gates: 2 PASS, 0 WARN, 1 FAIL (profile core; SUMMARY.md)
+2026-11-17T20:12:29 — qualification done
+2026-11-17T20:12:31 — outputs: <results>/glm-check-export-1117-1443/tp3-main/Q
+2026-11-17T20:12:31 — qualification start:  stages: stress
+2026-11-17T20:12:31 — model GLM-5.3-Flash, effort max (eval low, tools high), temperature 1.0, top-p 0.95
+2026-11-17T20:12:32 — KV 14929920, power 450.00 W 450.00 W 450.00 W 
+2026-11-17T20:12:32 — profile: core; longgen seeds 201 202
+2026-11-17T20:13:26 — stress:     FAIL: URLError: <urlopen error [Errno 111] Connection refused> 
+2026-11-17T20:13:26 — GATE stress FAIL: no result (FileNotFoundError(2, 'No such file or directory'); timeout = hang)
+2026-11-17T20:13:26 — gates: 2 PASS, 0 WARN, 2 FAIL (profile core; SUMMARY.md)
+2026-11-17T20:13:26 — qualification done

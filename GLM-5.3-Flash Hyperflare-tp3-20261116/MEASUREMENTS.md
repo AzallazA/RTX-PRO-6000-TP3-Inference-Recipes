@@ -10,6 +10,7 @@ Every number in the README, with the run it comes from. Paths are relative to `q
 | TP3 export chain (2026-11-16 19:17-19:58) | export of `gb202-tp3-202611170053` with `FLARE_GLM53_TRIAL_POOL=separate FLARE_GLM53_SLAB_SEGMENT=1`; dry-run KV against the package without reclaim (`gb202-tp3-202611151109`, same settings, exported on 2026-11-15 from the port); one boot with KV, image, probe and speed checks | `67c691d29041` (port build without the 20261116 scheduler and runtime options) | `tp3-202611170053/export-chain/` |
 | TP2 export chain (2026-11-16 20:44-21:07) | export of `gb202-tp2-202611170201` with `FLARE_GLM53_TRIAL_POOL=separate FLARE_GLM53_ONESHOT_FIT=1`; reference `gb202-tp2-202611151621` (same settings without reclaim, 2026-11-15) | `67c691d29041` | `tp2-202611170201/export-chain/` |
 | Boot check on the release binary | one boot of each package, TTFT order shortest, stack limit 256 | `27864a1d79e4` (tested build of the release tree) | `boot-check-release-binary/` |
+| Tier "export" qualification (2026-11-17 14:43-16:02) | boots without and with the stack limit, probe, consistency, eval-43, 128K decode and tool-eval-bench (TP3), long retrieval, hotel-lights, KV stress (TP2 only), post-run checks (TP2 only) | `1bdcce7378e4` (build of fork `main` `036cde24`) | `qual-export-20261117/tp3/`, `qual-export-20261117/tp2/` |
 
 Both chains served with the `serve-glm` defaults of the time: `--scheduler-policy interactive`, prefix cache 32G,
 5 drafts, TP3 alpha 0.8, TP2 the package alpha (1.0); no `--scheduler-ttft-order`, no `FLARE_CUDA_STACK_LIMIT`.
@@ -72,6 +73,33 @@ Binary `27864a1d79e4`, the `serve-glm` defaults plus `--scheduler-ttft-order sho
 | Prefill 8K / 32K | 10,180 / 11,701 | 11,583 / 12,275 | `tp*/prefill.{json,log}` |
 | Against the export chain's pass (other binary) | c1 1.040× tok/s (steps/s 0.971×), c8 0.991×, c32 1.008×; prefill 0.978× / 0.999× | — | `tp3/cmp.md` |
 | Log scans | no CUDA fault, OOM or panic line; no Xid | same | `SUMMARY.md` |
+
+## Tier "export" qualification (`qual-export-20261117/`, 2026-11-17 14:43-16:02)
+
+Binary `1bdcce7378e4`, built from fork `main` `036cde24` (Rust changes since this release's tag: DeepSeek Engram code
+and a KV-layout fix for rows wholly in granule padding). Settings of `serve-glm-tp3.sh` / `serve-glm-tp2.sh`; each
+package booted first without `FLARE_CUDA_STACK_LIMIT` (probe only), then with 256 for the checks. Sampling temperature
+1.0, top-p 0.95, reasoning effort max (eval-43 low, tool-eval high). The TP3 run was stopped by hand after hotel-lights
+on the owner's decision: the KV stress at 32 streams and the post-run checks did not run. File paths below are under
+`qual-export-20261117/`.
+
+| Number | TP3 (QC 32) | TP2 (QC 8) | File |
+| --- | --- | --- | --- |
+| Served KV, no stack limit / stack 256 | 14,834,688 / **14,929,920** (+95,232) | 3,049,984 / **3,113,472** (+63,488) | `tp*/CHAIN.md`, `tp*/tp*-nostack/serve.log`, `tp*/tp*-main/serve.log` |
+| Startup | 29 s / 28 s | 28 s / 28 s | `tp*/CHAIN.md` |
+| Stack line | 256 B per thread (largest kernel stack 32 B) | 256 B (largest 48 B) | `tp*/GATES.tsv` (stack-line) |
+| First-token probe | 24/24 with logprobs, repeat 12/12 identical | same; again after the stress: 24/24, 12/12 | `tp*/tp*-nostack/lean.*`, `tp2/tp2-main/lean-post.json` |
+| Decode-vs-prefill consistency (192 positions, 0 cut) | top-1 agree 0.953; decode top-1 outside prefill top-5: 0; abs. logprob difference median 0.0239, p90 0.1751, p99 0.5951, max 0.8574 | 0.958; 0; median 0.0088, p90 0.1335, p99 0.3294, max 0.6894 | `tp*/tp*-main/Q/consistency.log` |
+| eval-43 | 43/43 | 42/43 | `tp*/tp*-main/Q/eval.log`, `eval_*.json` |
+| 128K decode, c1, one 30 s pass | 287.3 tok/s, steps/s 112.2 | not run | `tp3/tp3-main/long128.{json,log}` |
+| tool-eval-bench | 93/100 | not run | `tp3/tp3-main/Q/tooleval.{json,log}` |
+| Long retrieval 128K / 900K | pass / pass | pass / pass | `tp*/tp*-main/Q/long-retrieval*` |
+| Hotel-lights, 30 runs, max tokens 100,000 | 26 exact / 2 wrong / 2 truncated; misses listed: run 28 several numbers and no final answer, run 30 "expected 48, got 49" | 29 exact / 1 wrong (run 25: "expected 48, got 49") | `tp*/tp*-main/Q/hotel-lights-c*.log` |
+| KV stress at full concurrency | not run | PASS: 2 waves × 8 requests of ~530,000 prompt tokens, 16/16 ok, 9,367,312 prompt tokens, pinger 92/92, 0 bad log lines, lowest free VRAM 84 MiB, 15.3 min | `tp2/tp2-main/Q/stress.log`, `stress_*.json` |
+| Served KV after the run; server and kernel log scans | not run | 3,113,472 = boot value; no CUDA fault, OOM, panic or Xid line | `tp2/GATES.tsv`, `tp2/SUMMARY.md` |
+
+Times in `CHAIN.md` are local (UTC−5); the kit's `Q/` files are UTC. In `tp3/tp3-main/Q/` the `stress` row "no result"
+is the stopped stress client.
 
 ## Comparison values from earlier folders
 

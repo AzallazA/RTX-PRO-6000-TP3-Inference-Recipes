@@ -1,0 +1,5 @@
+[glmchk-tp2-main-11171546-c8] capacity=3,113,472 tok -> 2 waves x 8 x ~530,000 tok unique prompts (+ pinger)
+  wave 1/2: 8/8 ok, 4,683,529 prompt tok, 455s, minfree so far 84 MiB
+  wave 2/2: 8/8 ok, 4,683,783 prompt tok, 456s, minfree so far 84 MiB
+(Flare log: 0 preemption lines, reported separately)
+[glmchk-tp2-main-11171546-c8] PASS: 16/16 long requests ok, pinger 92/92 ok, 9,367,312 prompt tok pushed, min free VRAM 84 MiB (450 samples), health=200, bad log lines=0, wall 15.3 min

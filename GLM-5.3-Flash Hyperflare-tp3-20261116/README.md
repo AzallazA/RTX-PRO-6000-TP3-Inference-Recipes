@@ -23,8 +23,10 @@ Changes since then:
   +95,232 at TP3 and +63,488 at TP2 against the export chains' boots without it, on another build).
 - **Decode and prefill level with 20261112** (single passes; [Headline numbers](#headline-numbers)).
 
-**Released after the exports and their quick checks passed; the full qualification of these packages has not run
-yet.** [Quality](#quality) lists what ran on these packages, on which binary, and what did not run.
+**Released after the exports and their quick checks passed; a minimal tier "export" qualification followed on
+2026-11-17** (eval-43 43/43 TP3 and 42/43 TP2, long retrieval 128K / 900K pass, TP2 KV stress at 8 streams PASS; **the
+TP3 KV stress at 32 streams was not run**). [Quality](#quality) lists what ran on these packages, on which binary, and
+what did not run.
 
 Weights: [nvidia/GLM-5.3-Flash-FP4-Local](https://huggingface.co/nvidia/GLM-5.3-Flash-FP4-Local) @
 `76348ddb2be2e35e39ecfc00e75dc07703f4f3d5` (NVIDIA Open Model Agreement; base model
@@ -180,8 +182,8 @@ The prefill merge and tail merge of the DeepSeek release are not on for GLM.
 
 ## Quality
 
-The packages were checked by the export chains, then booted once on the release binary. **The tiered qualification
-(tier "export": same weights, new export) has not run on these packages yet.**
+The packages were checked by the export chains, booted once on the release binary, then went through a minimal tier
+"export" qualification (same weights, new export) on 2026-11-17. **The TP3 KV stress at 32 streams was not run.**
 
 **Export chain checks** (binary `67c691d29041`; `serve-glm` defaults of the time: `interactive`, default first-token
 order, no stack override, prefix cache 32G, 5 drafts, TP3 alpha 0.8, TP2 package alpha):
@@ -210,13 +212,32 @@ order, no stack override, prefix cache 32G, 5 drafts, TP3 alpha 0.8, TP2 package
 | Prefill 8K / 32K | 10,180 / 11,701 tok/s | 11,583 / 12,275 tok/s |
 | Server log and kernel log scan, KV unchanged at the end | PASS | PASS |
 
-**Not run yet on these packages:** request checks (13 requests), tool calls at TP3, corruption check at TP3, image
-latency at TP2, hotel-lights (TP3 at 32 streams, TP2 at 8), KV stress at full concurrency (TP3 32, TP2 8),
-decode-vs-prefill consistency, eval-43, tool-eval-bench, GPQA Diamond, 128K decode, long retrieval 128K / 900K, long
-generation, the image question sets, a same-session speed A/B. The 20261112 folder holds those results for the
-20261112 packages ([its Quality section](../GLM-5.3-Flash%20Hyperflare-tp3-20261112/README.md#quality)); there TP2
-hotel-lights was 26/30 (2 unparseable answers, 1 truncated, 1 wrong) and the KV stress passed at TP3 (64/64) and TP2
-(16/16).
+**Tier "export" qualification** (2026-11-17, binary `1bdcce7378e4` built from fork `main` `036cde24`, a later
+commit than this release's tag: its Rust changes are DeepSeek Engram code and a KV-layout fix, and the GLM packages
+serve the same KV; `serve-glm-tp*.sh` settings; temperature 1.0, top-p 0.95;
+[qualification/RESULTS.md](qualification/RESULTS.md#tier-export-qualification-2026-11-17)):
+
+| Check | TP3 (32 streams) | TP2 (8 streams) |
+| --- | --- | --- |
+| Served KV (stack limit 256 / none) | 14,929,920 / 14,834,688 | 3,113,472 / 3,049,984 |
+| First-token probe 24 + repeat 12 | 24/24, 12/12 identical | 24/24, 12/12 identical |
+| Decode-vs-prefill consistency (top-1 agreement, 192 positions; INFO) | 0.953 | 0.958 |
+| eval-43 | **43/43** | **42/43** |
+| 128K decode c1 (INFO) | 287 tok/s | not run |
+| tool-eval-bench (INFO; no earlier GLM run to compare) | 93/100 | not run |
+| Long retrieval 128K / 900K | pass / pass | pass / pass |
+| Hotel-lights, 30 runs | 26 exact, 2 wrong, 2 truncated | 29 exact, 1 wrong |
+| KV stress at full concurrency | **not run** | PASS: 16/16 long requests, 92/92 pings (lowest free VRAM 84 MiB) |
+| Post-run KV, server and kernel log scans | not run | KV unchanged, clean |
+
+Hotel-lights: earlier GLM runs ranged from 26 to 30 exact out of 30 (20261112 TP2: 26/30, 2 unparseable answers, 1
+truncated, 1 wrong). One miss in each run here is "expected 48, got 49", an item an earlier GLM run also missed. On
+20261112 the KV stress passed at TP3 (64/64) and TP2 (16/16).
+
+**Not run on these packages:** the TP3 KV stress at 32 streams, request checks (13 requests), tool calls at TP3,
+corruption check at TP3, image latency at TP2, GPQA Diamond (same weights and quantisation), long generation, the image
+question sets, a same-session speed A/B. The 20261112 folder holds the results for the 20261112 packages
+([its Quality section](../GLM-5.3-Flash%20Hyperflare-tp3-20261112/README.md#quality)).
 
 ## Measured and not adopted
 
@@ -232,9 +253,10 @@ columns, 3 drafts, alpha 0.6, verification budgets, upstream vision dataflow) st
 
 ## Known limitations
 
-- **Qualification not complete:** see [Quality](#quality).
-- **Most checks ran on an earlier binary** (`67c691d29041`) than the release binary; the release binary was checked
-  with one boot per package ([Quality](#quality)).
+- **Qualification minimal, TP3 KV stress at 32 streams not run:** see [Quality](#quality).
+- **Checks ran on three binaries:** the export chains on an earlier one (`67c691d29041`), one boot per package on the
+  release binary (`27864a1d79e4`), the qualification on a build of fork `main` `036cde24` (`1bdcce7378e4`)
+  ([Quality](#quality)).
 - **Hardware-specific packages:** 3 × or 2 × 96 GB SM120 (RTX PRO 6000) only. Other setups need a fresh export.
 - **Thinking is always on.** GLM-5.3-Flash's chat template has no switch: `enable_thinking: false` is ignored without
   an error. `reasoning_effort` `low` or `high` selects that effort; any other value gives `max`.

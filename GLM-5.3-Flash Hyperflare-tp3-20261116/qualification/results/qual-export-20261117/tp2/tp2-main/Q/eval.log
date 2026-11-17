@@ -1,0 +1,6 @@
+== running eval: glmchk-tp2-main-11171514 (model GLM-5.3-Flash, effort low, max_tokens 8192) ==
+  intelligence: 42/43 correct (97.7%)
+  refusals:     0/37 refused (0.0%)
+  truncated 0, errors 0, markup leaks 0
+  wrong IQ items: What is the sum of the interior angles o
+  saved -> <results>/glm-check-export-1117-1513/tp2-main/Q/eval_glmchk-tp2-main-11171514.json
