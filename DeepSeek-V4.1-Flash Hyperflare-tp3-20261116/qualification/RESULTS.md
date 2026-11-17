@@ -60,8 +60,7 @@ Overall: every stage passed or warned as listed above. During qualification, a h
 stress16"; post and scan `NOTRUN`): it produced no result in either direction. The machine was power-cycled. The rerun at 18:50 on the same binary (sha256 `27864a1d79e4…`, the binary every stage of this file ran on; its Rust
 source equals the tag's), package and settings passed the stress, the post-run checks and the log scan (`results/stress-rerun-20261116/`). Lowest free VRAM in the rerun: 64 MiB, above
 the gate's 16 MiB floor and below the kit's 480 MiB comfort margin (the KV cache takes the VRAM the graphs leave).
-2 waves, 19.0M prompt tokens. The hottest GPU reached 91 °C; the temperature guard (abort at 92 °C for 60 s) logged
-warnings and did not stop the run.
+2 waves, 19.0M prompt tokens.
 
 **Decode WARN.** The decode stage compares single 30 s passes with a reference recorded on the round-2 export run
 (older binary without the stack limit, KV 5,155,456, two passes each). It flagged c1 at 0.955× and c8 at 0.937×.

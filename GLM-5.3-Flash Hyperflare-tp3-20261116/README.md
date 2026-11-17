@@ -196,7 +196,6 @@ order, no stack override, prefix cache 32G, 5 drafts, TP3 alpha 0.8, TP2 package
 | Corruption check (decode vs teacher-forced prefill, 20 runs, 6,000 tokens) | not run in the chain | **0** true corruptions |
 | Tool calls, 60 tool-requiring prompts | not run in the chain | **60/60** at concurrency 8 |
 | Decode / prefill pass | see [Headline numbers](#headline-numbers) | see [Headline numbers](#headline-numbers) |
-| Highest GPU temperature (export / speed pass) | 51 / 78 C | 52 / 71 C |
 
 **Boot check on the release binary** (tested build `27864a1d79e4`; this tag's Rust code is that of the DeepSeek
 20261116 release; `serve-glm-tp*.sh` settings: TTFT order shortest, stack limit 256), one boot per package:
@@ -210,7 +209,6 @@ order, no stack override, prefix cache 32G, 5 drafts, TP3 alpha 0.8, TP2 package
 | Decode 32K, one 30 s pass | c1 / c8 / c32 290.3 / 878.8 / 1,827.6 tok/s (steps/s 114.2 / 459.8 / 759.8) | c1 / c8 245.4 / 750.2 (steps/s 104.8 / 312.3) |
 | Prefill 8K / 32K | 10,180 / 11,701 tok/s | 11,583 / 12,275 tok/s |
 | Server log and kernel log scan, KV unchanged at the end | PASS | PASS |
-| Highest GPU temperature | 76 C | 71 C |
 
 **Not run yet on these packages:** request checks (13 requests), tool calls at TP3, corruption check at TP3, image
 latency at TP2, hotel-lights (TP3 at 32 streams, TP2 at 8), KV stress at full concurrency (TP3 32, TP2 8),

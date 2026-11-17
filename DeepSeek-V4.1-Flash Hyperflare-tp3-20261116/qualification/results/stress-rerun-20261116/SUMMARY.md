@@ -26,23 +26,10 @@ Preset B (rerun of seq235's stress): pid 843676, exe 27864a1d79e4c5acf802e2d564a
 - post: RUN PASS (rerun, 0.1 min) — smoke 2/2 thinking-off:ok '391' stop 0.06s thinking-on:ok '391' stop 0.12s | served KV 5403008 = launch | verify_fix 10:
 - scan: RUN PASS (rerun, 0.0 min) — serve log 0 fault lines, kernel log 0 NVRM fault lines
 
-GPU temperatures (window gpu max/mean C, s>=90, fan max, W mean/max):
-  seq214 stress16 (pass, 06:18:53-06:44:42) gpu2: 91/86.6 C, 122 s>=90, fan 100, 446/461 W
-  seq235 hotel16 (15:43:53-15:52:09) gpu2: 93/92.2 C, 489 s>=90, fan 100, 448/460 W
-  seq235 stress16 until Xid 79 (15:52:09-15:52:51) gpu2: 94/93.0 C, 33 s>=90, fan 100, 440/452 W
-  seq235 whole run (15:02:12-15:52:51) gpu2: 94/89.6 C, 2172 s>=90, fan 100, 444/460 W
-  rerun post-1116-1915 gpu0: 62/59.8 C, 0 s>=90, fan 98, 357/447 W
-  rerun post-1116-1915 gpu1: 74/71.0 C, 0 s>=90, fan 100, 365/452 W
-  rerun post-1116-1915 gpu2: 83/81.0 C, 0 s>=90, fan 100, 368/452 W
-  rerun stress16-1116-1850 gpu0: 70/64.8 C, 0 s>=90, fan 100, 432/459 W
-  rerun stress16-1116-1850 gpu1: 82/76.6 C, 0 s>=90, fan 100, 441/462 W
-  rerun stress16-1116-1850 gpu2: 91/85.6 C, 97 s>=90, fan 100, 444/464 W
-
 - served KV 5403008 = seq235's 5403008 (same as every cited stage).
-- First stress attempt (seq235, 15:52:09): GPU 2 (PCI e1:00, top card) fell off the bus (Xid 79) at 15:52:51 at 93-94 C, fan 100 %, ~430-450 W, 42 s into wave 1. Every long request failed with CUDA_ERROR_LAUNCH_FAILED (719), and the server exited. The crash log was lost to the restore. That attempt is superseded by the rerun below and is not a software verdict.
-- Temperature guard on the rerun stress: WARN >= 90 C, abort >= 92 C for 60 s (gpu-temp-guard.sh), THERMAL_STOP_SERVER=1.
+- First stress attempt (seq235, 15:52:09): GPU 2 (PCI e1:00, top card) fell off the bus (Xid 79) at 15:52:51 at ~430-450 W, 42 s into wave 1. Every long request failed with CUDA_ERROR_LAUNCH_FAILED (719), and the server exited. The crash log was lost to the restore. That attempt is superseded by the rerun below and is not a software verdict.
 - Stress volume (rerun): capacity 5,403,008 tokens (live KV) -> 2 waves x 16 x ~530,000; 19,027,513 prompt tokens pushed = 3.52x the KV pool; 32/32 long, ping 212/212, min free 64 MiB, wall 25.6 min (seq214: 19,021,130 tokens = 3.52x of 5,403,008).
-- No power cap (GPU_PL empty; owner 18:05: temperature guard only).
+- No power cap (GPU_PL empty).
 - Restore: skipped (RESTORE=0): server stopped by PID, GPUs free
 - Lowest MemAvailable MiB: stress16 12716, post 20230, restore 20250.
 

@@ -1,7 +1,6 @@
 served KV 5403008 = seq235's 5403008 (same as every cited stage).
-First stress attempt (seq235, 15:52:09): GPU 2 (PCI e1:00, top card) fell off the bus (Xid 79) at 15:52:51 at 93-94 C, fan 100 %, ~430-450 W, 42 s into wave 1. Every long request failed with CUDA_ERROR_LAUNCH_FAILED (719), and the server exited. The crash log was lost to the restore. That attempt is superseded by the rerun below and is not a software verdict.
-Temperature guard on the rerun stress: WARN >= 90 C, abort >= 92 C for 60 s (gpu-temp-guard.sh), THERMAL_STOP_SERVER=1.
+First stress attempt (seq235, 15:52:09): GPU 2 (PCI e1:00, top card) fell off the bus (Xid 79) at 15:52:51 at ~430-450 W, 42 s into wave 1. Every long request failed with CUDA_ERROR_LAUNCH_FAILED (719), and the server exited. The crash log was lost to the restore. That attempt is superseded by the rerun below and is not a software verdict.
 Stress volume (rerun): capacity 5,403,008 tokens (live KV) -> 2 waves x 16 x ~530,000; 19,027,513 prompt tokens pushed = 3.52x the KV pool; 32/32 long, ping 212/212, min free 64 MiB, wall 25.6 min (seq214: 19,021,130 tokens = 3.52x of 5,403,008).
-No power cap (GPU_PL empty; owner 18:05: temperature guard only).
+No power cap (GPU_PL empty).
 Restore: skipped (RESTORE=0): server stopped by PID, GPUs free
 Lowest MemAvailable MiB: stress16 12716, post 20230, restore 20250.

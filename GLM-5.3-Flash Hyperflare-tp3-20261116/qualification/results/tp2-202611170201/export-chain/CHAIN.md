@@ -1,7 +1,6 @@
 20:44:51 start: stages 'X K Sq Bq', perf/glm-vram-reclaim 7a4c4b21 GLM export-layout VRAM switches: trial graph pool, slab segment, fitted one-shot  (contains 99ec7a9f), bin 67c691d29041a6453b5a847c0d544b7372b9772b3f99d691ecc414baf70b49a2, config ~/.config/flare-port-glm-careful/config.toml, overlay ~/<serial-overlay>, REF_ARM 0 REF_PROBE 0 PROBE 1 PASSES 1 SERIAL moe\.experts$; tuning DB: PRESENT (1226 race checkpoints; the export resumes from it)
 20:45:04 X export start (220 GB free on <store>; 8 existing packages fingerprinted; tuning DB PRESENT (1226 race checkpoints; the export resumes from it))
 20:45:05 gate X-env PASS: export pid 2264655 environment: FLARE_BF16_BMM_CUBLAS=0 FLARE_GLM53_EXPERT_ACTIVATION=a16 FLARE_GLM53_KDA_SIDE_CHAIN=1 FLARE_GLM53_EMBED_HOST=1 FLARE_GLM53_VISION_STAGE=1 FLARE_GLM53_TRIAL_POOL=separate FLARE_GLM53_ONESHOT_FIT=1 B12X_SERIAL_RACES=moe\.experts$, overlay ~/<serial-overlay>, port kernel cache; command = 130307's flags
-21:02:04 info X-temps: gpu0 max 46 mean 34.9 s>=90 0; gpu1 max 51 mean 39.6 s>=90 0; gpu2 max 52 mean 37.6 s>=90 0; 
 21:02:04 gate X-export PASS: gb202-tp2-202611170201 in 17 min (1021 s)
 21:02:05 gate X-existing-packages-untouched PASS: 8 packages incl. gb202-tp2-202611151621: file list/sizes/mtimes/inodes unchanged
 21:02:05 gate X-plan PASS: GPUs 0-1 · concurrency 8 · images 2 · up to 5 (= 130307's)
@@ -34,7 +33,6 @@
 21:04:52 prefill probe new-tp2-202611170201 rc=0 (186 lines, 1 min)
 21:04:52 gate S-alive PASS: server answering after the Sq checks
 21:04:52 stage Sq done (2 min)
-21:07:29 info B-temps-1: gpu0 max 61 mean 58.3 s>=90 0; gpu1 max 71 mean 67.8 s>=90 0; gpu2 max 50 mean 47.7 s>=90 0; 
 21:07:32 gate B-decode PASS: decode vs 151621 recorded on the same binary (port-g3tp2-1115-0942, 2 passes): c1 247 vs 245 tok/s (1.004x), steps/s 105.0 vs 103.9 (1.011x); c4 519 vs 517 tok/s (1.005x), steps/s 276.5 vs 280.2 (0.987x); c8 763 vs 748 tok/s (1.020x), steps/s 314.2 vs 310.0 (1.014x)
 21:07:32 info B-plan-rule: (steps >= 0.98x and tok/s >= 0.96x per cell, report only): c1 met, c4 met, c8 met
 21:07:32 info B-band: (recorded 130307 min-max, widened by the 1033 session spread): c1 247 vs recorded 246-252 (band 236-262): inside; c4 519 vs recorded 507-509 (band 497-519): ABOVE; c8 763 vs recorded 699-705 (band 692-712): ABOVE

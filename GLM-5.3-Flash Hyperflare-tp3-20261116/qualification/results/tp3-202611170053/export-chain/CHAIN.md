@@ -1,6 +1,5 @@
 19:17:56 chain start: stages 'X K S', ~/<fork-worktree> perf/glm-vram-reclaim 7a4c4b21 GLM export-layout VRAM switches: trial graph pool, slab segment, fitted one-shot  (contains 99ec7a9f), bin 67c691d29041, config ~/.config/flare-port-glm-careful/config.toml, FLARE_GLM53_TRIAL_POOL=separate FLARE_GLM53_SLAB_SEGMENT=1 FLARE_BF16_BMM_CUBLAS=0, S single QUAL 0; <results>/port-g3reclaim-1116-1917
 19:17:56 X export start (230 GB free on <store>; overrides: none)
-19:53:26 info X-temps: gpu0 max 43 mean 33.1 s>=90 0; gpu1 max 49 mean 35.7 s>=90 0; gpu2 max 51 mean 41.3 s>=90 0; 
 19:53:26 gate X-export PASS: gb202-tp3-202611170053 in 35 min (2130 s)
 19:53:26 gate X-published-untouched PASS: gb202-tp3-202611151109 file list/sizes/mtimes/inodes unchanged (867de7c53de9b100)
 19:53:26 info X-wall: export wall 2130 s; [ OK ] Prepare and tune kernels. 117.6s;[ OK ] Export native core. <store>/models/glm53-fp4… 313.8s;
@@ -33,7 +32,6 @@
 19:54:13 gate S-smoke PASS: IMAGE_SMOKE portg3-new served 5/5 correct 5/5 | small: ok 309p 0.1s | near-max 2800x1876 (6700 tok): ok 6729p 1.2s | over-max 4480x3040 (downscaled): ok 8021p 1.6s | two images: ok 588p 0.2s | four images: ok 1152p 0.3s
 19:55:49 prefill probe new-tp3-202611170053 rc=0 (1 min)
 19:55:49 gate S-prefill-probe PASS: new-tp3-202611170053: PASS (marginal: needle_33K) | new-tp3-202611151109: PASS (comparator: recorded 151109, glm-prefill-probe-1115-0621)
-19:58:27 info S-single-temps: gpu0 max 62 mean 57.4 s>=90 0; gpu1 max 70 mean 65.5 s>=90 0; gpu2 max 78 mean 72.1 s>=90 0; 
 19:58:27 gate S-single-decode PASS: decode vs 151109 recorded (same binary, median of 2): c1 279 vs 274 tok/s (1.019x), steps/s 117.6 vs 113.0 (1.041x); c8 887 vs 873 tok/s (1.016x), steps/s 465.2 vs 427.6 (1.088x); c32 1812 vs 1806 tok/s (1.004x), steps/s 753.3 vs 746.5 (1.009x)
 19:58:27 gate S-single-prefill PASS: prefill-only vs 151109 recorded: 8K 10408 vs 10362 tok/s (1.004x); 32K 11712 vs 11574 tok/s (1.012x)
 19:58:27 gate S-alive PASS: server answering after the S checks

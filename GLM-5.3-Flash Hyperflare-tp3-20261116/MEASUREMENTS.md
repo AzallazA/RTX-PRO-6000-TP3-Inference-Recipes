@@ -35,7 +35,6 @@ local (UTC−5); package timestamps and the kit's `SUMMARY.md` are UTC.
 | Image smoke | 5/5 correct (small, near-max 6,729 tokens, over-max downscaled 8,021 tokens, 2 and 4 images) | `S/smoke.{json,log}` |
 | First-token probe | 24/24, with logprobs 24/24, same-server repeat identical 12/12; against the 20261112 package's stored probe: 12/12 exact | `S/probe.{json,log}`, `S/probe-cmp-stored.log` |
 | Prefill probe | PASS; marginal: 33K needle 30/32 found (2 omissions) against 32/32 for 151109, p = 0.25; pooled needles 246/248 against 248/248; images 36/36 | `S/probe/RESULTS.md` |
-| GPU temperatures | export max 43 / 49 / 51 C; speed pass max 62 / 70 / 78 C; 0 s at or above 90 C | `TEMPS.tsv` |
 
 ## TP2 `gb202-tp2-202611170201`
 
@@ -57,7 +56,6 @@ local (UTC−5); package timestamps and the kit's `SUMMARY.md` are UTC.
 | Corruption check | 20 runs, 6,000 tokens: 0 true corruptions (5 natural-uncertainty flags) | `S/qual/verify_fix.log`, `S/qual/SUMMARY.md` |
 | Tool calls | 60/60 at concurrency 8 | `S/qual/tools.log`, `S/qual/tool_calls.json` |
 | Prefill probe | PASS; needles 248/248 (151621: 247/248), images 36/36 | `S/probe/RESULTS.md` |
-| GPU temperatures | export max 46 / 51 / 52 C; speed pass max 61 / 71 C (GPU 2 idle) | `GATES.tsv` (X-temps, B-temps-1) |
 
 ## Release binary boot check (`boot-check-release-binary/`, 2026-11-16 21:11-21:17)
 
@@ -74,7 +72,6 @@ Binary `27864a1d79e4`, the `serve-glm` defaults plus `--scheduler-ttft-order sho
 | Prefill 8K / 32K | 10,180 / 11,701 | 11,583 / 12,275 | `tp*/prefill.{json,log}` |
 | Against the export chain's pass (other binary) | c1 1.040× tok/s (steps/s 0.971×), c8 0.991×, c32 1.008×; prefill 0.978× / 0.999× | — | `tp3/cmp.md` |
 | Log scans | no CUDA fault, OOM or panic line; no Xid | same | `SUMMARY.md` |
-| GPU temperatures (max) | 60 / 69 / 76 C | 62 / 71 C (GPU 2 idle) | `TEMPS.tsv` |
 
 ## Comparison values from earlier folders
 

@@ -32,40 +32,16 @@ identity vs seq235 id/ (sha, argv, env, fingerprint): MATCH; server started Mon 
 | LiveBench coding (2024-11-25 release) | skipped by tier | 83.5 (gate >= 80.5; 081024 81.6, vLLM .12 81.9) (hyperflare-tp3-20261111 RESULTS.md) | - | seq235 (tier weights) | - |
 | GPQA Diamond (198 items, one sample, c8, max_tokens 32768) | 181/198 = 91.4% (Wilson95 86.7-94.6), truncated without answer 4, hit max_tokens 7, errors 0, max_tokens 32768, c8; ref 90.4% (85.5-93.8); paired vs baseline: 198 items, 5 gained / 3 lost, McNemar p 0.727; WARN: truncated without answer > 3; one 198-item sample resolves about +-5 points | 90.4% (179/198, Wilson95 85.5-93.8), truncated-no-answer 1, hit max_tokens 8 (baselines/flare-ds41-1111-2124/gpqa.json (1227, c8, max_tokens 32768); vLLM .12 89.4% (8 truncated)) | WARN | seq235 ds41-qual-1116-1502 | 23.9 |
 | hotel-lights, 30 runs at c16 | DONE hotel-lights-c16 rc=0 / exact 30 / wrong 0 / truncated 0 / [] | 30/30 exact, 0 truncated (gate 30 PASS, 29 WARN) (seq214 Q/hotel (c16, same build); published c8 30/30) | PASS | seq235 ds41-qual-1116-1502 | 8.2 |
-| KV stress, 16 streams (2+ waves x 16 x ~530K unique prompts + pinger) | PASS 32/32 long, ping 212/212, min free 64 MiB, bad lines 0, wall 25.6 min (min free < 480 MiB kit margin, >= 16 MiB floor); guard 40 WARN lines | PASS 32/32 long, ping 207/207, min free 80 MiB, 0 bad lines (gate: all ok, min free >= 16 MiB) (seq214 Q/stress (c16, same build); published c8 16/16, 68/68, 82 MiB) | PASS | rerun (run) | 25.6 |
+| KV stress, 16 streams (2+ waves x 16 x ~530K unique prompts + pinger) | PASS 32/32 long, ping 212/212, min free 64 MiB, bad lines 0, wall 25.6 min (min free < 480 MiB kit margin, >= 16 MiB floor) | PASS 32/32 long, ping 207/207, min free 80 MiB, 0 bad lines (gate: all ok, min free >= 16 MiB) (seq214 Q/stress (c16, same build); published c8 16/16, 68/68, 82 MiB) | PASS | rerun (run) | 25.6 |
 | Post checks (smoke, KV unchanged) | smoke 2/2 thinking-off:ok '391' stop 0.06s thinking-on:ok '391' stop 0.12s / served KV 5403008 = launch / verify_fix 10: TRUE corruptions 0 (retried 0, candidates skipped 0) | smoke 2/2, served KV unchanged (-) | PASS | rerun (run) | 0.1 |
 | Serve log + kernel log scan | serve log 0 fault lines, kernel log 0 NVRM fault lines | no CUDA fault / OOM / panic / Xid (-) | PASS | rerun (run) | 0.0 |
-
-## GPU temperatures
-
-| Window | GPU | Samples | Span s | Max C | Mean C | s >= 90 C | Max fan % | Mean W | Max W |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| seq214 stress16 (pass, 06:18:53-06:44:42) | 0 | 748 | 1541 | 70 | 65.6 | 0 | 100 | 434 | 456 |
-| seq214 stress16 (pass, 06:18:53-06:44:42) | 1 | 748 | 1541 | 83 | 77.8 | 0 | 100 | 443 | 458 |
-| seq214 stress16 (pass, 06:18:53-06:44:42) | 2 | 748 | 1541 | 91 | 86.6 | 122 | 100 | 446 | 461 |
-| seq235 hotel16 (15:43:53-15:52:09) | 0 | 238 | 489 | 72 | 70.8 | 0 | 100 | 450 | 451 |
-| seq235 hotel16 (15:43:53-15:52:09) | 1 | 238 | 489 | 84 | 83.7 | 0 | 100 | 450 | 451 |
-| seq235 hotel16 (15:43:53-15:52:09) | 2 | 238 | 489 | 93 | 92.2 | 489 | 100 | 448 | 460 |
-| seq235 stress16 until Xid 79 (15:52:09-15:52:51) | 0 | 18 | 35 | 71 | 68.8 | 0 | 100 | 403 | 416 |
-| seq235 stress16 until Xid 79 (15:52:09-15:52:51) | 1 | 18 | 35 | 87 | 83.6 | 0 | 100 | 426 | 435 |
-| seq235 stress16 until Xid 79 (15:52:09-15:52:51) | 2 | 18 | 35 | 94 | 93.0 | 33 | 100 | 440 | 452 |
-| seq235 whole run (15:02:12-15:52:51) | 0 | 1420 | 3035 | 73 | 69.2 | 0 | 100 | 443 | 463 |
-| seq235 whole run (15:02:12-15:52:51) | 1 | 1420 | 3035 | 87 | 81.4 | 0 | 100 | 445 | 462 |
-| seq235 whole run (15:02:12-15:52:51) | 2 | 1420 | 3035 | 94 | 89.6 | 2172 | 100 | 444 | 460 |
-| rerun post-1116-1915 | 0 | 4 | 6 | 62 | 59.8 | 0 | 98 | 357 | 447 |
-| rerun post-1116-1915 | 1 | 4 | 6 | 74 | 71.0 | 0 | 100 | 365 | 452 |
-| rerun post-1116-1915 | 2 | 4 | 6 | 83 | 81.0 | 0 | 100 | 368 | 452 |
-| rerun stress16-1116-1850 | 0 | 766 | 1534 | 70 | 64.8 | 0 | 100 | 432 | 459 |
-| rerun stress16-1116-1850 | 1 | 766 | 1534 | 82 | 76.6 | 0 | 100 | 441 | 462 |
-| rerun stress16-1116-1850 | 2 | 766 | 1534 | 91 | 85.6 | 97 | 100 | 444 | 464 |
 
 ## Notes
 
 - served KV 5403008 = seq235's 5403008 (same as every cited stage).
-- First stress attempt (seq235, 15:52:09): GPU 2 (PCI e1:00, top card) fell off the bus (Xid 79) at 15:52:51 at 93-94 C, fan 100 %, ~430-450 W, 42 s into wave 1. Every long request failed with CUDA_ERROR_LAUNCH_FAILED (719), and the server exited. The crash log was lost to the restore. That attempt is superseded by the rerun below and is not a software verdict.
-- Temperature guard on the rerun stress: WARN >= 90 C, abort >= 92 C for 60 s (gpu-temp-guard.sh), THERMAL_STOP_SERVER=1.
+- First stress attempt (seq235, 15:52:09): GPU 2 (PCI e1:00, top card) fell off the bus (Xid 79) at 15:52:51 at ~430-450 W, 42 s into wave 1. Every long request failed with CUDA_ERROR_LAUNCH_FAILED (719), and the server exited. The crash log was lost to the restore. That attempt is superseded by the rerun below and is not a software verdict.
 - Stress volume (rerun): capacity 5,403,008 tokens (live KV) -> 2 waves x 16 x ~530,000; 19,027,513 prompt tokens pushed = 3.52x the KV pool; 32/32 long, ping 212/212, min free 64 MiB, wall 25.6 min (seq214: 19,021,130 tokens = 3.52x of 5,403,008).
-- No power cap (GPU_PL empty; owner 18:05: temperature guard only).
+- No power cap (GPU_PL empty).
 - Restore: skipped (RESTORE=0): server stopped by PID, GPUs free
 - Lowest MemAvailable MiB: stress16 12716, post 20230, restore 20250.
 
