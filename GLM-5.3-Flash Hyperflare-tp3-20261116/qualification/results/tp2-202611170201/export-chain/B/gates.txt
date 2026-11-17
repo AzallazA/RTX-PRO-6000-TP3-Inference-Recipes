@@ -1,0 +1,6 @@
+PASS decode vs 151621 recorded on the same binary (port-g3tp2-1115-0942, 2 passes): c1 247 vs 245 tok/s (1.004x), steps/s 105.0 vs 103.9 (1.011x); c4 519 vs 517 tok/s (1.005x), steps/s 276.5 vs 280.2 (0.987x); c8 763 vs 748 tok/s (1.020x), steps/s 314.2 vs 310.0 (1.014x)
+INFO plan-rule (steps >= 0.98x and tok/s >= 0.96x per cell, report only): c1 met, c4 met, c8 met
+INFO band (recorded 130307 min-max, widened by the 1033 session spread): c1 247 vs recorded 246-252 (band 236-262): inside; c4 519 vs recorded 507-509 (band 497-519): ABOVE; c8 763 vs recorded 699-705 (band 692-712): ABOVE
+INFO accept (tokens per verify, new, median): c1 2.35, c4 1.88, c8 2.43
+INFO recorded-compare (new vs recorded 130307, old binary): c1 0.991x tok, 1.010x steps; c4 1.022x tok, 1.004x steps; c8 1.087x tok, 1.056x steps
+INFO prefill-only tok/s: 8K new 11559 vs 130307 same binary 11403/11385 (1.014x) | proxy 1033 recorded 10702 (1.080x); 32K new 12271 vs 130307 same binary 12086/12140 (1.013x) | proxy 1033 recorded 12026 (1.020x)

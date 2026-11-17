@@ -1,0 +1,28 @@
+{
+ "label": "portg3-new",
+ "cold_small": 0.139,
+ "warm_small": 0.123,
+ "seq8": [
+  0.13,
+  0.133,
+  0.132,
+  0.13,
+  0.128,
+  0.132,
+  0.124,
+  0.127
+ ],
+ "large_first": 1.463,
+ "large_second": 1.471,
+ "large_prompt_tokens": 8021,
+ "mid": 0.676,
+ "par4_wall": 0.452,
+ "par4": [
+  0.198,
+  0.366,
+  0.294,
+  0.449
+ ],
+ "text": 0.002,
+ "ok": true
+}

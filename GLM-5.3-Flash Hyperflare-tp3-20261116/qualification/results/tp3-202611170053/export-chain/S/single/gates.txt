@@ -1,0 +1,2 @@
+PASS decode vs 151109 recorded (same binary, median of 2): c1 279 vs 274 tok/s (1.019x), steps/s 117.6 vs 113.0 (1.041x); c8 887 vs 873 tok/s (1.016x), steps/s 465.2 vs 427.6 (1.088x); c32 1812 vs 1806 tok/s (1.004x), steps/s 753.3 vs 746.5 (1.009x)
+PASS prefill-only vs 151109 recorded: 8K 10408 vs 10362 tok/s (1.004x); 32K 11712 vs 11574 tok/s (1.012x)

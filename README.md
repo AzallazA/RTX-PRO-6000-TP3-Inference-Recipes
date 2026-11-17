@@ -20,6 +20,7 @@ per-GPU limit the numbers were measured at. Newest first in each table.
 
 | Release | Date | Hardware / TP | Key numbers | Notes | Get it |
 | --- | --- | --- | --- | --- | --- |
+| [GLM-5.3-Flash Hyperflare-tp3-20261116](GLM-5.3-Flash%20Hyperflare-tp3-20261116/README.md) | 2026-11-16 | TP3 on 3 GPUs (DCP3) and TP2 on 2 GPUs (DCP2), 450 W | TP3: 32 slots, 14.93M KV, 32K c1/c8/c32 290/879/1828 tok/s (one 30 s pass); TP2: 8 slots, 3.11M KV, c1/c8 245/750 tok/s | GLM-5.3-Flash (NVIDIA FP4-Local) on Hyperflare 70069281, fork tag `hyperflare-glm-20261116`: export-time VRAM reclaim (+14% KV TP3, +40% TP2 vs 20261112), text + images; quick checks only, full qualification not run yet | export it yourself ([EXPORT.md](GLM-5.3-Flash%20Hyperflare-tp3-20261116/EXPORT.md)) |
 | [GLM-5.3-Flash Hyperflare-tp3-20261112](GLM-5.3-Flash%20Hyperflare-tp3-20261112/README.md) | 2026-11-12 | TP3 on 3 GPUs (DCP3) and TP2 on 2 GPUs (DCP2), 450 W | TP3: 32 slots, 13.13M KV, 32K c1/c4/c8/c16/c32 279/630/866/1290/1790 tok/s, prefill ~11.7K; TP2: 8 slots, 2.23M KV, 248/512/727 tok/s | GLM-5.3-Flash (NVIDIA FP4-Local) on NVIDIA Hyperflare (binary still `flare`), fork tag `hyperflare-glm-20261112`: text + images; TTFT guard available, off by default | export it yourself ([EXPORT.md](GLM-5.3-Flash%20Hyperflare-tp3-20261112/EXPORT.md)) |
 
 ## vLLM: DeepSeek-V4.1-Flash

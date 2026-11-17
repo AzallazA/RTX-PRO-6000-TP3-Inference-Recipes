@@ -1,0 +1,25 @@
+metric_mib	rank0	rank1	rank2
+core	62448.00	62448.00	62442.00
+free	31019.56	31021.56	31025.56
+mapped_host	373.25	373.25	373.25
+prep	2540.13	2540.13	2540.13
+retained	62448.58	62448.58	62442.58
+torch_allocated	1241.86	1241.86	1241.86
+unattributed	1332.61	1330.61	1332.61
+used	66321.31	66319.31	66315.31
+prep:Allocator slack	247.34	247.34	247.34
+prep:Library scratch (not exported)	64.00	64.00	64.00
+prep:Other owned tensors	33.15	33.15	33.15
+prep:Preparation cache backing	2146.00	2146.00	2146.00
+prep:Unknown storage	0.13	0.13	0.13
+prep:Weights / numeric constants	49.50	49.50	49.50
+retained:Allocator slack	19.33	19.37	18.18
+retained:Disposable storage	22.06	22.06	22.06
+retained:Graph I/O / persistent state	168.38	168.38	168.38
+retained:Graph capture pool	1110.00	1110.00	1110.00
+retained:Kernel globals	0.58	0.58	0.58
+retained:Other owned tensors	826.13	826.13	826.27
+retained:TP communication	714.00	714.00	714.00
+retained:Unknown storage	1.90	1.90	1.90
+retained:Weights / numeric constants	59522.20	59522.16	59517.21
+retained:cuBLAS workspaces	64.00	64.00	64.00

@@ -1,0 +1,188 @@
+diff -ruN a/flashinfer/experimental/b12x/preparation/session.py b/flashinfer/experimental/b12x/preparation/session.py
+--- a/flashinfer/experimental/b12x/preparation/session.py	2026-11-14 07:49:09.879107032 -0500
++++ b/flashinfer/experimental/b12x/preparation/session.py	2026-11-14 07:58:34.515307520 -0500
+@@ -96,6 +96,7 @@
+     selection: Selection | None = None
+     finalists: tuple[FinalistRecord, ...] = ()
+     key: str | None = None
++    race_key: str | None = None
+     candidate_program_identity: str | None = None
+     programs: dict = field(default_factory=dict)
+     compiled: dict = field(default_factory=dict)
+@@ -466,6 +467,7 @@
+         self._plans = {}
+         self._scratch_limit = None
+         self._scratch_limit_locked = False
++        self._scratch_preference = None
+         self._shared = {}
+         self._guard = None
+         self._tuning_rank = 0
+@@ -522,6 +524,38 @@
+             )
+         self._scratch_limit = max_bytes
+ 
++    def configure_scratch_preference(self, preference) -> None:
++        """Let a caller policy pick among near-equal race candidates (tp3 patch).
++
++        ``preference`` is ``None`` (fastest wins) or an object with an
++        ``identity`` mapping, which joins the selection cache key, and
++        ``choose(entries, reference)``, which returns a position in
++        ``entries``: ``(latency_us, candidate_index, scratch_nbytes)`` tuples.
++        ``reference`` is a faster latency measured elsewhere, or ``None``. The
++        policy applies after each local race, to every measured candidate; the
++        race and its checkpoint keep the fastest champion and a policy-free key,
++        so recorded measurements are re-selected without racing again.
++        """
++        self._check_thread()
++        if preference is not None and (
++            not callable(getattr(preference, "choose", None))
++            or getattr(preference, "identity", None) is None
++        ):
++            raise TypeError("scratch preference needs choose() and an identity")
++        if getattr(self, "_scratch_limit_locked", False) and preference is not getattr(
++            self, "_scratch_preference", None
++        ):
++            raise RuntimeError(
++                "scratch preference must be configured before preparation begins"
++            )
++        self._scratch_preference = preference
++
++    def _candidate_scratch_nbytes(self, requests, config):
++        try:
++            return self._candidate_memory(requests, config).scratch_nbytes
++        except CandidateResourceIneligibleError:
++            return math.inf
++
+     def _candidate_memory(self, requests, config):
+         requirements, seen, shared = [], set(), False
+         for request in requests:
+@@ -1464,6 +1498,13 @@
+                 "per_family": policy.per_family,
+                 "max_total": policy.max_total,
+             }
++        # Measurements do not depend on the selection policy; checkpoints keep
++        # the policy-free key so a policy change re-selects recorded races.
++        obligation.race_key = digest(identity)
++        preference = self._scratch_policy(obligation)
++        if preference is None:
++            return obligation.race_key
++        identity["scratch_preference"] = dict(preference.identity)
+         return digest(identity)
+ 
+     def _selection(self, obligation, config, source, assignment=None):
+@@ -2112,7 +2153,7 @@
+     def _checkpoint_key(self, obligation, rank_index, rank_count):
+         return digest(
+             {
+-                "race": obligation.key,
++                "race": obligation.race_key or obligation.key,
+                 "shard_index": rank_index,
+                 "shard_count": rank_count,
+                 "rounds": self.session.rounds,
+@@ -2502,6 +2543,30 @@
+             with self._timing.span("race_cleanup"):
+                 _close_all(closers)
+ 
++    def _scratch_policy(self, obligation):
++        # Finalist races keep latency order: a later contextual stage chooses
++        # among their finalists, which must include the ordinary winner.
++        if obligation.request.finalist_policy is not None:
++            return None
++        return getattr(self.session, "_scratch_preference", None)
++
++    def _scratch_of(self, obligation, index):
++        return self.session._candidate_scratch_nbytes(
++            obligation.requests or (obligation.request,),
++            obligation.candidates[index][1],
++        )
++
++    def _prefer_scratch(self, obligation, timed, reference):
++        """Position chosen by the session scratch preference among timed candidates."""
++        entries = [
++            (latency, index, self._scratch_of(obligation, index))
++            for latency, index in timed
++        ]
++        position = self._scratch_policy(obligation).choose(entries, reference)
++        if type(position) is not int or not 0 <= position < len(entries):
++            raise ValueError("scratch preference returned an invalid position")
++        return position
++
+     def _race_finalists(self, obligation, measurements, champion, live):
+         policy = obligation.request.finalist_policy
+         if policy is None:
+@@ -2786,6 +2851,21 @@
+                     winner=champion.index,
+                 )
+                 yield from self._pump_pipeline(obligation)
++            if (
++                best_index is not None
++                and measurements
++                and self._scratch_policy(obligation) is not None
++            ):
++                # The tournament and its checkpoint keep the fastest champion;
++                # the policy then picks among every recorded measurement.
++                timed = sorted(measurements.items())
++                best_index = timed[
++                    self._prefer_scratch(
++                        obligation,
++                        [(latency, index) for index, latency in timed],
++                        None,
++                    )
++                ][0]
+             obligation.coverage["measured_count"] = len(measurements)
+             if cache is not None and best_index is not None:
+                 ledger.commit(
+@@ -2817,6 +2897,13 @@
+                 obligation.coverage["finalist_count"] = len(obligation.finalists)
+             assignment, config = obligation.candidates[best_index]
+             candidate_index, latency_us = best_index, measurements[best_index]
++            scratch_fields = {}
++            if self._scratch_policy(obligation) is not None:
++                scratch = self._scratch_of(obligation, best_index)
++                scratch_fields = {
++                    "scratch_nbytes": None if math.isinf(scratch) else scratch,
++                    "fastest_latency_us": float(min(measurements.values())),
++                }
+             if rank_count > 1:
+                 return TuningRequirement(
+                     obligation.key,
+@@ -2834,6 +2921,7 @@
+                     ),
+                     finalists=obligation.finalists,
+                     finalist_policy=request.finalist_policy,
++                    **scratch_fields,
+                 )
+             selection = self._selection(obligation, config, "tuned", assignment)
+             obligation.cache_pending = rejected_count == 0
+diff -ruN a/flashinfer/experimental/b12x/preparation/types.py b/flashinfer/experimental/b12x/preparation/types.py
+--- a/flashinfer/experimental/b12x/preparation/types.py	2026-11-14 07:49:09.884346392 -0500
++++ b/flashinfer/experimental/b12x/preparation/types.py	2026-11-14 07:58:34.515666144 -0500
+@@ -402,6 +402,11 @@
+     cute_programs: tuple[str, ...] = ()
+     finalists: tuple[FinalistRecord, ...] = ()
+     finalist_policy: FinalistPolicy | None = None
++    # Scratch-aware selection (tp3 patch): the winner's scratch bytes and the
++    # shard's fastest measured latency, so cross-shard selection can prefer a
++    # lower-scratch winner within tolerance of the true fastest candidate.
++    scratch_nbytes: int | None = None
++    fastest_latency_us: float | None = None
+ 
+     def __post_init__(self):
+         ranks = tuple(self.ranks)
+@@ -451,6 +456,16 @@
+                 raise ValueError("tuning latency must be finite and nonnegative")
+             if type(self.candidate_index) is not int or self.candidate_index < 0:
+                 raise ValueError("tuning candidate index must be nonnegative")
++        if self.scratch_nbytes is not None and (
++            type(self.scratch_nbytes) is not int or self.scratch_nbytes < 0
++        ):
++            raise ValueError("tuning scratch bytes must be a nonnegative integer")
++        if self.fastest_latency_us is not None and (
++            type(self.fastest_latency_us) not in (int, float)
++            or not math.isfinite(self.fastest_latency_us)
++            or self.fastest_latency_us < 0
++        ):
++            raise ValueError("fastest tuning latency must be finite and nonnegative")
+         object.__setattr__(self, "ranks", ranks)
+ 
+ 

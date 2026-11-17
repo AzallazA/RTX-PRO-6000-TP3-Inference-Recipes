@@ -1,0 +1,23 @@
+plan	GPUs 0-1 · concurrency 8 · images 2 · up to 5
+graphs	Graph catalog: 56 graphs (before compilation/capture)
+graph_count	56
+embed_host	token embedding in device-visible host memory (FLARE_GLM53_EMBED_HOST=1)
+embed_ok	PASS
+staging_report	vision blocks and tail parked in device-visible host memory and staged per image (FLARE_GLM53_VISION_STAGE=1)
+staging_memory	vision staging slots 22 MiB (parked 373 MiB, tail copied per image 108 MiB): free=6877 MiB, allocated=4418 MiB, reserved=4546 MiB, rss=4870 MiB
+staging_ok	PASS
+pool_header	Graph pool requests (MiB, 56 compiled forwards, largest first; max 1072.1 in prefill4096)
+pool_text_max	prefill4096 1072.1 MiB
+pool_vision_all	vision32768 976.0, vision16384 488.0, vision4096 194.5, vision1024 136.0, vision256 119.4, vision64 110.4
+pool_verdict	PASS largest vision pool vision32768 976.0 MiB vs largest text pool prefill4096 1072.1 MiB (margin 96.1 MiB; 6 vision graphs, 50 text graphs)
+tuning	last progress line: 846/1176 ready, 69 measured, 603 cached, 0 restored, 0 compilations at 1:08
+phase_tune	[ OK ] Prepare and tune kernels. 270.4s
+phase_compile	[ OK ] Compile model forwards. 3 compiler workers; per ra… 28/28 311.1s
+selected	selected kernels: {'cached': 21384, 'tuned': 2616, 'fixed': 11986}
+exported	<store>/models/glm53-fp4-local/gb202-tp2-202611170201
+trial_line	trial graphs in their own pool, released before the serving capture (FLARE_GLM53_TRIAL_POOL=separate)
+trial_release	trial graph pool released: 2990 of 2990 MiB returned before the serving capture
+slab_line	missing
+oneshot_line	one-shot all-reduce sized for 512 rows (4 MiB per call) instead of 4096 (FLARE_GLM53_ONESHOT_FIT=1; prefill of 1024+ rows uses the copy-engine ring)
+reclaim_inventory	rank 0 MiB: core 85,696; retained graph pool 1,110; TP communication 138; other owned 147.41; prep-only graph pool 0
+inventory	ranks 0/1 MiB: used 89,929/89,929; unattributed 1,243/1,243; retained:Allocator slack 17/17; core 85,696/85,696; retained 85,697/85,697; mapped_host 1,583/1,583

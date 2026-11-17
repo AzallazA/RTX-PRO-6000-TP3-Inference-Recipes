@@ -1,0 +1,52 @@
+╭──────────────────────────── NVIDIA P2P Override ─────────────────────────────╮
+│ Effective: yes                                                               │
+│ Configured file: yes (/etc/modprobe.d/nvidia-p2p-override.conf)              │
+│ Runtime: ForceP2P=0x11; RMForceP2PType=1; RMPcieP2PType=2;                   │
+│ GrdmaPciTopoCheckOverride=1; EnableResizableBar=1; DmaRemapPeerMmio=1        │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭─────────────────────────────── Configuration ────────────────────────────────╮
+│ LLM Inference Benchmark                                                      │
+│ Model: GLM-5.3-Flash @ localhost:15015                                       │
+│ Decode concurrency: [1, 2, 4, 8, 16, 32, 64, 128]                            │
+│ Decode contexts: ['0', '16k', '32k', '64k', '128k']                          │
+│ Decode: skipped (--prefill-only) | Max tokens: 8192                          │
+│ Pre-decode warmup: C=1 max-runnable context for 3s                           │
+│ Exact-loop guard: enabled | Output preview: unavailable in plain mode        │
+│ Prefill-only: standalone cold profile (client) | Sustained decode: 0 cells   │
+╰──────────────────────────────────────────────────────────────────────────────╯
+Engine: Flare (detected from metrics)  Models: ['GLM-5.3-Flash']
+KV cache budget (Flare metrics): 3,049,984 tokens
+Max running requests: 40 (dropped C=64,128)
+Model context length: 1,048,576 tokens
+Prefill tests: standalone cold profile ['8k', '32k']
+Calibrating padding text (run=uciojwjwowjn, up to 128k)...
+  Token targeting: single-point estimate from 8k (use --token-targeting exact 
+for /tokenize binary search)
+  Calibrated: 6.18 chars/token (cached, source=8k)
+  8k: 50,598 chars (~8,191 tokens)
+  16k: 101,196 chars (~16,383 tokens)
+  32k: 202,393 chars (~32,767 tokens)
+  64k: 404,786 chars (~65,535 tokens)
+  128k: 809,572 chars (~131,071 tokens)
+Done.
+
+
+
+llm-decode-bench v0.8.0
+Prefill Speed (C=1, client ISL / TTFT)                                          
+                                                                                
+                                                               PCIe rx/tx       
+  Context   Tokens   TTFT (s)   Client tok/s   Server tok/s           avg    N  
+ ────────────────────────────────────────────────────────────────────────────── 
+  8k         8,199       0.71         11,559              —   14355/14128   10  
+  32k       32,320       2.63         12,271              —   23974/23835    4  
+                                                                                
+Client tok/s = prompt_tokens / TTFT. Integrated scout rows come from the 
+prefix-cache scout request that decode needs anyway. Server tok/s is optional 
+Prometheus validation when the engine exports prefill counters and the exact 
+counter delta is uncontaminated; for vLLM this uses newly computed KV tokens, 
+not request prompt tokens.
+
+
+Results saved to 
+<results>/port-g3tp2reclaim-1116-2044/B/new-p1-prefill.json
