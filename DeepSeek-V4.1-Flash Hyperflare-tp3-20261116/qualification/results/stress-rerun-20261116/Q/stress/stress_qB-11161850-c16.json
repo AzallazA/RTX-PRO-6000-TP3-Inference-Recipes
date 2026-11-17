@@ -1,0 +1,14 @@
+{
+ "preset": "qB-11161850-c16",
+ "capacity": 5403008,
+ "verdict": "PASS",
+ "waves": 2,
+ "long_ok": 32,
+ "long_total": 32,
+ "ping_ok": 212,
+ "ping_total": 212,
+ "prompt_tokens": 19027513,
+ "min_free_mib": 64,
+ "bad_log_lines": [],
+ "wall_min": 25.562717219193775
+}

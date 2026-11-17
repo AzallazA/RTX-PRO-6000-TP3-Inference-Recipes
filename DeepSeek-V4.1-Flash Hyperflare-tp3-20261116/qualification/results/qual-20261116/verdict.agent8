@@ -1,0 +1,1 @@
+INFO	agent c8: 649 turns in 300 s, TTFT p50/p90/max 0.41666698455810547/0.7224347591400146/1.2345826625823975 s, 464.6 output tok/s; errors 0; ref 646 turns, 455.8 out tok/s, p50/p90 0.51/0.90 s

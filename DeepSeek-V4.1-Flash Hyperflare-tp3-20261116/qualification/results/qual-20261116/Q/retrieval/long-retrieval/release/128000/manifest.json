@@ -1,0 +1,36 @@
+{
+  "target": 128000,
+  "request_sha256": "aba41826f9e4a2af5ce43d693b118808328c8c98855fd43095c158da74737c51",
+  "attempts": [
+    {
+      "records": 12800,
+      "tokens": 115305
+    },
+    {
+      "records": 14209,
+      "tokens": 127986
+    }
+  ],
+  "settings": {
+    "model": "DeepSeek-V4.1-Flash",
+    "temperature": 1,
+    "top_p": 1.0,
+    "seed": 128000,
+    "min_tokens": 0,
+    "ignore_eos": false,
+    "max_completion_tokens": 2048,
+    "repetition_penalty": 1,
+    "tool_choice": "none",
+    "cache_salt": "ds41-release-retrieval-128000",
+    "reasoning_effort": "max"
+  },
+  "expected": {
+    "A": "ALPHA-R34-7K2M9Q",
+    "B": "BETA-R34-8P6V3X",
+    "C": "GAMMA-R34-4T9N2Z"
+  },
+  "runtime": {
+    "server": "flare",
+    "cmdline": "~/<fork-worktree>/flare-cli/target/release/flare run ~/.cache/flare/packages/models/ds41-1017-engram-fp8/gb202-tp3-202611160815 --gpus 0,1,2 --port 15015 --host 127.0.0.1 --served-model-name DeepSeek-V4.1-Flash --prefix-cache-memory 12G --mtp-draft-tokens 5 --mtp-adaptive-verification --mtp-max-verification-token-budget 32 --mtp-adaptive-verification-alpha 0.8 --scheduler-policy interactive --scheduler-prefill-tail-merge true --scheduler-ttft-order shortest"
+  }
+}

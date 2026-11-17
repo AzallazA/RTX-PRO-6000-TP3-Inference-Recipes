@@ -1,0 +1,14 @@
+PASS  1 developer mid-conversation  status=200 cached=2718 first_prompt=2717
+PASS  2 strict tool accepted  status=200 calls=[{'name': 'get_weather', 'arguments': '{"city": "Paris", "unit": "c"}'}]
+PASS  3 reasoning_effort=medium  status=200 reasoning_chars=55
+PASS  3 reasoning_effort=minimal  status=200 reasoning_chars=55
+PASS  3 reasoning_effort=none  status=200 reasoning_chars=0
+PASS  4 invalid history arguments  status=200
+PASS  5 named tool_choice forces the call  finish=tool_calls calls=['search']
+PASS  6 Responses developer items  status=200
+PASS  7 required + thinking (enable_thinking) -> 400  status=400 {"error":{"type":"invalid_request_error","message":"Thinking mode does not support this tool_choice","param":null,"code":"invalid_request_error"}}
+PASS  7 required + thinking (template kwargs) -> 400  status=400 {"error":{"type":"invalid_request_error","message":"Thinking mode does not support this tool_choice","param":null,"code":"invalid_request_error"}}
+PASS  7 named + thinking (enable_thinking) -> 400  status=400 {"error":{"type":"invalid_request_error","message":"Thinking mode does not support this tool_choice","param":null,"code":"invalid_request_error"}}
+PASS  7 named + thinking (template kwargs) -> 400  status=400 {"error":{"type":"invalid_request_error","message":"Thinking mode does not support this tool_choice","param":null,"code":"invalid_request_error"}}
+PASS  7 required, thinking off, forces a call  finish=tool_calls calls=['get_weather']
+13/13 passed

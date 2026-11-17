@@ -1,0 +1,1 @@
+PASS	128K-c1 BETTER: 320.8 tok/s vs ref 292.5 (1.097x, band +-4%); steps/s 119.23316991231852; accept 2.69; errors 0

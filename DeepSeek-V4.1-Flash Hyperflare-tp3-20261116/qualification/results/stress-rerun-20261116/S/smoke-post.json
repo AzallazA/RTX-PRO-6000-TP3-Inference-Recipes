@@ -1,0 +1,16 @@
+[
+ {
+  "thinking": false,
+  "content": "391",
+  "finish": "stop",
+  "ok": true,
+  "secs": 0.06
+ },
+ {
+  "thinking": true,
+  "content": "391",
+  "finish": "stop",
+  "ok": true,
+  "secs": 0.12
+ }
+]

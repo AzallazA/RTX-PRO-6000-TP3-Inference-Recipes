@@ -1,0 +1,111 @@
+--- a/flashinfer/experimental/b12x/comm/pcie/_collective_tuning.py	2026-11-14 07:49:09.666485680 -0500
++++ b/flashinfer/experimental/b12x/comm/pcie/_collective_tuning.py	2026-11-15 06:36:29.395105411 -0500
+@@ -1,5 +1,6 @@
+ """Logical PCIe operations with native transport and launch candidates."""
+ 
++import os
+ from dataclasses import asdict, dataclass, replace
+ 
+ from b12x.preparation import (
+@@ -25,6 +26,36 @@
+     "island_push_rsag": (True, True),
+ }
+ 
++# BF16 two-shot all-reduce alternatives: "twoshot" is the upstream entry (push
++# reduce-scatter + push all-gather, two launches); "twoshot_pull" is the
++# single-launch pull transport of the same PCIeTwoShotBF16 runtime.
++TWOSHOT_PULL = "twoshot_pull"
++TWOSHOT_ALTERNATIVES = ("twoshot", TWOSHOT_PULL)
++
++
++def twoshot_pull_enabled() -> bool:
++    """Race the BF16 two-shot pull transport beside the upstream push entry.
++
++    TP3 patch (ds41-tp3, 2026-11-15). Upstream declares the two-shot
++    alternative without a transport, so ``_twoshot_preparation`` defaults it
++    to ``push`` and the pull kernel (``_TwoShotPullAllReduceLaunch``) is never
++    raced. On the Threadripper PRO 7965WX host (three GPUs on separate root
++    ports, SM-issued peer reads ~40 GB/s, posted peer writes much slower) a
++    world-3 microbench measured two-shot pull at 443 vs 505 us (one-shot pull)
++    for 1,024 x 5,120 BF16 rows and 256 vs 381 us at 768 rows (2026-11-13).
++    ``B12X_PCIE_TWOSHOT_PULL``: ``0`` (default, upstream candidate set and
++    selection keys) or ``1`` (add a ``twoshot_pull`` alternative with the
++    same thread/block sweep as ``twoshot``). Turning it on changes the query
++    of every staged plain BF16 all-reduce that admits two-shot, so exactly
++    those collective races re-measure; no other selection key moves.
++    """
++    mode = os.environ.get("B12X_PCIE_TWOSHOT_PULL", "0").strip().lower()
++    if mode in ("", "0", "off", "false", "no"):
++        return False
++    if mode in ("1", "on", "true", "yes"):
++        return True
++    raise ValueError("B12X_PCIE_TWOSHOT_PULL must be 0 or 1")
++
+ 
+ @dataclass(frozen=True, kw_only=True)
+ class CollectiveConfig:
+@@ -211,7 +242,7 @@
+                     yield CollectiveConfig(
+                         implementation=name, threads=count_threads, blocks=count_blocks
+                     )
+-        elif name == "twoshot":
++        elif name in TWOSHOT_ALTERNATIVES:
+             from math import prod
+ 
+             packs = prod(call["shape"]) // 8
+@@ -397,10 +428,10 @@
+ 
+ 
+ def _equivalence_key(query, device, config):
+-    if config.implementation == "twoshot":
++    if config.implementation in TWOSHOT_ALTERNATIVES:
+         from math import prod
+ 
+-        packs = prod(query.alternatives["twoshot"]["call"]["shape"]) // 8
++        packs = prod(query.alternatives[config.implementation]["call"]["shape"]) // 8
+         shard = -(-packs // query.world_size)
+         return (
+             config.implementation,
+@@ -455,7 +486,9 @@
+         call, setup = payload["call"], payload["setup"]
+         if call["dtype"] not in ("float16", "bfloat16"):
+             return None
+-        sizes.add(prod(call["shape"] if name == "twoshot" else setup["shape"]) * 2)
++        sizes.add(
++            prod(call["shape"] if name in TWOSHOT_ALTERNATIVES else setup["shape"]) * 2
++        )
+         alternatives[name] = dict(
+             surface=payload["surface"],
+             topology=payload["topology"],
+--- a/flashinfer/experimental/b12x/comm/pcie/pcie_allreduce.py	2026-11-14 07:49:09.696759432 -0500
++++ b/flashinfer/experimental/b12x/comm/pcie/pcie_allreduce.py	2026-11-15 06:36:35.003211332 -0500
+@@ -515,8 +515,10 @@
+             raise ValueError(f"unsupported all-reduce operation {operation!r}")
+         if self.algorithm == "oneshot" and self.single_channel:
+             from ._collective_tuning import (
++                TWOSHOT_PULL,
+                 oneshot_alternatives,
+                 plan as collective_plan,
++                twoshot_pull_enabled,
+             )
+ 
+             target = self._runtime._prepared_channel_for_stream(stream, channel_id)
+@@ -550,6 +552,18 @@
+                         call={"inp": inp, **call},
+                     )
+                     alternatives["twoshot"] = (native, twoshot)
++                    if twoshot_pull_enabled():
++                        # TP3 patch: the same runtime's single-launch pull
++                        # transport as its own raced alternative (upstream
++                        # declares only the default push transport).
++                        alternatives[TWOSHOT_PULL] = (
++                            query_from_runtime(
++                                twoshot,
++                                surface="PCIeTwoShotBF16.all_reduce",
++                                call={"inp": inp, **call, "transport": "pull"},
++                            ),
++                            twoshot,
++                        )
+                     if self._use_bf16_twoshot(inp, output):
+                         default = "twoshot"
+                 from ._joint_profile import JOINT_FAMILIES

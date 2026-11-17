@@ -1,0 +1,62 @@
+[
+ {
+  "case": "small",
+  "served": true,
+  "correct": true,
+  "answer": "JNDL-XX4W",
+  "min_prompt": 80,
+  "ok": true,
+  "secs": 0.12,
+  "content": "JNDL-XX4W",
+  "finish": "stop",
+  "prompt_tokens": 222
+ },
+ {
+  "case": "large 1920x900 (frontend cap 381 tok)",
+  "served": true,
+  "correct": true,
+  "answer": "harbor quartz meadow glacier",
+  "min_prompt": 300,
+  "ok": true,
+  "secs": 0.25,
+  "content": "harbor quartz meadow glacier",
+  "finish": "stop",
+  "prompt_tokens": 998
+ },
+ {
+  "case": "over-max 4160x1280 (downscaled)",
+  "served": true,
+  "correct": true,
+  "answer": "TAYH-6EVG",
+  "min_prompt": 300,
+  "ok": true,
+  "secs": 0.3,
+  "content": "TAYH-6EVG",
+  "finish": "stop",
+  "prompt_tokens": 974
+ },
+ {
+  "case": "two images",
+  "served": true,
+  "correct": true,
+  "answer": "2",
+  "min_prompt": 180,
+  "ok": true,
+  "secs": 0.15,
+  "content": "2",
+  "finish": "stop",
+  "prompt_tokens": 422
+ },
+ {
+  "case": "four images",
+  "served": true,
+  "correct": true,
+  "answer": "4",
+  "min_prompt": 360,
+  "ok": true,
+  "secs": 0.23,
+  "content": "4",
+  "finish": "stop",
+  "prompt_tokens": 828
+ }
+]

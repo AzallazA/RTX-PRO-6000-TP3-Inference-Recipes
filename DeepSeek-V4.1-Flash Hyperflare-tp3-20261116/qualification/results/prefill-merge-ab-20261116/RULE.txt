@@ -1,0 +1,44 @@
+# PREFILL MERGE A/B on the CURRENT DEFAULT (11-16): flag OFF vs ON on ONE binary, branch perf/sched-prefill-merge-174f524d
+# (~/<fork-worktree> = tp3-main 174f524d + 703e1eb8/a4b4fc4f cherry-picked as 98cfcc3b/ef1ffe7c), served exactly
+# like the default through serve-best.sh unchanged: package gb202-tp3-202611160815, PCM 12G, budget 32, tail merge true,
+# FLARE_CUDA_STACK_LIMIT=256 and --scheduler-ttft-order shortest (serve-best.sh's own defaults), FLARE_DIR=<the new tree>.
+# Copied from ../pmerge/pmerge-ab.sh (+ guard-ab-c16.sh replays, ../../../recipe-compare/integration-20261116/integration.sh
+# restore gate / memwatch / queue checks). Those files are untouched. Notes: ../pmerge/NOTES.md.
+#
+# Flag: FLARE_SCHEDULER_PREFILL_MERGE_MIN_ROWS (env; CLI twin --scheduler-prefill-merge-min-rows; default 0 = off).
+#   OFF arms set 0, ON arms set ROWS=512 (NOTES.md's value); both print 'scheduler: prefill merge below N rows (from ...)', so
+#   the log proves the value was read. Nothing else differs between the arms (same binary, package, argv, other env).
+# Arms (ARMS, default "off on on off" = ABBA: a linear drift cancels in the arm means and each flag gets two runs, so the
+#   noise band comes from same-flag repeats; "off on off" ~27 min shorter, ON then has no repeat). Per arm (one boot):
+#   std8   ttft_under_load.py agent --streams 8  --warmup 30 --duration 300  (~3,460 new tokens/turn)           5.6 min
+#   mixed8 mixed_agent.py --streams 8 (new input small ~300 / medium ~2K / large ~12K, weights 0.5/0.35/0.15)  5.6 min
+#   std16, mixed16  the same at 16 streams (the package has 16 slots)                                       11.2 min
+#   decode warm-up + llm_decode_bench c1 and c8, 32K, 30 s, one pass (integration.sh's Bq call)              ~2.5 min
+#   check  first ON arm only, after decode: python3 -I gpu_check.py 15015 -> must be 13/13                   ~2 min
+#   ~26 min per arm with boot/stop; default 4 arms + check + restore ~110 GPU min ("off on off": ~83).
+# Verdict (pmerge_analyze.py, first line of AB.md, printed in the last line):
+#   ADOPT only if ALL hold, else HOLD with the failing items:
+#   1. std workload, at 8 AND at 16 streams: turns or output tok/s (ON/OFF, arm means) >= 1.05 (the literal rule), AND the
+#      work-normalised throughput WNT >= 1.05 with the gain above its noise band (band = max(2%, the largest same-flag
+#      repeat spread)). WNT = turns x P + output tokens x D per second, P (s per turn, per workload) and D (s per output
+#      token) fitted on the OFF runs so OFF = 1.000. Why: turns and output tok/s anti-correlate run to run with the answer
+#      length (guard A/B 11-15: same-arm spread 17-21%, e.g. turns x0.955 / out x1.085 for a no-op), WNT spread 1-6%.
+#   2. mixed workload, 8 and 16 streams: WNT >= 1 - band (no regression).
+#   3. TTFT p50 and p90, every workload and stream count: ON/OFF <= 1 + band, band = max(5%, same-flag repeat spread of
+#      that statistic), capped at 10%.
+#   4. decode c1 / c8 ON/OFF (arm means) >= 0.96 / 0.975 (the 160407 baseline bands 4% / 2.5%, as cmp_decode.py).
+#   5. zero request errors (every replay's turn_errors empty, every decode cell num_errors 0, all result files present).
+#   6. gpu_check 13/13 on the ON arm.  7. every chain gate PASS (boots, env, log line, KV, restore).
+#   Reported, not gated: launches / snapshot launches / message checkpoints / prefill tokens per turn, reused per lookup.
+# Boot gates per arm: /proc/PID/exe sha256 = BIN_SHA, one 'flare run', package, PCM 12G, budget 32, tail merge true,
+#   '--scheduler-ttft-order shortest', no merge flag in argv; env FLARE_CUDA_STACK_LIMIT=256, RAM tables 0, private tables 1,
+#   fast exit 1, FLARE_SCHEDULER_PREFILL_MERGE_MIN_ROWS=<0|512>; log 'prefill merge below <0|512> rows' and 'CUDA stack
+#   limit 256 B'; served KV = 5,403,008 (the default's; FAIL below, WARN above) and equal across arms.
+# Host RAM guard (integration.sh's memwatch): MemAvailable < 6 GiB with a 'flare run' server -> stop it by PID, chain fails.
+# End (EXIT trap): stop by PID; wait <= 30 s for an already RUNNING /tmp/restart-default.sh (m3-loop.sh's rule: a lingering
+#   file or process is never taken as "restore in progress"; ours always runs); setsid nohup /tmp/restart-default.sh;
+#   gate: exe ef5142798f78, 160815, PCM 12G, budget 32, ttft order shortest, stack 256, merge env absent, KV 5,403,008.
+# Results ~/bench-results/ds41-pmerge-c8fb-<MMDD-HHMM>/: <arm>.<n>.<std8|mixed8|std16|mixed16>.json, <arm>.<n>.dec-c<1|8>.json,
+#   serve-<arm>.<n>.log, gpu_check.txt, GATES.tsv, BOOTS.tsv, CHAIN.md, mem.tsv, AB.md. Last stdout line
+#   "PMERGE AB DONE <verdict> | <dir>" or "PMERGE AB FAILED (...) <verdict> | <dir>".
+# Usage: pmerge-ab.sh [--dry-run]. Launch only through gpuq-pmerge-ab.sh (sets PM_SEQ / PM_AFTER). Never edit while it runs.

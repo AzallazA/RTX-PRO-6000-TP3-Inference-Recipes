@@ -1,0 +1,1 @@
+PASS	512K-c1 BETTER: 292.7 tok/s vs ref 271.0 (1.080x, band +-5%); steps/s 112.76629784947252; accept 2.59; errors 0

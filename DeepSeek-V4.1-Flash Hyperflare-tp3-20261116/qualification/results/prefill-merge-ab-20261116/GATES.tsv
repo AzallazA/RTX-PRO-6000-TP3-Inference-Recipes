@@ -1,0 +1,15 @@
+kind	name	verdict	detail
+GATE	kv-off.1	PASS	KV 5403008 = default
+GATE	boot-off.1	PASS	gb202-tp3-202611160815 on 27864a1d79e4, FLARE_SCHEDULER_PREFILL_MERGE_MIN_ROWS=0, PCM 12G budget 32 order shortest stack 256, KV 5403008, up in 52 s
+GATE	alive-off.1	PASS	server answering after off.1
+GATE	kv-on.1	PASS	KV 5403008 = default
+GATE	boot-on.1	PASS	gb202-tp3-202611160815 on 27864a1d79e4, FLARE_SCHEDULER_PREFILL_MERGE_MIN_ROWS=512, PCM 12G budget 32 order shortest stack 256, KV 5403008, up in 50 s
+GATE	gpu-check	PASS	on.1: 13/13 passed
+GATE	alive-on.1	PASS	server answering after on.1
+GATE	kv-on.2	PASS	KV 5403008 = default
+GATE	boot-on.2	PASS	gb202-tp3-202611160815 on 27864a1d79e4, FLARE_SCHEDULER_PREFILL_MERGE_MIN_ROWS=512, PCM 12G budget 32 order shortest stack 256, KV 5403008, up in 51 s
+GATE	alive-on.2	PASS	server answering after on.2
+GATE	kv-off.2	PASS	KV 5403008 = default
+GATE	boot-off.2	PASS	gb202-tp3-202611160815 on 27864a1d79e4, FLARE_SCHEDULER_PREFILL_MERGE_MIN_ROWS=0, PCM 12G budget 32 order shortest stack 256, KV 5403008, up in 51 s
+GATE	alive-off.2	PASS	server answering after off.2
+GATE	restored	PASS	default back: pid 2099567 ef5142798f78 gb202-tp3-202611160815 PCM 12G budget 32 order shortest stack 256 KV 5403008

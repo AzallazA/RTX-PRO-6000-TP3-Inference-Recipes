@@ -1,0 +1,30 @@
+# Versions used for the Hyperflare-tp3-20261116 build (package 202611160815) and its measurements (README.md, MEASUREMENTS.md).
+# Everything here is what the release was built and measured with; check_env.sh prints what your machine has.
+
+NVIDIA driver            615.71.09
+CUDA toolkit             13.1 (/usr/local/cuda-13.1); any driver supporting CUDA 13.1 works
+Python (fork .venv)      3.12.13 (uv-managed)
+torch                    2.14.1+cu132  (pinned by Hyperflare's uv.lock; the cu132 wheel on the 13.1 toolkit is expected)
+triton                   3.8.0         (pinned by Hyperflare's uv.lock)
+flashinfer-python        0.7.3         = FlashInfer/b12x @ aa6c4221586f7607c2bca64abbcdc0699845cf3b (upstream Hyperflare's pin), plus tp3-patches/
+                                       and, in the export's b12x overlay only, tp3-patches/overlay/flashinfer-pcie-twoshot-pull-world3.patch
+nvidia-cutlass-dsl       4.8.1
+rustc / cargo            1.97.0 (rustup)
+uv                       0.11.29
+
+NVIDIA Hyperflare        main @ 70069281cb3ace4365b86f4bfbbcb409da89434b + source.patch (fork tag hyperflare-tp3-20261116)
+Package                  ds41-1017-engram-fp8@gb202-tp3-202611160815 (model name = checkpoint view directory name)
+  exported from          fork code equal to the tag's export path except the export KV hygiene (FLARE_EXPORT_LIBRARY_SCRATCH), which it predates
+  KV tokens              5,403,008 served with serve.sh defaults (--max-concurrency 16 at export, --mtp-max-verification-token-budget 32,
+                         --prefix-cache-memory 12G, FLARE_CUDA_STACK_LIMIT=256); 5,155,456 without the stack limit; dry run 4,996,096
+Checkpoint               deepseek-ai/DeepSeek-V4.1-Flash-1017 @ 1bae0e1088993b9b82de08f59de5be5a34e42170, all 48 shards
+                         (shards 47-48 = DeepSeek's FP8 Engram tables)
+
+GPU settings             3 x RTX PRO 6000 Blackwell Workstation, 450 W power limit, +75 MHz core offset, +6000 MHz memory offset
+                         (memory clock 16,365 MHz), ECC off, persistence mode on
+Host                     256 GB DDR5-6000, 8 channels (251 GiB visible)
+
+Benchmarks
+  llm-inference-bench    v0.9.1 (local-inference-lab/llm-inference-bench) with tools/llm-bench-flare-steps.patch applied
+  tool-eval-bench        570951a77e88367632eac87e60292ec8f3b599e7 (installed by llm_decode_bench --tool-eval)
+  GPQA Diamond           llm_decode_bench --test-profile gpqa-diamond (dataset sha256 a8472c5a82ea...)

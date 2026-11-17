@@ -1,0 +1,1 @@
+WARN	181/198 = 91.4% (Wilson95 86.7-94.6), truncated without answer 4, hit max_tokens 7, errors 0, max_tokens 32768, c8; ref 90.4% (85.5-93.8); paired vs baseline: 198 items, 5 gained / 3 lost, McNemar p 0.727; WARN: truncated without answer > 3; one 198-item sample resolves about +-5 points

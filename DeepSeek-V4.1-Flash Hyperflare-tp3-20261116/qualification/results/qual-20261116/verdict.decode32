@@ -1,0 +1,1 @@
+WARN	c1 WORSE: 319.5 tok/s vs ref 334.6 (0.955x, band +-4%); steps/s 122.82986915431576; accept 2.6; errors 0|c8 WORSE: 978.8 tok/s vs ref 1044.1 (0.937x, band +-2.5%); steps/s 350.7253299449249; accept 2.35; errors 0|c16 LEVEL: 1331.5 tok/s vs ref 1352.2 (0.985x, band +-3%); steps/s 301.0074432519567; accept 2.21; errors 0

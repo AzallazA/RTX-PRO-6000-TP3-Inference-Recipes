@@ -1,0 +1,4 @@
+Preset B (rerun of seq235's stress): pid 843676, exe 27864a1d79e4c5acf802e2d564a732b97f59d8478517b5f3501a1632eb491f75 (~/<fork-worktree>/flare-cli/target/release/flare), package gb202-tp3-202611160815,
+served KV 5403008, argv: --gpus 0,1,2 --port 15015 --host 127.0.0.1 --served-model-name DeepSeek-V4.1-Flash --prefix-cache-memory 12G --mtp-draft-tokens 5 --mtp-adaptive-verification --mtp-max-verification-token-budget 32 --mtp-adaptive-verification-alpha 0.8 --scheduler-policy interactive --scheduler-prefill-tail-merge true --scheduler-ttft-order shortest 
+env: FLARE_FAST_EXIT=1 FLARE_ENGRAM_RAM_TABLES=0 FLARE_ENGRAM_PRIVATE_TABLES=1 FLARE_CUDA_STACK_LIMIT=256 FLARE_SCHEDULER_PREFILL_MERGE_MIN_ROWS=512 ; server log ~/<fork-worktree>/serve-best.log (from byte 1943); serve-best.sh sha f7e5831b290c
+identity vs seq235 id/ (sha, argv, env, fingerprint): MATCH; server started Mon Nov 16 18:47:34 2026

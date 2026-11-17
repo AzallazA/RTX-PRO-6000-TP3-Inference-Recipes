@@ -1,0 +1,1 @@
+IMAGE_SMOKE qB served 5/5 correct 5/5 | small: ok 222p 0.1s | large 1920x900 (frontend cap 381 tok): ok 998p 0.2s | over-max 4160x1280 (downscaled): ok 974p 0.3s | two images: ok 422p 0.1s | four images: ok 828p 0.2s

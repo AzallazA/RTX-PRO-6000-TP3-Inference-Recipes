@@ -1,0 +1,5 @@
+== running eval: qB-11161502 ==
+  intelligence: 42/43 correct (97.7%)
+  refusals:     2/37 refused (5.4%)
+  wrong IQ items: A bat and a ball cost $1.10. The bat cos
+  saved -> ~/bench-results/ds41-qual-1116-1502/Q/eval/eval_qB-11161502.json
