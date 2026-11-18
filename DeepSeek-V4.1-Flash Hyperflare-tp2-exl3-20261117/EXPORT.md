@@ -58,7 +58,7 @@ flare-cli/target/release/flare --version
 ## 3. Get the pack
 
 ```bash
-hf download diffbot/DeepSeek-V4.1-Flash-EXL3-3bpw-2x-RTX-PRO-6000 --revision e0433474b99fb9d385156936f7ed1c7b2dea555c \
+hf download diffbot/DeepSeek-V4.1-Flash-EXL3-3bpw-2x-RTX-PRO-6000 --revision 6110453b901e4b51da66f539f3802b5c7f18e8e8 \
   --local-dir ~/models/DeepSeek-V4.1-Flash-1017-EXL3-3bpw          # ~322 GiB
 ```
 

@@ -10,7 +10,7 @@ a replacement: TP3 runs DeepSeek's own weights on three cards; this build runs a
 experts on two.
 
 - **Weights:** [diffbot/DeepSeek-V4.1-Flash-EXL3-3bpw-2x-RTX-PRO-6000](https://huggingface.co/diffbot/DeepSeek-V4.1-Flash-EXL3-3bpw-2x-RTX-PRO-6000)
-  @ `e0433474b99fb9d385156936f7ed1c7b2dea555c`, used as published. Routed experts in EXL3 3-bit (trellis), the rest DeepSeek's FP8, Diffbot's int4
+  @ `6110453b901e4b51da66f539f3802b5c7f18e8e8`, used as published. Routed experts in EXL3 3-bit (trellis), the rest DeepSeek's FP8, Diffbot's int4
   Engram tables, an EXL3 drafter. The weights keep DeepSeek's MIT license.
 - **Engine:** the public fork [AzallazA/hyperflare-inference](https://github.com/AzallazA/hyperflare-inference) (formerly
   `spark-local-inference`) at tag `hyperflare-tp2-exl3-20261117` (`036cde24`), on upstream Hyperflare `70069281`, the base of the TP3
