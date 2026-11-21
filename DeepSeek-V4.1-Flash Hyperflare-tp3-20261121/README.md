@@ -52,10 +52,10 @@ Every measurement is in [MEASUREMENTS.md](MEASUREMENTS.md); qualification result
 | --- | --- | --- |
 | Request slots / verification cap / prefix cache | 16 / 32 / 12G | 16 / 32 / 12G |
 | KV cache | **5,687,040** (5.4 × 1M) | 5,403,008 |
-| Decode 32K c1 / c4 / c8 / c16 (tok/s) | **319.9 / 787.2 / 1,068.2 / 1,464.7** (median of 3 runs) | 319.5 / 781.2 / 978.8 / 1,331.5 (single 30 s passes) |
-| Decode 128K c1 / c4 / c8 / c16 | 322.8 / 764.2 / 1,040.0 / 1,399.1 | 320.8 / — / — / — |
-| Decode 512K c1 | 306.5 | 292.7 |
-| Prefill 8K / 32K / 128K / 256K / 512K / 1M (tok/s, cold) | 16,567 / 18,300 / 18,938 / 18,548 / 17,516 / 15,935 | — / 15,766 / — / — / — / — |
+| Decode 32K c1 / c4 / c8 / c16 (tok/s) | **311-324 / 773-810 / 1,059-1,102 / 1,459-1,467** (range of 3 runs) | 319.5 / 781.2 / 978.8 / 1,331.5 (single 30 s passes) |
+| Decode 128K c1 / c4 / c8 / c16 | 321-323 / 758-774 / 1,033-1,063 / 1,396-1,400 | 320.8 / — / — / — |
+| Decode 512K c1 | 301-309 | 292.7 |
+| Prefill 8K / 32K / 128K / 256K / 512K / 1M (tok/s, cold) | 16,527-16,603 / 18,269-18,336 / 18,791-19,128 / 18,412-18,612 / 17,481-17,671 / 15,840-16,023 | — / 15,766 / — / — / — / — |
 | Steps/s 32K c1 / c8 / c16 | 129.8 / 430.9 / 503.4 | 122.8 / 350.7 / 301.0 |
 | 8-stream agent replay, 300 s | 658 turns, 530.8 output tok/s, first token p50 / p90 0.395 / 0.627 s | 649 turns, 464.6 output tok/s, 0.42 / 0.72 s |
 | Steering scale 1 vs 0, decode 32K | tokens per round 0.994 / 0.979 / 0.946 / 0.992 at c1 / c4 / c8 / c16; prefill level | — |
