@@ -8,12 +8,44 @@
 #   expect: two "Engram table F8_E4M3 ... ok" lines and "96085 tensors in 48 shards, missing 0; payload 510286023000 vs index total_size 510286023000"
 set -euo pipefail
 [ $# -eq 2 ] || { echo "usage: $0 <deepseek snapshot dir> <output dir>" >&2; exit 2; }
-DS=$(readlink -f "$1"); OUT=$2
-[ -e "$OUT" ] && { echo "refuse: $OUT exists" >&2; exit 2; }
-mkdir -p "$OUT"
-for f in "$DS"/*; do ln -s "$(readlink -f "$f")" "$OUT/$(basename "$f")"; done
-cd "$OUT"
-/usr/bin/python3 -I - "$OUT" <<'PY'
+DS=$(realpath -e -- "$1")
+OUT=$2
+while [[ "$OUT" == */ ]]; do OUT=${OUT%/}; done
+[ -n "$OUT" ] && [ ! -e "$OUT" ] && [ ! -L "$OUT" ] || { echo "Refusing existing output $2" >&2; exit 2; }
+[ -d "$DS" ] || { echo "Checkpoint snapshot is not a directory at $DS" >&2; exit 2; }
+# Include each named ancestor before resolving the output's symlinks.
+declare -A output_ancestors=()
+ancestor=$(dirname -- "$OUT")
+while :; do
+    resolved=$(realpath -m -- "$ancestor")
+    output_ancestors["$resolved"]=1
+    [[ "$ancestor" == / || "$ancestor" == . ]] && break
+    ancestor=$(dirname -- "$ancestor")
+done
+OUT=$(realpath -m -- "$OUT")
+shopt -s dotglob nullglob
+entries=()
+targets=()
+# A source directory that contains the output would make the view link back to itself.
+for f in "$DS"/*; do
+    target=$(realpath -e -- "$f")
+    if [[ "${output_ancestors[$target]+x}" || "$OUT" == "${target%/}/"* ]]; then
+        continue
+    fi
+    entries+=("${f##*/}")
+    targets+=("$target")
+done
+PARENT=$(dirname -- "$OUT")
+mkdir -p -- "$PARENT"
+STAGE=$(mktemp -d -- "$PARENT/.checkpoint-view.XXXXXXXX")
+trap 'rm -rf -- "$STAGE"' EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
+mkdir -- "$STAGE/view"
+for i in "${!entries[@]}"; do
+    ln -s -- "${targets[i]}" "$STAGE/view/${entries[i]}"
+done
+/usr/bin/python3 -I - "$STAGE/view" <<'PY'
 import json, os, struct, sys
 out = sys.argv[1]
 idx = json.load(open(f"{out}/model.safetensors.index.json"))
@@ -41,4 +73,6 @@ ts = idx.get("metadata", {}).get("total_size")
 print(f"{len(idx['weight_map'])} tensors in {len(seen)} shards, missing {len(missing)}; payload {total} vs index total_size {ts}")
 sys.exit(1 if missing or bad or ts != total else 0)
 PY
+mv -nT -- "$STAGE/view" "$OUT"
+[ ! -d "$STAGE/view" ] || { echo "Refusing existing output $OUT" >&2; exit 2; }
 echo "FP8 checkpoint view ready: $OUT"

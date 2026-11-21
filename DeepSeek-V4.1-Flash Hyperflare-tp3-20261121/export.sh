@@ -69,31 +69,43 @@
 # A cold tuning cache needs more free VRAM than serving. If tuning runs out of memory, export once with HOT=300,
 # then export the target. The second export reuses the shared tuning cache.
 set -euo pipefail
-# Release defaults of the value switches (set one to empty to turn it off).
-SKIP_SUFFIX=${SKIP_SUFFIX-4096} IDX_SPLIT=${IDX_SPLIT-4096} IDX_SPLIT_MIN_CTX=${IDX_SPLIT_MIN_CTX-32768}
-MLA_SPLITS=${MLA_SPLITS-18:10,37:5,47:4,62:3,94:2,96:3} H24=${H24-9:0,96:1}
 : "${CKPT:?set CKPT to the checkpoint view directory}"
 HERE=$(dirname "$(readlink -f "$0")")
 TWOSHOT=${TWOSHOT:-1}
-if [ "$TWOSHOT" = 1 ]; then
-    : "${B12X_OVERLAY:?TWOSHOT=1 needs B12X_OVERLAY (see the header), or export with TWOSHOT=0}"
-fi
+GATHER_PULL=${GATHER_PULL:-1}
 if [ -n "${B12X_OVERLAY:-}" ]; then
-    [ -d "$B12X_OVERLAY/b12x_tree" ] || { echo "B12X_OVERLAY=$B12X_OVERLAY has no b12x_tree" >&2; exit 1; }
-    export PYTHONPATH="$B12X_OVERLAY${PYTHONPATH:+:$PYTHONPATH}" B12X_PCIE_DCP_GATHER_PULL=0
+    if [ ! -d "$B12X_OVERLAY/b12x_tree" ] || [ ! -f "$B12X_OVERLAY/b12x/__init__.py" ]; then
+        echo "B12X_OVERLAY=$B12X_OVERLAY needs b12x_tree and the b12x package shim" >&2
+        exit 1
+    fi
+    export PYTHONPATH="$B12X_OVERLAY${PYTHONPATH:+:$PYTHONPATH}"
 fi
-# GATHER_PULL=1: refuse an overlay without the gather-pull patch (b12x would ignore the variable silently).
-if [ "${GATHER_PULL:-1}" = 1 ]; then
-    grep -qs _gather_pull_enabled "${B12X_OVERLAY:-/nonexistent}/b12x_tree/comm/pcie/_dcp_a2a_cute.py" \
-        || { echo "GATHER_PULL=1 needs B12X_OVERLAY with flashinfer-dcp-gather-pull-world3.patch" >&2; exit 1; }
+PCIE="${B12X_OVERLAY:-/nonexistent}/b12x_tree/comm/pcie"
+if [ "$TWOSHOT" = 1 ]; then
+    if [ -z "${B12X_OVERLAY:-}" ] ||
+       ! grep -qs '^def twoshot_pull_enabled(' "$PCIE/_collective_tuning.py" ||
+       ! grep -qs 'if twoshot_pull_enabled():' "$PCIE/pcie_allreduce.py"; then
+        echo "TWOSHOT=1 needs B12X_OVERLAY with flashinfer-pcie-twoshot-pull-world3.patch" >&2
+        exit 1
+    fi
+fi
+if [ "$GATHER_PULL" = 1 ]; then
+    if [ -z "${B12X_OVERLAY:-}" ] ||
+       ! grep -qs '^def _gather_pull_enabled(' "$PCIE/_dcp_a2a_cute.py" ||
+       ! grep -qs 'gather_pull = _gather_pull_enabled(world_size)' "$PCIE/_dcp_a2a_cute.py"; then
+        echo "GATHER_PULL=1 needs B12X_OVERLAY with flashinfer-dcp-gather-pull-world3.patch" >&2
+        exit 1
+    fi
     export B12X_PCIE_DCP_GATHER_PULL=auto
+else
+    export B12X_PCIE_DCP_GATHER_PULL=0
 fi
 # Default expert order: expert-order/ next to this script in the release folder. In the fork checkout the release
 # order is tp3-tools/release/expert-orders/order-mix-provisional-exl3S (tp3-tools/release/expert-order/ there keeps the
 # 20261116 order, which other scripts use); the same file serves both places.
 DEFAULT_COUNTS=$HERE/expert-order
 [ -d "$HERE/expert-orders/order-mix-provisional-exl3S" ] && DEFAULT_COUNTS=$HERE/expert-orders/order-mix-provisional-exl3S
-if [ "${MARKOV_STAGE:-1}" = 1 ] && [ "${MARKOV_HOST:-1}" != 1 ]; then
+if [ "${MARKOV_STAGE-1}" = 1 ] && [ "${MARKOV_HOST-1}" != 1 ]; then
     echo "MARKOV_STAGE=1 needs MARKOV_HOST=1 (it stages rows of the parked table)" >&2; exit 1
 fi
 export FLARE_DS41_TP3_GRAPH_GIB=1 FLARE_DS41_HOST_EXPERT_LAYERS=${PARK:-20-39} FLARE_DS41_HOT_EXPERTS=${HOT:-355} \
@@ -107,35 +119,52 @@ export FLARE_DS41_TP3_GRAPH_GIB=1 FLARE_DS41_HOST_EXPERT_LAYERS=${PARK:-20-39} F
        FLARE_DS41_VRAM_RECLAIM=${RECLAIM:-1} \
        FLARE_TUNE_SCRATCH_TOLERANCE=0.05 FLARE_TUNE_SCRATCH_MIN_SAVING_MIB=16 \
        B12X_PCIE_TWOSHOT_PULL=$TWOSHOT B12X_MLA_DECODE_REMAINDER_STREAM=${ATTN:-1} B12X_MHC_PDL=${MHC_PDL:-1}
-# On/off switches that TP3Config reads as "1" = on; set only when on, so an off export records the earlier values.
-[ "${INDEX_SIDE:-1}" = 1 ] && export FLARE_DS41_INDEX_SIDE_STREAM=1
-[ "${CONTEXT_SIDE:-1}" = 1 ] && export FLARE_DS41_CONTEXT_SIDE_STREAM=1
-[ "${EMBED_ROWS:-1}" = 1 ] && export FLARE_DS41_EMBED_ROWS=1
-[ -n "${ENGRAM_SIDE:-}" ] && export FLARE_DS41_ENGRAM_SIDE_LAYERS=$ENGRAM_SIDE
-[ -n "${LIBRARY_SCRATCH:-}" ] && export FLARE_EXPORT_LIBRARY_SCRATCH=$LIBRARY_SCRATCH
-[ "${PAD_ONCE:-1}" = 1 ] && export FLARE_DS41_MMA_PAD_ONCE=1
-[ "${VISION_ARENA_HOST:-1}" = 1 ] && export FLARE_DS41_VISION_ARENA_HOST=1
-[ "${MARKOV_HOST:-1}" = 1 ] && export FLARE_DS41_MARKOV_EMBED_HOST=1
-[ "${MARKOV_STAGE:-1}" = 1 ] && export FLARE_DS41_MARKOV_STAGE_ROWS=1
-[ -n "${MARKOV_TILE:-}" ] && export FLARE_DS41_MARKOV_TILE_ROWS=$MARKOV_TILE
-[ -n "${MLA_SPLITS:-}" ] && export FLARE_DS41_MLA_DECODE_SPLITS=$MLA_SPLITS
-[ -n "${H24:-}" ] && export FLARE_DS41_MLA_H24=$H24
-[ "${GLUE2:-1}" = 1 ] && export FLARE_DS41_GLUE_PASS2=1
-[ -n "${SKIP_SUFFIX:-}" ] && export FLARE_DS41_PREFILL_SKIP_SUFFIX=$SKIP_SUFFIX
-[ -n "${IDX_SPLIT:-}" ] && export FLARE_DS41_INDEX_ROW_SPLIT=$IDX_SPLIT
-[ -n "${IDX_SPLIT_MIN_CTX:-}" ] && export FLARE_DS41_INDEX_ROW_SPLIT_MIN_CTX=$IDX_SPLIT_MIN_CTX
-[ -n "${IDX_SPLIT_VARIANTS:-}" ] && export FLARE_DS41_INDEX_ROW_SPLIT_VARIANTS=$IDX_SPLIT_VARIANTS
-# the row split's check mode counts in a Python op (debug-serve only): an export must never carry it
-[ -n "${FLARE_DS41_INDEX_ROW_SPLIT_CHECK:-}" ] && { echo "refusing: FLARE_DS41_INDEX_ROW_SPLIT_CHECK is debug-serve only" >&2; exit 2; }
-[ "${SHARE_OPERANDS:-1}" = 1 ] && export FLARE_EXPORT_SHARE_COMPUTED_OPERANDS=1
-[ -n "${DRAFT_VOCAB:-}" ] && export FLARE_DS41_DRAFT_VOCAB=$DRAFT_VOCAB
-[ "${ROTARY_ONCE:-1}" = 1 ] && export FLARE_DS41_ROTARY_ONCE=1
-[ "${PIN_QPROJ:-1}" = 1 ] && export FLARE_DS41_PIN_SMALL_QPROJ=1
-[ "${LOGPROB_ONE_EXCHANGE:-1}" = 1 ] && export FLARE_DS41_LOGPROB_SINGLE_EXCHANGE=1
-[ "${NO_GEN_LOGPROBS:-0}" = 1 ] && export FLARE_DS41_NO_GENERATION_LOGPROBS=1
-[ -n "${DRAFT_HEAD_PLANS:-}" ] && export FLARE_DS41_DRAFT_HEAD_PLANS=$DRAFT_HEAD_PLANS
-[ "${ROTARY_PREFILL:-1}" = 1 ] && export FLARE_DS41_ROTARY_ONCE_PREFILL=1
-[ -n "${STEERING:-}" ] && [ "${STEERING_PLAIN_ID:-1}" = 1 ] && export FLARE_DS41_STEERING_PLAIN_IDENTITY=1
+export FLARE_DS41_INDEX_SIDE_STREAM=${INDEX_SIDE-1} \
+       FLARE_DS41_CONTEXT_SIDE_STREAM=${CONTEXT_SIDE-1} \
+       FLARE_DS41_EMBED_ROWS=${EMBED_ROWS-1} \
+       FLARE_DS41_MMA_PAD_ONCE=${PAD_ONCE-1} \
+       FLARE_DS41_VISION_ARENA_HOST=${VISION_ARENA_HOST-1} \
+       FLARE_DS41_MARKOV_EMBED_HOST=${MARKOV_HOST-1} \
+       FLARE_DS41_MARKOV_STAGE_ROWS=${MARKOV_STAGE-1} \
+       FLARE_DS41_MLA_DECODE_SPLITS=${MLA_SPLITS-18:10,37:5,47:4,62:3,94:2,96:3} \
+       FLARE_DS41_MLA_H24=${H24-9:0,96:1} \
+       FLARE_DS41_GLUE_PASS2=${GLUE2-1} \
+       FLARE_DS41_PREFILL_SKIP_SUFFIX=${SKIP_SUFFIX-4096} \
+       FLARE_EXPORT_SHARE_COMPUTED_OPERANDS=${SHARE_OPERANDS-1} \
+       FLARE_DS41_ROTARY_ONCE=${ROTARY_ONCE-1} \
+       FLARE_DS41_ROTARY_ONCE_PREFILL=${ROTARY_PREFILL-1} \
+       FLARE_DS41_PIN_SMALL_QPROJ=${PIN_QPROJ-1} \
+       FLARE_DS41_LOGPROB_SINGLE_EXCHANGE=${LOGPROB_ONE_EXCHANGE-1}
+# Omitted optional wrapper switches leave the underlying settings in place.
+[ "${ENGRAM_SIDE+x}" ] && export FLARE_DS41_ENGRAM_SIDE_LAYERS=$ENGRAM_SIDE
+[ "${LIBRARY_SCRATCH+x}" ] && export FLARE_EXPORT_LIBRARY_SCRATCH=$LIBRARY_SCRATCH
+[ "${MARKOV_TILE+x}" ] && export FLARE_DS41_MARKOV_TILE_ROWS=$MARKOV_TILE
+[ "${DRAFT_VOCAB+x}" ] && export FLARE_DS41_DRAFT_VOCAB=$DRAFT_VOCAB
+[ "${DRAFT_HEAD_PLANS+x}" ] && export FLARE_DS41_DRAFT_HEAD_PLANS=$DRAFT_HEAD_PLANS
+[ "${NO_GEN_LOGPROBS+x}" ] && export FLARE_DS41_NO_GENERATION_LOGPROBS=$NO_GEN_LOGPROBS
+if [ "${RECLAIM:-}" = 0 ]; then
+    export FLARE_DS41_SHARE_ENGRAM_TOKEN_MAP=$FLARE_DS41_VRAM_RECLAIM \
+           FLARE_DS41_TRIM_VOCAB_GATHER=$FLARE_DS41_VRAM_RECLAIM \
+           FLARE_DS41_SKIP_DRAFT_VOCAB_GATHER=$FLARE_DS41_VRAM_RECLAIM \
+           FLARE_DS41_SHARE_VOCAB_COLUMNS=$FLARE_DS41_VRAM_RECLAIM
+fi
+if [ "${STEERING_PLAIN_ID+x}" ] || [ -n "${STEERING:-}" ]; then
+    export FLARE_DS41_STEERING_PLAIN_IDENTITY=${STEERING_PLAIN_ID-1}
+fi
+
+export FLARE_DS41_INDEX_ROW_SPLIT=${IDX_SPLIT-4096}
+if [[ "$FLARE_DS41_INDEX_ROW_SPLIT" =~ ^[[:space:]]*(0)?[[:space:]]*$ ]]; then
+    unset FLARE_DS41_INDEX_ROW_SPLIT_MIN_CTX FLARE_DS41_INDEX_ROW_SPLIT_VARIANTS
+else
+    export FLARE_DS41_INDEX_ROW_SPLIT_MIN_CTX=${IDX_SPLIT_MIN_CTX-32768}
+    if [ -z "$FLARE_DS41_INDEX_ROW_SPLIT_MIN_CTX" ]; then
+        unset FLARE_DS41_INDEX_ROW_SPLIT_VARIANTS
+    elif [ "${IDX_SPLIT_VARIANTS+x}" ]; then
+        export FLARE_DS41_INDEX_ROW_SPLIT_VARIANTS=$IDX_SPLIT_VARIANTS
+    fi
+fi
+# The row split check uses a Python operator available only in debug-serve.
+[ -n "${FLARE_DS41_INDEX_ROW_SPLIT_CHECK:-}" ] && { echo "FLARE_DS41_INDEX_ROW_SPLIT_CHECK is debug-serve only" >&2; exit 2; }
 exec .venv/bin/ignition export "$CKPT" --gpus "${GPUS:-0,1,2}" --max-concurrency "${MAXC:-16}" \
   --prefill-chunk-size "${PREFILL:-4096}" --mtp-draft-tokens "${DRAFTS:-5}" --draft-head-quantization nvfp4 \
   --markov-head-quantization fp8 --vocabulary-parallel-sampling --mtp-only --verbose \

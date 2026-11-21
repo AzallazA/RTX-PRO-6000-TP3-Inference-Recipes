@@ -1,5 +1,16 @@
 # Exporting the package yourself
 
+**DS41 TP3 maintenance update. No re-export is needed if you already have the Nov 21 package.** The updated `flare` fixes steering access and accepts an explicit zero steering scale on Messages and Responses. Rebuild the server from `hyperflare-tp3-20261121.1` and restart it with your existing package. The update was tested on all three GPUs with `gb202-tp3-202611201530`. [Release notes](https://github.com/AzallazA/hyperflare-inference/releases/tag/hyperflare-tp3-20261121.1)
+
+**To update an existing server**, build the tagged fork in a fresh checkout:
+
+```bash
+git clone --branch hyperflare-tp3-20261121.1 --depth 1 https://github.com/AzallazA/hyperflare-inference.git hyperflare-tp3-update
+cargo build --locked --release --manifest-path hyperflare-tp3-update/flare-cli/Cargo.toml
+```
+
+Restart your service with `hyperflare-tp3-update/flare-cli/target/release/flare` and the same package path and launch arguments. If you use this recipe’s `serve.sh`, set `FLARE` to the absolute path of the new executable. The remaining export steps are for building a package from a checkpoint.
+
 This guide builds the Hyperflare package in this folder from scratch. It covers the toolchain, the patched fork, the
 checkpoint, the export, and the checks to run before serving. Budget **about 2 hours of mostly unattended time**
 and **~1.1 TB of free disk**.
@@ -35,10 +46,9 @@ The exact versions behind every number in this folder (driver, toolkit, torch, F
 
 ## 2. Build the fork
 
-The fork is upstream NVIDIA Hyperflare (formerly Flare) at `70069281` plus `source.patch` from this folder (fork commit
-`5cf7e601`, tag `hyperflare-tp3-20261121`; it includes the steering feature and the picked upstream fixes). The measured
-`flare` binary was built from `a7c3a04a`; `5cf7e601` adds only release-script defaults, tests and comment cleanup
-(runtime code identical), so a build from the tag serves the same way.
+This folder’s `source.patch` applies to upstream NVIDIA Hyperflare at `70069281` and reproduces fork commit
+`d53fd8d4`, tag `hyperflare-tp3-20261121.1`. The original Nov 21 benchmarks used the binary built from `a7c3a04a`.
+The maintenance binary was verified against that same exported package.
 (Releases up to 20261111 were based on `972e28e4`, the 2026-11-10 sync builds on `cbf21a12`; the 2026-11-14 port moved
 the base to `70069281`. A checkout of an older base needs a fresh `git checkout`, not a patch on top.)
 

@@ -13,10 +13,11 @@ nvidia-cutlass-dsl       4.8.1
 rustc / cargo            1.97.0 (rustup)
 uv                       0.11.29
 
-NVIDIA Hyperflare        main @ 70069281cb3ace4365b86f4bfbbcb409da89434b + source.patch (fork tag hyperflare-tp3-20261121)
+NVIDIA Hyperflare        main @ 70069281cb3ace4365b86f4bfbbcb409da89434b + source.patch (fork tag hyperflare-tp3-20261121.1)
+  maintenance commit     d53fd8d4c485bd8fa445f5d897580e169702e717 (served the existing release package in the maintenance checks)
   release commit         5cf7e601387e664cb100d7902e067964b68aff87 (tag hyperflare-tp3-20261121) = a7c3a04a + release-script defaults, tests and
                          comment cleanup; runtime code identical (no Rust change; decoder.cu identical after comment
-                         stripping; tp3_config.py same AST). source.patch = git diff --binary 70069281 5cf7e601; 716 files, 418 new
+                         stripping; tp3_config.py same AST). The current source.patch is git diff --binary 70069281 d53fd8d4 (720 files, 419 new).
   flare binary           built from a7c3a04a6a9972195fac780153cc5809f9444fb1: sha256 af06512fa11a297889526caf4cfe1fa2c673290bd8d4f9730818c3718ea72dd8
 Package                  ds41-1017-engram-fp8@gb202-tp3-202611201530 (model name = checkpoint view directory name)
   exported with          this folder's export.sh defaults + STEERING=<sidecar> (STEERING_PLAIN_ID=1), COMPILE_WORKERS=3

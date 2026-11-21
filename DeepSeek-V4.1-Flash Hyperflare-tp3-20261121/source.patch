@@ -4036,7 +4036,7 @@ index 00000000..f7e4ee85
 +6. **Full suite on a single change before it becomes the default** when it touches sampling or verification math, the
 +   chat template or tool parsing, or when any quick check flagged it even once.
 diff --git a/docs/api.md b/docs/api.md
-index d75060ab..6f016aa5 100644
+index d75060ab..a432e514 100644
 --- a/docs/api.md
 +++ b/docs/api.md
 @@ -234,6 +234,8 @@ both to match. `/health` and `/metrics` are unauthenticated. Flare reads its
@@ -4201,7 +4201,7 @@ index d75060ab..6f016aa5 100644
  
  ## Stateless Responses
  
-@@ -610,6 +649,35 @@ Malformed types return HTTP 400; `top_k` must be an integer. `seed` is
+@@ -610,6 +649,40 @@ Malformed types return HTTP 400; `top_k` must be an integer. `seed` is
  request-controlled and uses its prepared default when omitted. Sampling defaults
  and ranges come from the model author's recommendations declared in the recipe,
  except for DeepSeek V4.1's repetition-penalty range based on measured use.
@@ -4211,7 +4211,8 @@ index d75060ab..6f016aa5 100644
 +is absent, and conflicting duplicate values return HTTP 400. Values are clamped
 +to the prepared inclusive interval `[0, 1]`, with a default of zero. A core exported
 +without steering metadata accepts omitted or zero scale and rejects a nonzero
-+value with HTTP 400. Zero scale adds no conditioning event, preserving ordinary
++value with HTTP 400. Messages and Responses also accept an explicit zero.
++Zero scale adds no conditioning event, preserving ordinary
 +unsteered prefix identities. A nonzero scale adds a position-zero event derived
 +from the sidecar SHA-256 and exact FP32 scale bits, so different scales and
 +sidecars cannot reuse one another's KV prefixes.
@@ -4222,7 +4223,11 @@ index d75060ab..6f016aa5 100644
 +comma-separated, `#` starts a comment line, the file must hold at least one key
 +and should be mode 600), `FLARE_STEERING_API_KEYS_FILE=PATH`,
 +or `FLARE_STEERING_API_KEYS=KEY1,KEY2`. Keys are never accepted as command-line
-+arguments (they would show in the process list). All sources add up. With keys configured, a request whose body sets a nonzero
++arguments (they would show in the process list). In Orbit, pass
++`--steering-api-keys-file` to `flare orbit run` with a path readable on rank zero's node.
++For the inline environment variable, a leading `#` is a key character, and a
++nonblank list must contain at least one key. All sources add up.
++With keys configured, a request whose body sets a nonzero
 +`steering_scale` (top level or in `chat_template_kwargs`, on any generation route)
 +must carry one key as `X-Steering-Key: KEY`, or, without that header, as
 +`Authorization: Bearer KEY`; otherwise the server answers HTTP 403 with
@@ -4237,7 +4242,7 @@ index d75060ab..6f016aa5 100644
  
  The recipes use these default-mode settings. Parameters without an interval in
  the table are fixed at their defaults. Bounds span the minimum and maximum values
-@@ -922,3 +990,9 @@ and `total_tokens`. Cache writes are not measured and are reported as zero.
+@@ -922,3 +995,9 @@ and `total_tokens`. Cache writes are not measured and are reported as zero.
  The route shares System One's prompt compilation, exact-ID reads, sequential
  child lifetime, template constraints and rejection of cores without explicit-ID
  logprob inputs; it adds no second scoring path.
@@ -6904,7 +6909,7 @@ index 14f081e4..0ee2cead 100644
  name = "winapi"
  version = "0.3.9"
 diff --git a/flare-cli/src/cli.rs b/flare-cli/src/cli.rs
-index 96336fba..30122428 100644
+index 96336fba..498a7e22 100644
 --- a/flare-cli/src/cli.rs
 +++ b/flare-cli/src/cli.rs
 @@ -18,7 +18,7 @@ use flare_helios::{
@@ -6944,7 +6949,7 @@ index 96336fba..30122428 100644
      pub scheduler_policy: Option<String>,
  
      /// Value per terminal retirement in prompt-token units [default: 256].
-@@ -584,15 +587,13 @@ pub struct OrbitRun {
+@@ -584,15 +587,16 @@ pub struct OrbitRun {
      #[arg(long, value_name = "PRICE", value_parser = scheduler_coefficient, help_heading = "Serving options")]
      pub scheduler_terminal_age_price: Option<f64>,
  
@@ -6958,12 +6963,15 @@ index 96336fba..30122428 100644
      pub api_key_file: Option<PathBuf>,
  
 +    #[command(flatten)]
++    pub steering_access: SteeringAccessOptions,
++
++    #[command(flatten)]
 +    pub scheduler: SchedulerOptions,
 +
      #[command(flatten)]
      pub serving: ServingOptions,
  }
-@@ -634,9 +635,7 @@ impl OrbitRun {
+@@ -634,12 +638,13 @@ impl OrbitRun {
          if let Some(price) = self.scheduler_terminal_age_price {
              options.extend(["--scheduler-terminal-age-price".into(), price.to_string()]);
          }
@@ -6974,14 +6982,20 @@ index 96336fba..30122428 100644
          if let Some(path) = &self.api_key_file {
              options.extend(["--api-key-file".into(), path.display().to_string()]);
          }
-@@ -659,14 +658,17 @@ impl OrbitRun {
++        if let Some(path) = &self.steering_access.steering_api_keys_file {
++            options.extend(["--steering-api-keys-file".into(), path.display().to_string()]);
++        }
+         options
+     }
+ 
+@@ -659,14 +664,17 @@ impl OrbitRun {
              controller_key: None,
              transfer_streams: self.transfer_streams,
              stage_only: false,
 +            dry_run: false,
 +            dry_run_free_memory: Vec::new(),
              api_key_file: self.api_key_file.clone(),
-+            steering_access: SteeringAccessOptions::default(),
++            steering_access: self.steering_access.clone(),
              scheduler_policy: self
                  .scheduler_policy
                  .clone()
@@ -6993,7 +7007,7 @@ index 96336fba..30122428 100644
              serving: self.serving.clone(),
          }
      }
-@@ -771,13 +773,38 @@ pub struct Run {
+@@ -771,13 +779,38 @@ pub struct Run {
      #[arg(long, help_heading = "Multi-host options")]
      pub stage_only: bool,
  
@@ -7034,7 +7048,7 @@ index 96336fba..30122428 100644
      pub scheduler_policy: String,
  
      /// Value per terminal retirement in prompt-token units [default: 256].
-@@ -788,15 +815,158 @@ pub struct Run {
+@@ -788,15 +821,158 @@ pub struct Run {
      #[arg(long, value_name = "PRICE", value_parser = scheduler_coefficient, help_heading = "Serving options")]
      pub scheduler_terminal_age_price: Option<f64>,
  
@@ -7197,7 +7211,7 @@ index 96336fba..30122428 100644
  /// Options that select a core's trust, loading, speculation and caching; every rank of a
  /// multi-host core loads with the same values.
  #[derive(Debug, Args, Clone)]
-@@ -857,6 +1027,14 @@ pub struct ServingOptions {
+@@ -857,6 +1033,14 @@ pub struct ServingOptions {
      )]
      pub memory_limit: Option<MemoryLimit>,
  
@@ -7212,7 +7226,7 @@ index 96336fba..30122428 100644
      /// Route RoCE rails and fabric transfers only over subnets every rank holds, as on a switch
      /// alone, leaving direct cables between ranks unused.
      #[arg(long, help_heading = "Multi-host options")]
-@@ -919,6 +1097,10 @@ pub struct ServingOptions {
+@@ -919,6 +1103,10 @@ pub struct ServingOptions {
      )]
      pub no_history_drafts: bool,
  
@@ -7223,7 +7237,7 @@ index 96336fba..30122428 100644
      /// Advanced: fix the total verification-row budget, including pending inputs, using
      /// one exact captured packed graph per batch [default: adaptive within captured capacities].
      /// Requires adaptive prefix selection at the captured draft depth.
-@@ -1010,10 +1192,10 @@ fn scheduler_coefficient(value: &str) -> Result<f64, String> {
+@@ -1010,10 +1198,10 @@ fn scheduler_coefficient(value: &str) -> Result<f64, String> {
          .ok_or_else(|| "scheduler coefficient must be finite and nonnegative".into())
  }
  
@@ -7237,7 +7251,7 @@ index 96336fba..30122428 100644
  }
  
  fn verification_alpha(value: &str) -> Result<f64, String> {
-@@ -1066,6 +1248,9 @@ impl ServingOptions {
+@@ -1066,6 +1254,9 @@ impl ServingOptions {
          if let Some(limit) = self.memory_limit {
              options.push(format!("--memory-limit={limit}"));
          }
@@ -7247,7 +7261,7 @@ index 96336fba..30122428 100644
          match shape {
              Shape::Mesh => {}
              Shape::Ring => options.push("--roce-ring".into()),
-@@ -1089,6 +1274,9 @@ impl ServingOptions {
+@@ -1089,6 +1280,9 @@ impl ServingOptions {
          if self.no_history_drafts {
              options.push("--no-history-drafts".into());
          }
@@ -7257,7 +7271,7 @@ index 96336fba..30122428 100644
          if let Some(n) = self.mtp_verification_token_budget {
              options.extend(["--mtp-verification-token-budget".into(), n.to_string()]);
          }
-@@ -1173,6 +1361,8 @@ impl ServingOptions {
+@@ -1173,6 +1367,8 @@ impl ServingOptions {
              kv_cache_limit: self.kv_cache_limit,
              memory_limit: self.memory_limit,
              embedding_table_storage: self.embedding_table_storage,
@@ -7266,7 +7280,7 @@ index 96336fba..30122428 100644
              embedding_table_cache_bytes: self.embedding_table_cache_size,
              embedding_table_resident_scales: if self.embedding_table_resident_scales {
                  Some(true)
-@@ -1184,6 +1374,8 @@ impl ServingOptions {
+@@ -1184,6 +1380,8 @@ impl ServingOptions {
              embedding_table_workers: self.embedding_table_workers,
              max_concurrency: self.max_concurrency.map(NonZeroUsize::get),
              mtp_draft_tokens: self.mtp_draft_tokens,
@@ -7275,7 +7289,7 @@ index 96336fba..30122428 100644
              history_drafts: if self.history_drafts {
                  Some(true)
              } else if self.no_history_drafts {
-@@ -1226,6 +1418,24 @@ mod tests {
+@@ -1226,6 +1424,24 @@ mod tests {
      use super::*;
      use std::path::Path;
  
@@ -7300,7 +7314,7 @@ index 96336fba..30122428 100644
      #[test]
      fn canonical_core_cache_flag_accepts_hidden_legacy_aliases() {
          use clap::CommandFactory;
-@@ -1253,17 +1463,6 @@ mod tests {
+@@ -1253,17 +1469,6 @@ mod tests {
          assert!(!help.contains("--model-cache"));
      }
  
@@ -7318,7 +7332,16 @@ index 96336fba..30122428 100644
      #[test]
      fn persistent_orbit_options_preserve_saved_values_and_allow_explicit_defaults() {
          use clap::{CommandFactory, FromArgMatches};
-@@ -1282,8 +1481,6 @@ mod tests {
+@@ -1272,6 +1477,8 @@ mod tests {
+             let mut arguments = vec!["flare", "orbit", "run", "--name", "service", "--persistent"];
+             if explicit {
+                 arguments.extend([
++                    "--steering-api-keys-file",
++                    "/new.keys",
+                     "--host",
+                     "127.0.0.1",
+                     "--port",
+@@ -1282,8 +1489,6 @@ mod tests {
                      "256",
                      "--scheduler-terminal-age-price",
                      "0",
@@ -7327,7 +7350,7 @@ index 96336fba..30122428 100644
                      "--mtp-adaptive-verification-alpha",
                      "1.0",
                      "--kv-cache-limit",
-@@ -1321,8 +1518,6 @@ mod tests {
+@@ -1321,23 +1526,23 @@ mod tests {
                  "512".into(),
                  "--scheduler-terminal-age-price".into(),
                  "2".into(),
@@ -7336,16 +7359,26 @@ index 96336fba..30122428 100644
                  "--mtp-adaptive-verification-alpha".into(),
                  "0.5".into(),
                  "--kv-cache-limit".into(),
-@@ -1336,8 +1531,6 @@ mod tests {
+                 "context".into(),
+                 "--embedding-table-cache-size".into(),
+                 "1G".into(),
++                "--steering-api-keys-file".into(),
++                "/saved.keys".into(),
+             ];
+             saved.extend(orbit.rank_options(run_matches));
+             saved.extend(orbit.rank_zero_options());
+             let Command::Run(effective) = Cli::try_parse_from(saved).unwrap().command else {
                  panic!()
              };
++            assert_eq!(effective.steering_access.steering_api_keys_file.as_deref(),
++                       Some(Path::new(if explicit { "/new.keys" } else { "/saved.keys" })));
              assert_eq!(effective.port, if explicit { 8000 } else { 8001 });
 -            assert_eq!(effective.scheduler_checkpoint_extra_work_fraction, Some(if explicit { 0.0 } else { 0.25 }));
 -            assert_eq!(orbit.run_args().scheduler_checkpoint_extra_work_fraction, orbit.scheduler_checkpoint_extra_work_fraction);
              assert_eq!(
                  effective.scheduler_terminal_value,
                  Some(if explicit { 256.0 } else { 512.0 })
-@@ -1385,6 +1578,78 @@ mod tests {
+@@ -1385,6 +1590,78 @@ mod tests {
          }
      }
  
@@ -7424,7 +7457,7 @@ index 96336fba..30122428 100644
      #[test]
      fn terminal_preferences_parse_independently_and_reject_invalid_numbers() {
          let defaults = run(&["flare", "run", "model"]);
-@@ -1502,6 +1767,10 @@ mod tests {
+@@ -1502,6 +1779,10 @@ mod tests {
          assert_eq!(options.memory_limit, None);
          assert_eq!(options.mtp_draft_tokens, None);
          assert_eq!(options.history_drafts, None);
@@ -7435,7 +7468,7 @@ index 96336fba..30122428 100644
          assert_eq!(options.mtp_verification_token_budget, None);
          assert_eq!(options.mtp_max_verification_token_budget, None);
          assert_eq!(options.adaptive_verification, None);
-@@ -1588,6 +1857,29 @@ mod tests {
+@@ -1588,6 +1869,29 @@ mod tests {
          assert_eq!(head.transfer_streams, Some(16));
          assert!(head.stage_only);
          assert!(Cli::try_parse_from(["flare", "run"]).is_err());
@@ -7465,7 +7498,7 @@ index 96336fba..30122428 100644
          assert!(
              Cli::try_parse_from([
                  "flare",
-@@ -2210,6 +2502,27 @@ mod tests {
+@@ -2210,6 +2514,27 @@ mod tests {
          }
      }
  
@@ -8020,10 +8053,10 @@ index e7ef6714..3f33109a 100644
      use clap::Parser as _;
 diff --git a/flare-cli/src/steering_keys.rs b/flare-cli/src/steering_keys.rs
 new file mode 100644
-index 00000000..4361d276
+index 00000000..c8ca150c
 --- /dev/null
 +++ b/flare-cli/src/steering_keys.rs
-@@ -0,0 +1,176 @@
+@@ -0,0 +1,187 @@
 +/*
 + * SPDX-FileCopyrightText: Copyright (c) 2026 Flare community contributors
 + * SPDX-License-Identifier: Apache-2.0
@@ -8042,13 +8075,12 @@ index 00000000..4361d276
 +/// process list and the environment.
 +pub const KEYS_FILE_ENV: &str = "FLARE_STEERING_API_KEYS_FILE";
 +
-+/// Splits `text` into keys at commas and line ends; blank entries and lines starting with '#'
-+/// are skipped. A key must be printable ASCII without spaces.
-+fn parse(text: &str, source: &str) -> Result<Vec<String>, String> {
++/// Split keys at commas and line ends. Only key files support comment lines.
++fn parse(text: &str, source: &str, file_comments: bool) -> Result<Vec<String>, String> {
 +    let mut keys = Vec::new();
 +    for line in text.lines() {
 +        let line = line.trim();
-+        if line.starts_with('#') {
++        if file_comments && line.starts_with('#') {
 +            continue;
 +        }
 +        for key in line.split(',').map(str::trim).filter(|key| !key.is_empty()) {
@@ -8079,7 +8111,7 @@ index 00000000..4361d276
 +            }
 +        }
 +    }
-+    let keys = parse(&text, &format!("{source} {}", path.display()))?;
++    let keys = parse(&text, &format!("{source} {}", path.display()), true)?;
 +    if keys.is_empty() {
 +        // A named key file that holds nothing must not silently leave steering open.
 +        return Err(format!("{source} {}: no steering key in the file", path.display()));
@@ -8099,7 +8131,11 @@ index 00000000..4361d276
 +        keys.extend(read_file(path, "--steering-api-keys-file")?);
 +    }
 +    if let Some(value) = environment(KEYS_ENV).filter(|value| !value.trim().is_empty()) {
-+        keys.extend(parse(&value, KEYS_ENV)?);
++        let configured = parse(&value, KEYS_ENV, false)?;
++        if configured.is_empty() {
++            return Err(format!("{KEYS_ENV}: no steering key in the configured list"));
++        }
++        keys.extend(configured);
 +    }
 +    if let Some(path) = environment(KEYS_FILE_ENV).filter(|value| !value.trim().is_empty()) {
 +        keys.extend(read_file(Path::new(path.trim()), KEYS_FILE_ENV)?);
@@ -8144,6 +8180,14 @@ index 00000000..4361d276
 +        assert!(resolve(&SteeringAccessOptions::default(), env(&[])).unwrap().is_empty());
 +        let blank = [(KEYS_ENV, "  ".to_string()), (KEYS_FILE_ENV, String::new())];
 +        assert!(resolve(&SteeringAccessOptions::default(), env(&blank)).unwrap().is_empty());
++    }
++
++    #[test]
++    fn environment_keys_allow_hash_and_require_a_key_for_nonblank_input() {
++        let options = SteeringAccessOptions::default();
++        assert_eq!(resolve(&options, env(&[(KEYS_ENV, "#first,second".into())])).unwrap(),
++                   ["#first", "second"]);
++        assert!(resolve(&options, env(&[(KEYS_ENV, ", ,".into())])).is_err());
 +    }
 +
 +    #[test]
@@ -30169,7 +30213,7 @@ index a43fa233..a137eee6 100644
          );
      }
 diff --git a/helios/src/server/protocol/decode.rs b/helios/src/server/protocol/decode.rs
-index 1cd9fd0b..7fdcc76d 100644
+index 1cd9fd0b..6e5a8835 100644
 --- a/helios/src/server/protocol/decode.rs
 +++ b/helios/src/server/protocol/decode.rs
 @@ -61,16 +61,16 @@ fn strings(v: Option<&Value>) -> Result<Vec<String>> {
@@ -30264,7 +30308,7 @@ index 1cd9fd0b..7fdcc76d 100644
 +        }
 +        options.template.extend(template);
 +    }
-+    if options.sampling.steering_scale.is_some()
++    if options.sampling.steering_scale.is_some_and(|scale| scale != 0.0)
 +        && !matches!(protocol, Protocol::Chat | Protocol::Completions)
 +    {
 +        return Err(unsupported(
@@ -30273,10 +30317,20 @@ index 1cd9fd0b..7fdcc76d 100644
      }
      Ok(options)
  }
-@@ -907,6 +925,32 @@ mod tests {
+@@ -907,6 +925,42 @@ mod tests {
              assert!(normalize_tool_arguments(&mut message).is_err());
          }
      }
++    #[test]
++    fn zero_steering_is_accepted_on_messages_and_responses() {
++        for protocol in [Protocol::Messages, Protocol::Responses] {
++            for body in [json!({"steering_scale":0}), json!({"chat_template_kwargs":{"steering_scale":0}})] {
++                assert_eq!(options(&body, protocol).unwrap().sampling.steering_scale, Some(0.0));
++            }
++            assert!(options(&json!({"steering_scale":0.5}), protocol).is_err());
++        }
++    }
++
 +    #[test]
 +    fn steering_scale_accepts_openai_and_template_extension_fields() {
 +        let chat = |extra: Value| {
@@ -30306,7 +30360,7 @@ index 1cd9fd0b..7fdcc76d 100644
  }
  #[cfg(test)]
  mod native_prompt_tests {
-@@ -1070,7 +1114,13 @@ mod native_prompt_tests {
+@@ -1070,7 +1124,13 @@ mod native_prompt_tests {
                      _ => unreachable!(),
                  };
                  *malformed.pointer_mut(pointer).unwrap() = json!(invalid);
@@ -30321,7 +30375,7 @@ index 1cd9fd0b..7fdcc76d 100644
                  assert!(error.contains("invalid tool arguments JSON") || error.contains("tool arguments must be a JSON object"), "{error}");
              }
              let decoded = decode(protocol, body, false).unwrap();
-@@ -1207,6 +1257,57 @@ mod native_prompt_tests {
+@@ -1207,6 +1267,57 @@ mod native_prompt_tests {
          }
      }
  
@@ -35036,7 +35090,7 @@ index 5cd90785..c64f3260 100644
      if plan.compile_workers is not None and plan.compile_workers < plan.world_size:
          raise UsageError("--compile-workers must provide at least one process per local serving rank")
 diff --git a/ignition/cli/serve.py b/ignition/cli/serve.py
-index 0ab46335..6284b453 100644
+index 0ab46335..de35f626 100644
 --- a/ignition/cli/serve.py
 +++ b/ignition/cli/serve.py
 @@ -5,6 +5,7 @@
@@ -35219,7 +35273,16 @@ index 0ab46335..6284b453 100644
      _checkpoint_fabric(args)
      if args.ranks > 1 and args.tuning_gpus is not None:
          raise UsageError("--tuning-gpus applies to local preparation; multi-host ranks retain their sharding")
-@@ -464,12 +526,14 @@ def debug_serve(args) -> int:
+@@ -414,6 +476,8 @@ def debug_serve(args) -> int:
+         raise UsageError("--graph-times applies only to --direct execution")
+     if args.eager and args.graph_times is not None and not args.graph_times.is_file():
+         raise UsageError(f"--graph-times {args.graph_times} does not exist; graph replay with --graph-times saves it")
++    if args.direct and args.steering_sidecar is not None:
++        raise UsageError("--steering-sidecar requires native serving; direct execution cannot apply steering")
+     if args.direct and args.history_drafts:
+         raise UsageError("--history-drafts requires native serving; it does not apply to --direct")
+     if not args.direct:
+@@ -464,12 +528,14 @@ def debug_serve(args) -> int:
                           context_parallel=context_parallel(args, model), context_parallel_size=getattr(args, "dcp_size", None),
                           stream_overlap=stream_overlap(args, model),
                           roce_ring=args.roce_ring, roce_chain=args.roce_chain,
@@ -35235,7 +35298,7 @@ index 0ab46335..6284b453 100644
                     autotune_effort=tuning_effort(configuration, args.autotune_effort),
                     collective_tuning=collective_mode,
                     collective_ladder=resolve_collective_ladder(collective_mode, args.collective_ladder),
-@@ -482,7 +546,6 @@ def debug_serve(args) -> int:
+@@ -482,7 +548,6 @@ def debug_serve(args) -> int:
      environment.apply(configuration, local, plan.recipe.b12x_environment)
      options = _server_options(configuration, model, plan)
      options["thinking_token_budget"] = configuration.get("server.thinking_token_budget").value
@@ -35243,7 +35306,7 @@ index 0ab46335..6284b453 100644
      print(json.dumps({"plan": plan.to_dict()}), file=sys.stderr, flush=True)
      if args.history_drafts is not None:
          if args.history_drafts and (plan.speculation is None or plan.speculation.draft_tokens == 0):
-@@ -555,6 +618,10 @@ def _serve_prepared(prepared, bind, options):
+@@ -555,6 +620,10 @@ def _serve_prepared(prepared, bind, options):
                   for rank in prepared.memory_report.get("ranks", (prepared.memory_report,))]
          print(json.dumps({"memory": ranks}, default=str), file=sys.stderr, flush=True)
          limited = _diagnostic_options(prepared, options)
@@ -69471,7 +69534,7 @@ index 79fe801e..865fa25f 100644
      result = {"device": {"name": "NVIDIA RTX PRO 6000 Blackwell", "capability": [12, 0]},
          "aggregate_ms": 3.5,
 diff --git a/tests/cli/test_commands.py b/tests/cli/test_commands.py
-index 4563710b..718b7dc7 100644
+index 4563710b..0d5d16dd 100644
 --- a/tests/cli/test_commands.py
 +++ b/tests/cli/test_commands.py
 @@ -58,7 +58,9 @@ def test_export_uses_the_configured_model(host, tmp_path, capsys):
@@ -69485,6 +69548,15 @@ index 4563710b..718b7dc7 100644
      (["export", "glm-5.3-flash", "--mixed-prefill"], 2,
       "--mixed-prefill: glm-5.3-flash does not capture mixed prefill/decode graphs"),
  ])
+@@ -139,6 +141,8 @@ def test_direct_execution_is_an_explicit_serve_diagnostic(host, capsys):
+     assert "--graph-times applies only to --direct" in failure(capsys)[0]
+     assert main(["debug-serve", "glm-5.3-flash", "--direct", "--eager", "--graph-times", "/nonexistent/times.json"]) == 2
+     assert "graph replay with --graph-times saves it" in failure(capsys)[0]
++    assert main(["debug-serve", "deepseek-v4.1-flash", "--direct", "--steering-sidecar", "sidecar"]) == 2
++    assert "--steering-sidecar requires native serving" in failure(capsys)[0]
+     for arguments in (["export", "glm-5.3-flash", "--direct"], ["export", "glm-5.3-flash", "--eager"],
+                       ["join", "10.0.0.1:29600", "--rank", "1", "--ranks", "2", "--direct"]):
+         with pytest.raises(SystemExit) as exit:
 diff --git a/tests/cli/test_config.py b/tests/cli/test_config.py
 index b2f73b0c..b493319d 100644
 --- a/tests/cli/test_config.py
@@ -69703,6 +69775,35 @@ index 9723b507..fdc3394c 100644
 +        serve._refuse_tune_only("debug-serve")
 +    with pytest.raises(UsageError, match="multi-host export"):
 +        serve._export_hosts(types.SimpleNamespace(roce_ring=False, roce_chain=False, ranks=2))
+diff --git a/tests/components/sampling_score_reference.py b/tests/components/sampling_score_reference.py
+index f0401710..61be8847 100644
+--- a/tests/components/sampling_score_reference.py
++++ b/tests/components/sampling_score_reference.py
+@@ -9,7 +9,8 @@ import triton.language as tl
+ 
+ @triton.jit
+ def scores_reference(Logits, Scores, Slots, Epochs, Live, Generation, Status, Counts, Params, Grammar, GrammarEnabled,
+-                     V: tl.constexpr, WORDS: tl.constexpr, BLOCK: tl.constexpr, SLOTS: tl.constexpr = 4):
++                     V: tl.constexpr, WORDS: tl.constexpr, BLOCK: tl.constexpr,
++                     PARAMETERS: tl.constexpr, SLOTS: tl.constexpr = 4):
+     row, block = tl.program_id(0), tl.program_id(1)
+     token = block * BLOCK + tl.arange(0, BLOCK)
+     slot = tl.load(Slots + row)
+@@ -18,10 +19,10 @@ def scores_reference(Logits, Scores, Slots, Epochs, Live, Generation, Status, Co
+     valid &= tl.load(Status + slot, valid, other=0) == 1
+     counts = tl.load(Counts + slot * V + token, valid & (token < V), other=0)
+     x = tl.load(Logits + row * V + token, token < V, other=-float("inf")).to(tl.float32)
+-    temperature = tl.load(Params + slot * 6, valid, other=1.)
+-    repetition = tl.load(Params + slot * 6 + 3, valid, other=1.)
+-    presence = tl.load(Params + slot * 6 + 4, valid, other=0.)
+-    frequency = tl.load(Params + slot * 6 + 5, valid, other=0.)
++    temperature = tl.load(Params + slot * PARAMETERS, valid, other=1.)
++    repetition = tl.load(Params + slot * PARAMETERS + 3, valid, other=1.)
++    presence = tl.load(Params + slot * PARAMETERS + 4, valid, other=0.)
++    frequency = tl.load(Params + slot * PARAMETERS + 5, valid, other=0.)
+     x = tl.where(counts > 0, tl.where(x > 0., x / repetition, x * repetition) - presence, x)
+     x = x - frequency * counts
+     x = x / tl.where(valid, temperature, 1.)
 diff --git a/tests/components/test_bf16_bmm.py b/tests/components/test_bf16_bmm.py
 new file mode 100644
 index 00000000..78c732c1
@@ -71824,6 +71925,63 @@ index 00000000..19738d52
 +
 +if __name__ == "__main__":
 +    _main()
+diff --git a/tests/components/test_sampling_score_defaults_cuda.py b/tests/components/test_sampling_score_defaults_cuda.py
+index 1ff3c0f3..840bf979 100644
+--- a/tests/components/test_sampling_score_defaults_cuda.py
++++ b/tests/components/test_sampling_score_defaults_cuda.py
+@@ -26,8 +26,8 @@ class ScoreForward:
+         self.kernel()
+ 
+ 
+-def fixture(batch, vocabulary, dtype):
+-    state = DeviceRequestState.allocate('cuda:0', vocab_size=vocabulary, capacity=batch)
++def fixture(batch, vocabulary, dtype, steering):
++    state = DeviceRequestState.allocate('cuda:0', vocab_size=vocabulary, capacity=batch, steering=steering)
+     state.generation.fill_(7)
+     state.status.fill_(RUNNING)
+     generator = torch.Generator(device='cuda').manual_seed(7139)
+@@ -41,7 +41,7 @@ def fixture(batch, vocabulary, dtype):
+     output = [torch.empty_like(logits, dtype=torch.float32) for _ in range(2)]
+     arguments = [(logits, scores, slots, epochs, live, state.generation, state.status,
+         state.histogram, state.parameters, state.grammar_mask, state.grammar_enabled,
+-        vocabulary, state.grammar_mask.shape[1], 1024, batch) for scores in output]
++        vocabulary, state.grammar_mask.shape[1], 1024, state.parameters.shape[1], state.capacity) for scores in output]
+     grid = (batch, (vocabulary + 1023) // 1024, 1)
+     forwards = [ScoreForward(_compile(kernel, args, grid))
+         for kernel, args in zip((scores_reference, _scores), arguments, strict=True)]
+@@ -55,8 +55,12 @@ def assert_exact(actual, expected):
+ @pytest.mark.parametrize('batch,vocabulary', [(1, 17), (8, 129280), (32, 129280)])
+ @pytest.mark.parametrize('dtype', [torch.float32, torch.bfloat16])
+ @pytest.mark.parametrize('compiled', [False, True])
+-def test_neutral_and_dynamic_scores_native_replay(batch, vocabulary, dtype, compiled):
+-    state, slots, epochs, live, logits, outputs, forwards = fixture(batch, vocabulary, dtype)
++@pytest.mark.parametrize('steering', [False, True], ids=['six-columns', 'seven-columns'])
++def test_neutral_and_dynamic_scores_native_replay(batch, vocabulary, dtype, compiled, steering):
++    state, slots, epochs, live, logits, outputs, forwards = fixture(batch, vocabulary, dtype, steering)
++    sampling_parameters = state.parameters[:, :6]
++    if steering:
++        state.parameters[:, 6].fill_(.5)
+     calls = [compile_forward(forward) if compiled else forward for forward in forwards]
+     graphs = {}
+     for label, call in zip(('reference', 'candidate'), calls, strict=True):
+@@ -76,7 +80,7 @@ def test_neutral_and_dynamic_scores_native_replay(batch, vocabulary, dtype, comp
+     try:
+         for mode in ('neutral', 'temperature_only', 'tiny_temperature', 'mixed', 'nondefault',
+                      'negative_zero', 'extremes', 'invalid', 'neutral'):
+-            state.parameters.copy_(torch.tensor([1., 1., 0., 1., 0., 0.], device='cuda'))
++            sampling_parameters.copy_(torch.tensor([1., 1., 0., 1., 0., 0.], device='cuda'))
+             state.grammar_enabled.zero_()
+             state.status.fill_(RUNNING)
+             slots.copy_(torch.arange(batch, dtype=torch.int32, device='cuda'))
+@@ -86,7 +90,7 @@ def test_neutral_and_dynamic_scores_native_replay(batch, vocabulary, dtype, comp
+                 selected = torch.arange(batch, device='cuda').remainder(2) == 1
+                 if mode == 'nondefault':
+                     selected.fill_(True)
+-                state.parameters[selected] = torch.tensor([.7, .95, .1, 1.3, -.2, .1], device='cuda')
++                sampling_parameters[selected] = torch.tensor([.7, .95, .1, 1.3, -.2, .1], device='cuda')
+                 state.grammar_enabled[selected] = 1
+             if mode == 'negative_zero':
+                 state.parameters[:, 4:6] = -0.
 diff --git a/tests/components/test_short_conv_operands.py b/tests/components/test_short_conv_operands.py
 new file mode 100644
 index 00000000..2942b6fd
@@ -76558,6 +76716,105 @@ index 00000000..86362fd4
 +
 +if __name__ == "__main__":
 +    _main(*sys.argv[1:])
+diff --git a/tests/recipes/test_completion_abi.py b/tests/recipes/test_completion_abi.py
+index 2beff492..01680aa3 100644
+--- a/tests/recipes/test_completion_abi.py
++++ b/tests/recipes/test_completion_abi.py
+@@ -28,25 +28,28 @@ def test_completion_shape_rejects_malformed_records(shape, dtype):
+ 
+ 
+ @pytest.mark.parametrize("fields", [17, 24, 29, 32, 48])
+-def test_actual_completion_kernels_with_cpu_interpreter(fields):
++@pytest.mark.parametrize("parameter_columns", [6, 7])
++def test_actual_completion_kernels_with_cpu_interpreter(fields, parameter_columns):
+     env = dict(os.environ, TRITON_INTERPRET="1", CUDA_VISIBLE_DEVICES="")
+-    result = subprocess.run([sys.executable, str(Path(__file__).resolve()), str(fields)],
++    result = subprocess.run([sys.executable, str(Path(__file__).resolve()), str(fields), str(parameter_columns)],
+         env=env, text=True, capture_output=True, timeout=60)
+     assert result.returncode == 0, result.stdout + result.stderr
+ 
+ 
+ @pytest.mark.skipif(os.environ.get("FLARE_RUN_CUDA_TESTS") != "1", reason="requires an assigned CUDA device")
+ @pytest.mark.parametrize("fields", [17, 24, 29, 32, 48])
+-def test_actual_completion_kernels_cuda(fields):
++@pytest.mark.parametrize("parameter_columns", [6, 7])
++def test_actual_completion_kernels_cuda(fields, parameter_columns):
+     assert os.environ.get("CUDA_VISIBLE_DEVICES"), "assign a CUDA device explicitly"
+-    _kernel_cases(fields, "cuda")
++    _kernel_cases(fields, parameter_columns, "cuda")
+ 
+ 
+-def _kernel_cases(fields, device="cpu"):
+-    from ignition.components.sampling import AdmissionBuffers, _admission_finish, _complete
++def _kernel_cases(fields, parameter_columns, device="cpu"):
++    from ignition.components.sampling import (
++        AdmissionBuffers, DeviceRequestState, RequestAdmission, _admission_finish, _complete,
++    )
+     from ignition.recipes.qwen38 import vision_state
+     from ignition.recipes.qwen38.maintenance import _snapshot_complete
+-    from ignition.recipes.qwen38.sampling import DeviceRequestState, RequestAdmission
+     from ignition.recipes.qwen38.vision_state import _vision_finish
+     if os.environ.get("TRITON_INTERPRET") == "1":
+         # The interpreter cannot add a global tl.constexpr to its tensor wrapper.
+@@ -57,9 +60,10 @@ def _kernel_cases(fields, device="cpu"):
+ 
+     # Strided live counts exercise the hybrid-state view contract.
+     backing = torch.zeros((8, 19), dtype=torch.int64, device=device)
+-    state = DeviceRequestState.allocate(device, vocab_size=32, consumed_tokens=backing[:4, 0])
++    steering = parameter_columns == 7
++    state = DeviceRequestState.allocate(device, vocab_size=32, consumed_tokens=backing[:4, 0], steering=steering)
+     state.admit(2, RequestAdmission(7, 11, temperature=1., max_new_tokens=2, eos_token_ids=()), [3] * 64 + [4],
+-        consumed_tokens=65, ple_history=(3, 4))
++        consumed_tokens=65)
+     records = torch.full((2, 4, fields), -99, dtype=torch.int64, device=device)
+     frame, sequence = tensor([1], torch.int32), tensor([91])
+     slots, epochs, live = tensor([2], torch.int32), tensor([7]), tensor([1], torch.int32)
+@@ -97,9 +101,12 @@ def _kernel_cases(fields, device="cpu"):
+     _complete[(4,)](*args[:-1], False)
+     check(2, [0, 0, 0, 0, -1, 0, 0, 0])
+ 
+-    admission = AdmissionBuffers.allocate(device, vocab_size=32)
+-    admission.stage(0, 2, RequestAdmission(8, 19, temperature=1., eos_token_ids=()), [3, 4])
+-    admission.admission_count.fill_(1)
++    admission = AdmissionBuffers.allocate(device, vocab_size=32, steering=steering)
++    request = RequestAdmission(8, 19, temperature=.7, top_p=.95, min_p=.1, repetition_penalty=1.3,
++        presence_penalty=-.2, frequency_penalty=.1, steering_scale=.5 if steering else 0., eos_token_ids=())
++    admission_row = 1
++    admission.stage(admission_row, 2, request, [3, 4])
++    admission.admission_count.fill_(admission_row + 1)
+     errors = torch.zeros(4, dtype=torch.int32, device=device)
+     a = admission
+     finish_args = (a.admission_count, a.admission_slots, a.admission_generations, a.admission_seed_bits,
+@@ -107,10 +114,11 @@ def _kernel_cases(fields, device="cpu"):
+         a.admission_eos_count, a.admission_grammar_enabled, errors, state.generation, state.seed, state.rng_counter,
+         state.parameters, state.top_k, state.max_new_tokens, state.eos_token_ids, state.eos_count, state.grammar_enabled,
+         state.generated_tokens, state.pending_token, state.status, state.error_code, state.consumed_tokens,
+-        records, frame, sequence, 4, state.consumed_tokens.stride(0), fields)
++        records, frame, sequence, 4, state.consumed_tokens.stride(0), fields, parameter_columns)
+     _admission_finish[(4,)](*finish_args)
+     check(2, [8, 91, 65, 0, -1, 1, 0, 0])
+-    errors[0] = 2
++    assert torch.equal(state.parameters[2], tensor(request.parameter_values(parameter_columns), torch.float32))
++    errors[admission_row] = 2
+     _admission_finish[(4,)](*finish_args)
+     check(2, [8, 91, 65, 0, -1, 3, 4, 0])
+     errors.zero_()
+@@ -118,7 +126,7 @@ def _kernel_cases(fields, device="cpu"):
+         state.generation, state.consumed_tokens, state.generated_tokens, state.status, state.error_code,
+         records, frame, sequence, 4, state.consumed_tokens.stride(0), fields)
+     check(2, [8, 91, 65, 0, -1, 1, 0, 0])
+-    errors[0] = 9
++    errors[admission_row] = 9
+     _snapshot_complete[(4,)](a.admission_slots, a.admission_generations, a.admission_count, errors,
+         state.generation, state.consumed_tokens, state.generated_tokens, state.status, state.error_code,
+         records, frame, sequence, 4, state.consumed_tokens.stride(0), fields)
+@@ -139,5 +147,5 @@ def _kernel_cases(fields, device="cpu"):
+ 
+ 
+ if __name__ == "__main__":
+-    _kernel_cases(int(sys.argv[1]))
++    _kernel_cases(int(sys.argv[1]), int(sys.argv[2]))
+     assert not torch.cuda.is_initialized()
 diff --git a/tests/recipes/test_declarations.py b/tests/recipes/test_declarations.py
 index 4e64af5e..e88c7b3a 100644
 --- a/tests/recipes/test_declarations.py
@@ -89182,10 +89439,10 @@ index 00000000..2aa35415
 +    assert bootstrap._expert_selection_summary({}).endswith("none; micro/tiny_decode in: none")
 diff --git a/tests/recipes/test_deepseek41_tp3_config.py b/tests/recipes/test_deepseek41_tp3_config.py
 new file mode 100644
-index 00000000..2f30930a
+index 00000000..585dc636
 --- /dev/null
 +++ b/tests/recipes/test_deepseek41_tp3_config.py
-@@ -0,0 +1,531 @@
+@@ -0,0 +1,550 @@
 +# SPDX-License-Identifier: Apache-2.0
 +"""TP3 fork configuration: environment parsing, defaults, validation and the metadata record (CPU only)."""
 +
@@ -89204,7 +89461,7 @@ index 00000000..2f30930a
 +# host-row embedding gather, VRAM reclaim, mHC PDL): the script's environment block runs in bash (everything before
 +# ``exec``) and its FLARE_DS41_* / HF_HUB_OFFLINE / B12X_* values are read back, so a change to the script's defaults
 +# reaches these tests. The default two-shot pull and gather pull need B12X_OVERLAY (a directory with ``b12x_tree`` and
-+# the gather-pull patch's marker): a stub is passed.
++# both patches): the test supplies an overlay layout with the required capability markers.
 +EXPORT_SH = Path(__file__).resolve().parents[2] / "tp3-tools" / "release" / "export.sh"
 +RELEASE_CKPT = "/models/ds41-1017-engram-fp8"
 +
@@ -89215,9 +89472,15 @@ index 00000000..2f30930a
 +    import tempfile
 +
 +    root = Path(tempfile.mkdtemp(prefix="b12x-overlay-stub-"))
-+    (root / "b12x_tree" / "comm" / "pcie").mkdir(parents=True)
-+    # the gather pull default (GATHER_PULL=1) checks the overlay for the gather-pull patch's marker
-+    (root / "b12x_tree" / "comm" / "pcie" / "_dcp_a2a_cute.py").write_text("_gather_pull_enabled\n")
++    pcie = root / "b12x_tree" / "comm" / "pcie"
++    pcie.mkdir(parents=True)
++    (root / "b12x").mkdir()
++    (root / "b12x" / "__init__.py").touch()
++    (pcie / "_collective_tuning.py").write_text("def twoshot_pull_enabled(): ...\n")
++    (pcie / "pcie_allreduce.py").write_text("if twoshot_pull_enabled(): ...\n")
++    (pcie / "_dcp_a2a_cute.py").write_text(
++        "def _gather_pull_enabled(world_size): ...\ngather_pull = _gather_pull_enabled(world_size)\n"
++    )
 +    atexit.register(shutil.rmtree, root, True)
 +    return str(root)
 +
@@ -89273,7 +89536,20 @@ index 00000000..2f30930a
 +         "B12X_PCIE_DCP_GATHER_PULL": "auto"}
 +    off = export_variables(TWOSHOT="0", ATTN="0", MHC_PDL="0", GATHER_PULL="0", B12X_OVERLAY="")
 +    assert (off["B12X_PCIE_TWOSHOT_PULL"], off["B12X_MLA_DECODE_REMAINDER_STREAM"], off["B12X_MHC_PDL"]) == ("0",) * 3
-+    assert "B12X_PCIE_DCP_GATHER_PULL" not in off
++    assert off["B12X_PCIE_DCP_GATHER_PULL"] == "0"
++
++
++def test_export_script_config_overrides_preserve_dependencies():
++    config = TP3Config.from_environment(export_environment(
++        IDX_SPLIT="", FLARE_DS41_INDEX_ROW_SPLIT="4096", FLARE_DS41_INDEX_ROW_SPLIT_MIN_CTX="32768",
++        FLARE_DS41_INDEX_ROW_SPLIT_VARIANTS="prefill", NO_GEN_LOGPROBS="0", FLARE_DS41_NO_GENERATION_LOGPROBS="1",
++        RECLAIM="1", FLARE_DS41_SHARE_VOCAB_COLUMNS="0",
++    ))
++    assert config.index_row_split is None
++    assert config.index_row_split_min_context is None
++    assert config.index_row_split_variant_graphs is None
++    assert not config.no_generation_logprobs
++    assert config.share_engram_token_map and not config.share_vocab_columns
 +
 +
 +def test_export_script_environment_is_parsed_not_copied():
@@ -96346,6 +96622,237 @@ index 5e3f1cab..bcf234e4 100644
  @pytest.mark.skipif(os.environ.get("FLARE_RUN_CUDA_TESTS") != "1", reason="explicit CUDA assignment required")
  @torch.no_grad()
  def test_cloned_value_survives_scratch_overwrite():
+diff --git a/tests/test_tp3_release_tools.py b/tests/test_tp3_release_tools.py
+new file mode 100644
+index 00000000..db258a31
+--- /dev/null
++++ b/tests/test_tp3_release_tools.py
+@@ -0,0 +1,225 @@
++# SPDX-License-Identifier: Apache-2.0
++import json
++import os
++from pathlib import Path
++import struct
++import subprocess
++
++import pytest
++
++
++TOOLS = Path(__file__).resolve().parents[1] / "tp3-tools"
++
++
++def run_script(script, cwd, *args, **settings):
++    return subprocess.run(
++        [TOOLS / script, *args],
++        cwd=cwd,
++        env={"PATH": os.environ["PATH"], **settings},
++        capture_output=True,
++        text=True,
++    )
++
++
++def make_snapshot(root):
++    root.mkdir()
++    weight_map = {}
++    for layer, number in ((1, 47), (14, 48)):
++        shard = f"model-{number:05d}-of-00048.safetensors"
++        header = {}
++        for field, dtype, width, start in (("weight", "F8_E4M3", 256, 0), ("scale", "F8_E8M0", 8, 256)):
++            key = f"layers.{layer}.engram.embed.{field}"
++            header[key] = {"dtype": dtype, "shape": [1, width], "data_offsets": [start, start + width]}
++            weight_map[key] = shard
++        encoded = json.dumps(header).encode()
++        (root / shard).write_bytes(struct.pack("<Q", len(encoded)) + encoded + bytes(264))
++    index = root / "model.safetensors.index.json"
++    index.write_text(json.dumps({"weight_map": weight_map, "metadata": {"total_size": 528}}))
++    return index
++
++
++def test_checkpoint_view_publishes_only_after_validation(tmp_path):
++    index = make_snapshot(tmp_path / "snapshot")
++    script = "release/make_checkpoint_view.sh"
++    output = tmp_path / "releases" / "test view"
++    result = run_script(script, tmp_path, "snapshot", "releases/test view")
++    assert result.returncode == 0, result.stderr
++    assert (output / index.name).readlink() == index
++    assert "missing 0" in result.stdout
++
++    index.write_text("{}")
++    result = run_script(script, tmp_path, "snapshot", "releases/invalid")
++    assert result.returncode != 0
++    assert list(output.parent.iterdir()) == [output]
++
++    broken = output.parent / "broken"
++    broken.symlink_to("missing")
++    result = run_script(script, tmp_path, "snapshot", "releases/broken//")
++    assert result.returncode != 0
++    assert broken.readlink() == Path("missing")
++
++
++def test_checkpoint_view_omits_nested_output_ancestry(tmp_path):
++    index = make_snapshot(tmp_path / "snapshot")
++    snapshot = index.parent
++    archive = snapshot / "archive"
++    archive.mkdir()
++    original = archive / "original.txt"
++    original.write_text("keep")
++    (snapshot / "archive alias").symlink_to(archive)
++    (tmp_path / "snapshot alias").symlink_to(snapshot)
++
++    script = "release/make_checkpoint_view.sh"
++    result = run_script(script, tmp_path, "snapshot", "snapshot alias/archive/view")
++    assert result.returncode == 0, result.stderr
++    view = archive / "view"
++    assert (view / index.name).readlink() == index
++    assert not (view / "archive").is_symlink()
++    assert not (view / "archive alias").is_symlink()
++    assert original.read_text() == "keep"
++
++    external = tmp_path / "external"
++    external.mkdir()
++    (archive / "external").symlink_to(external)
++    result = run_script(script, tmp_path, "snapshot", "snapshot alias/archive/external/view")
++    assert result.returncode == 0, result.stderr
++    external_view = external / "view"
++    assert (external_view / index.name).readlink() == index
++    assert not (external_view / "archive").is_symlink()
++    assert not (external_view / "archive alias").is_symlink()
++
++    fresh_view = snapshot / "new parent" / "nested" / "view"
++    result = run_script(script, tmp_path, "snapshot", fresh_view)
++    assert result.returncode == 0, result.stderr
++    assert (fresh_view / index.name).readlink() == index
++    assert not (fresh_view / "new parent").is_symlink()
++    assert not list(snapshot.rglob(".checkpoint-view.*"))
++    assert original.read_text() == "keep"
++
++
++def make_overlay_source(tmp_path):
++    purelib = tmp_path / "site-packages"
++    tree = purelib / "flashinfer" / "experimental" / "b12x"
++    tree.mkdir(parents=True)
++    (tree / "example.py").write_text("original\n")
++    shim = purelib / "b12x" / "__init__.py"
++    shim.parent.mkdir()
++    shim.write_text('_root = Path(_flashinfer.origin).parent / "experimental" / "b12x"\n')
++    python = tmp_path / "venv" / "bin" / "python"
++    python.parent.mkdir(parents=True)
++    python.write_text('#!/bin/sh\nprintf "%s\\n" "$PURELIB"\n')
++    python.chmod(0o755)
++    return {"VENV": str(python.parents[1]), "PURELIB": str(purelib)}
++
++
++def test_overlay_replacement_preserves_destination_on_failure(tmp_path):
++    settings = make_overlay_source(tmp_path)
++    patch = tmp_path / "example.patch"
++    patch.write_text(
++        "--- a/flashinfer/experimental/b12x/example.py\n"
++        "+++ b/flashinfer/experimental/b12x/example.py\n"
++        "@@ -1 +1 @@\n-original\n+patched\n"
++    )
++    script = "make-b12x-overlay.sh"
++    output = tmp_path / "overlay"
++    result = run_script(script, tmp_path, "overlay", B12X_OVERLAY_PATCHES=patch.name, **settings)
++    assert result.returncode == 0, result.stderr
++    copied = output / "b12x_tree" / "example.py"
++    assert copied.read_text() == "patched\n"
++    (output / "b12x" / "__pycache__").mkdir()
++
++    patch.write_text(patch.read_text().replace("-original", "-wrong"))
++    result = run_script(script, tmp_path, "overlay", B12X_OVERLAY_PATCHES=patch.name, **settings)
++    assert result.returncode != 0
++    assert copied.read_text() == "patched\n"
++    result = run_script(script, tmp_path, "absent", B12X_OVERLAY_PATCHES=patch.name, **settings)
++    assert result.returncode != 0
++    assert not (tmp_path / "absent").exists()
++    assert not list(tmp_path.glob(".b12x-overlay.*"))
++
++    result = run_script(script, tmp_path, "overlay", B12X_OVERLAY_PATCHES="", **settings)
++    assert result.returncode == 0, result.stderr
++    assert copied.read_text() == "original\n"
++    unrelated = output / "notes"
++    unrelated.write_text("keep\n")
++    link = tmp_path / "link"
++    link.symlink_to(output)
++    for dest in ("overlay", "link//"):
++        result = run_script(script, tmp_path, dest, B12X_OVERLAY_PATCHES="", **settings)
++        assert result.returncode != 0
++    assert unrelated.read_text() == "keep\n"
++    assert link.is_symlink()
++
++
++def make_export_command(tmp_path):
++    command = tmp_path / ".venv" / "bin" / "ignition"
++    command.parent.mkdir(parents=True)
++    command.write_text("#!/usr/bin/python3\nimport json, os, sys\nprint(json.dumps([sys.argv[1:], dict(os.environ)]))\n")
++    command.chmod(0o755)
++
++
++def run_export(tmp_path, **settings):
++    return run_script("release/export.sh", tmp_path, CKPT="checkpoint view", **settings)
++
++
++def test_export_checks_both_overlay_capabilities(tmp_path):
++    make_export_command(tmp_path)
++    overlay = tmp_path / "overlay"
++    comm = overlay / "b12x_tree" / "comm" / "pcie"
++    comm.mkdir(parents=True)
++    shim = overlay / "b12x" / "__init__.py"
++    shim.parent.mkdir()
++    shim.touch()
++    settings = {"B12X_OVERLAY": str(overlay)}
++    result = run_export(tmp_path, **settings)
++    assert result.returncode != 0 and "flashinfer-pcie-twoshot-pull-world3.patch" in result.stderr
++    (comm / "_collective_tuning.py").write_text("def twoshot_pull_enabled(): ...\n")
++    result = run_export(tmp_path, **settings)
++    assert result.returncode != 0 and "flashinfer-pcie-twoshot-pull-world3.patch" in result.stderr
++    (comm / "pcie_allreduce.py").write_text("if twoshot_pull_enabled(): ...\n")
++    result = run_export(tmp_path, **settings)
++    assert result.returncode != 0 and "flashinfer-dcp-gather-pull-world3.patch" in result.stderr
++    (comm / "_dcp_a2a_cute.py").write_text(
++        "def _gather_pull_enabled(world_size): ...\ngather_pull = _gather_pull_enabled(world_size)\n"
++    )
++    result = run_export(tmp_path, **settings, PYTHONPATH="other")
++    assert result.returncode == 0, result.stderr
++    argv, env = json.loads(result.stdout)
++    assert argv[:2] == ["export", "checkpoint view"]
++    assert env["B12X_PCIE_TWOSHOT_PULL"] == "1"
++    assert env["B12X_PCIE_DCP_GATHER_PULL"] == "auto"
++    assert env["PYTHONPATH"] == f"{overlay}:other"
++
++
++@pytest.mark.parametrize("index_split", ["", "0"])
++def test_export_explicit_switches_override_inherited_settings(tmp_path, index_split):
++    make_export_command(tmp_path)
++    settings = {
++        "TWOSHOT": "0", "GATHER_PULL": "0", "B12X_PCIE_DCP_GATHER_PULL": "auto",
++        "INDEX_SIDE": "0", "FLARE_DS41_INDEX_SIDE_STREAM": "1",
++        "MLA_SPLITS": "", "FLARE_DS41_MLA_DECODE_SPLITS": "18:10",
++        "ENGRAM_SIDE": "", "FLARE_DS41_ENGRAM_SIDE_LAYERS": "8",
++        "IDX_SPLIT": index_split, "FLARE_DS41_INDEX_ROW_SPLIT": "4096",
++        "FLARE_DS41_INDEX_ROW_SPLIT_MIN_CTX": "32768", "FLARE_DS41_INDEX_ROW_SPLIT_VARIANTS": "prefill",
++        "STEERING": "sidecar with spaces.safetensors", "STEERING_PLAIN_ID": "0",
++        "FLARE_DS41_STEERING_PLAIN_IDENTITY": "1",
++        "NO_GEN_LOGPROBS": "0", "FLARE_DS41_NO_GENERATION_LOGPROBS": "1",
++        "RECLAIM": "0", "FLARE_DS41_SHARE_VOCAB_COLUMNS": "1",
++        "MARKOV_HOST": "0", "MARKOV_STAGE": "0", "FLARE_DS41_MARKOV_STAGE_ROWS": "1",
++        "FLARE_EXPORT_LIBRARY_SCRATCH": "0", "FLARE_DS41_MARKOV_TILE_ROWS": "4",
++    }
++    result = run_export(tmp_path, **settings)
++    assert result.returncode == 0, result.stderr
++    argv, env = json.loads(result.stdout)
++    assert argv[-2:] == ["--steering-sidecar", settings["STEERING"]]
++    assert env["FLARE_DS41_INDEX_ROW_SPLIT"] == index_split
++    assert "FLARE_DS41_INDEX_ROW_SPLIT_MIN_CTX" not in env
++    assert "FLARE_DS41_INDEX_ROW_SPLIT_VARIANTS" not in env
++    for name in (
++        "B12X_PCIE_DCP_GATHER_PULL", "FLARE_DS41_INDEX_SIDE_STREAM",
++        "FLARE_DS41_STEERING_PLAIN_IDENTITY", "FLARE_DS41_NO_GENERATION_LOGPROBS",
++        "FLARE_DS41_SHARE_VOCAB_COLUMNS", "FLARE_DS41_MARKOV_STAGE_ROWS", "FLARE_EXPORT_LIBRARY_SCRATCH",
++    ):
++        assert env[name] == "0"
++    assert env["FLARE_DS41_MARKOV_TILE_ROWS"] == "4"
++    assert env["FLARE_DS41_MLA_DECODE_SPLITS"] == env["FLARE_DS41_ENGRAM_SIDE_LAYERS"] == ""
 diff --git a/third_party/rust/README.md b/third_party/rust/README.md
 index b12895fa..988a22a8 100644
 --- a/third_party/rust/README.md
@@ -101028,10 +101535,10 @@ index 00000000..5c5e1c03
 +echo "all steps passed; next: tp3-tools/glm53-export-tp3.sh"
 diff --git a/tp3-tools/make-b12x-overlay.sh b/tp3-tools/make-b12x-overlay.sh
 new file mode 100755
-index 00000000..ba28db0f
+index 00000000..a43de9cd
 --- /dev/null
 +++ b/tp3-tools/make-b12x-overlay.sh
-@@ -0,0 +1,23 @@
+@@ -0,0 +1,90 @@
 +#!/bin/bash
 +# Build the b12x overlay GLM exports use (B12X_OVERLAY in glm53-export-tp3.sh): a copy of the venv's (already
 +# tp3-patches-patched) b12x plus tp3-patches/overlay/flashinfer-dcp-gather-pull-world3.patch, so the shared venv (also used
@@ -101043,17 +101550,84 @@ index 00000000..ba28db0f
 +set -euo pipefail
 +ROOT=$(cd "$(dirname "$(readlink -f "$0")")/.." && pwd)
 +OUT=${1:-$ROOT/.b12x-overlay}
++while [[ "$OUT" == */ ]]; do OUT=${OUT%/}; done
++[ -n "$OUT" ] || { echo "Refusing to replace /" >&2; exit 2; }
++PARENT=$(dirname -- "$OUT")
++mkdir -p -- "$PARENT"
++exec {parent_fd}<"$PARENT"
++flock -x "$parent_fd"
++
++# Match the overlay layout, allowing the bytecode cache created by Python.
++SHIM_ROOT='_root = Path(__file__).resolve().parent.parent / "b12x_tree"'
++is_overlay() (
++    candidate=$1
++    shopt -s dotglob nullglob
++    entries=("$candidate"/*)
++    shim_entries=("$candidate/b12x"/*)
++    if [ -d "$candidate/b12x/__pycache__" ] && [ ! -L "$candidate/b12x/__pycache__" ]; then
++        shim_entries_count=2
++    else
++        shim_entries_count=1
++    fi
++    [ ! -L "$candidate" ] && [ -d "$candidate/b12x" ] && [ ! -L "$candidate/b12x" ] &&
++        [ -d "$candidate/b12x_tree" ] && [ ! -L "$candidate/b12x_tree" ] &&
++        [ "${#entries[@]}" -eq 2 ] && [ "${#shim_entries[@]}" -eq "$shim_entries_count" ] &&
++        [ -f "$candidate/b12x/__init__.py" ] && [ ! -L "$candidate/b12x/__init__.py" ] &&
++        grep -Fxq "$SHIM_ROOT" "$candidate/b12x/__init__.py"
++)
++if [ -e "$OUT" ] || [ -L "$OUT" ]; then
++    is_overlay "$OUT" || { echo "Refusing to replace $OUT because it is not a b12x overlay" >&2; exit 2; }
++fi
++
 +S=$("${VENV:-$ROOT/.venv}/bin/python" -c 'import sysconfig; print(sysconfig.get_paths()["purelib"])')
-+rm -rf "$OUT"; mkdir -p "$OUT/b12x"
-+cp -a "$S/flashinfer/experimental/b12x" "$OUT/b12x_tree"
-+find "$OUT/b12x_tree" -name __pycache__ -prune -exec rm -rf {} +
-+# Shim: the venv's b12x/__init__.py, rooted at the overlay tree.
-+sed 's#^_root = Path(_flashinfer.origin).parent / "experimental" / "b12x"#_root = Path(__file__).resolve().parent.parent / "b12x_tree"#' \
-+    "$S/b12x/__init__.py" > "$OUT/b12x/__init__.py"
-+grep -q 'b12x_tree' "$OUT/b12x/__init__.py"
-+for P in ${B12X_OVERLAY_PATCHES-$ROOT/tp3-patches/overlay/flashinfer-dcp-gather-pull-world3.patch}; do
-+    patch -d "$OUT/b12x_tree" -p4 --forward < "$P"
++STAGE=$(mktemp -d -- "$PARENT/.b12x-overlay.XXXXXXXX")
++cleanup() {
++    if [ -f "$STAGE/exchanging" ] && ! is_overlay "$STAGE/overlay"; then
++        echo "Inspect the b12x overlay staging directory at $STAGE" >&2
++        return
++    fi
++    rm -rf -- "$STAGE"
++}
++trap cleanup EXIT
++trap 'exit 130' INT
++trap 'exit 143' TERM
++
++mkdir -p -- "$STAGE/overlay/b12x"
++cp -a -- "$S/flashinfer/experimental/b12x/." "$STAGE/overlay/b12x_tree"
++find "$STAGE/overlay/b12x_tree" -name __pycache__ -prune -exec rm -rf {} +
++sed "s#^_root = Path(_flashinfer.origin).parent / \"experimental\" / \"b12x\"#$SHIM_ROOT#" \
++    "$S/b12x/__init__.py" > "$STAGE/overlay/b12x/__init__.py"
++grep -Fxq "$SHIM_ROOT" "$STAGE/overlay/b12x/__init__.py"
++if [ "${B12X_OVERLAY_PATCHES+x}" ]; then
++    read -r -a PATCH_LIST <<< "${B12X_OVERLAY_PATCHES//$'\n'/ }"
++else
++    PATCH_LIST=("$ROOT/tp3-patches/overlay/flashinfer-dcp-gather-pull-world3.patch")
++fi
++for P in "${PATCH_LIST[@]}"; do
++    patch -d "$STAGE/overlay/b12x_tree" -p4 --batch --forward < "$P"
 +done
++
++if [ -e "$OUT" ] || [ -L "$OUT" ]; then
++    is_overlay "$OUT" || { echo "Refusing to replace $OUT because it is not a b12x overlay" >&2; exit 2; }
++    # Swap sibling directories atomically so imports can keep using the destination.
++    touch "$STAGE/exchanging"
++    /usr/bin/python3 -I - "$STAGE/overlay" "$OUT" <<'PY'
++import ctypes
++import os
++import sys
++
++at_fdcwd = -100
++rename_exchange = 2
++renameat2 = ctypes.CDLL(None, use_errno=True).renameat2
++renameat2.argtypes = [ctypes.c_int, ctypes.c_char_p, ctypes.c_int, ctypes.c_char_p, ctypes.c_uint]
++if renameat2(at_fdcwd, os.fsencode(sys.argv[1]), at_fdcwd, os.fsencode(sys.argv[2]), rename_exchange):
++    sys.exit(f"Could not exchange b12x overlay directories: {os.strerror(ctypes.get_errno())}")
++PY
++    is_overlay "$STAGE/overlay" || { echo "The b12x overlay at $OUT changed during replacement" >&2; exit 2; }
++else
++    mv -nT -- "$STAGE/overlay" "$OUT"
++    [ ! -d "$STAGE/overlay" ] || { echo "Refusing existing output $OUT" >&2; exit 2; }
++fi
 +echo "overlay ready: $OUT"
 diff --git a/tp3-tools/markov_tile_bench.py b/tp3-tools/markov_tile_bench.py
 new file mode 100644
@@ -102946,10 +103520,10 @@ index 00000000..52a8ae4d
 \ No newline at end of file
 diff --git a/tp3-tools/release/export.sh b/tp3-tools/release/export.sh
 new file mode 100755
-index 00000000..72aed9bd
+index 00000000..fca732ec
 --- /dev/null
 +++ b/tp3-tools/release/export.sh
-@@ -0,0 +1,143 @@
+@@ -0,0 +1,172 @@
 +#!/bin/bash
 +# Export the package from a checkpoint view (make_checkpoint_view.sh). Run it from the fork checkout with its .venv
 +# (uv sync, then re-apply tp3-patches/ to the installed FlashInfer; Hyperflare's torch/Triton fixes are applied in memory
@@ -103021,31 +103595,43 @@ index 00000000..72aed9bd
 +# A cold tuning cache needs more free VRAM than serving. If tuning runs out of memory, export once with HOT=300,
 +# then export the target. The second export reuses the shared tuning cache.
 +set -euo pipefail
-+# Release defaults of the value switches (set one to empty to turn it off).
-+SKIP_SUFFIX=${SKIP_SUFFIX-4096} IDX_SPLIT=${IDX_SPLIT-4096} IDX_SPLIT_MIN_CTX=${IDX_SPLIT_MIN_CTX-32768}
-+MLA_SPLITS=${MLA_SPLITS-18:10,37:5,47:4,62:3,94:2,96:3} H24=${H24-9:0,96:1}
 +: "${CKPT:?set CKPT to the checkpoint view directory}"
 +HERE=$(dirname "$(readlink -f "$0")")
 +TWOSHOT=${TWOSHOT:-1}
-+if [ "$TWOSHOT" = 1 ]; then
-+    : "${B12X_OVERLAY:?TWOSHOT=1 needs B12X_OVERLAY (see the header), or export with TWOSHOT=0}"
-+fi
++GATHER_PULL=${GATHER_PULL:-1}
 +if [ -n "${B12X_OVERLAY:-}" ]; then
-+    [ -d "$B12X_OVERLAY/b12x_tree" ] || { echo "B12X_OVERLAY=$B12X_OVERLAY has no b12x_tree" >&2; exit 1; }
-+    export PYTHONPATH="$B12X_OVERLAY${PYTHONPATH:+:$PYTHONPATH}" B12X_PCIE_DCP_GATHER_PULL=0
++    if [ ! -d "$B12X_OVERLAY/b12x_tree" ] || [ ! -f "$B12X_OVERLAY/b12x/__init__.py" ]; then
++        echo "B12X_OVERLAY=$B12X_OVERLAY needs b12x_tree and the b12x package shim" >&2
++        exit 1
++    fi
++    export PYTHONPATH="$B12X_OVERLAY${PYTHONPATH:+:$PYTHONPATH}"
 +fi
-+# GATHER_PULL=1: refuse an overlay without the gather-pull patch (b12x would ignore the variable silently).
-+if [ "${GATHER_PULL:-1}" = 1 ]; then
-+    grep -qs _gather_pull_enabled "${B12X_OVERLAY:-/nonexistent}/b12x_tree/comm/pcie/_dcp_a2a_cute.py" \
-+        || { echo "GATHER_PULL=1 needs B12X_OVERLAY with flashinfer-dcp-gather-pull-world3.patch" >&2; exit 1; }
++PCIE="${B12X_OVERLAY:-/nonexistent}/b12x_tree/comm/pcie"
++if [ "$TWOSHOT" = 1 ]; then
++    if [ -z "${B12X_OVERLAY:-}" ] ||
++       ! grep -qs '^def twoshot_pull_enabled(' "$PCIE/_collective_tuning.py" ||
++       ! grep -qs 'if twoshot_pull_enabled():' "$PCIE/pcie_allreduce.py"; then
++        echo "TWOSHOT=1 needs B12X_OVERLAY with flashinfer-pcie-twoshot-pull-world3.patch" >&2
++        exit 1
++    fi
++fi
++if [ "$GATHER_PULL" = 1 ]; then
++    if [ -z "${B12X_OVERLAY:-}" ] ||
++       ! grep -qs '^def _gather_pull_enabled(' "$PCIE/_dcp_a2a_cute.py" ||
++       ! grep -qs 'gather_pull = _gather_pull_enabled(world_size)' "$PCIE/_dcp_a2a_cute.py"; then
++        echo "GATHER_PULL=1 needs B12X_OVERLAY with flashinfer-dcp-gather-pull-world3.patch" >&2
++        exit 1
++    fi
 +    export B12X_PCIE_DCP_GATHER_PULL=auto
++else
++    export B12X_PCIE_DCP_GATHER_PULL=0
 +fi
 +# Default expert order: expert-order/ next to this script in the release folder. In the fork checkout the release
 +# order is tp3-tools/release/expert-orders/order-mix-provisional-exl3S (tp3-tools/release/expert-order/ there keeps the
 +# 20261116 order, which other scripts use); the same file serves both places.
 +DEFAULT_COUNTS=$HERE/expert-order
 +[ -d "$HERE/expert-orders/order-mix-provisional-exl3S" ] && DEFAULT_COUNTS=$HERE/expert-orders/order-mix-provisional-exl3S
-+if [ "${MARKOV_STAGE:-1}" = 1 ] && [ "${MARKOV_HOST:-1}" != 1 ]; then
++if [ "${MARKOV_STAGE-1}" = 1 ] && [ "${MARKOV_HOST-1}" != 1 ]; then
 +    echo "MARKOV_STAGE=1 needs MARKOV_HOST=1 (it stages rows of the parked table)" >&2; exit 1
 +fi
 +export FLARE_DS41_TP3_GRAPH_GIB=1 FLARE_DS41_HOST_EXPERT_LAYERS=${PARK:-20-39} FLARE_DS41_HOT_EXPERTS=${HOT:-355} \
@@ -103059,35 +103645,52 @@ index 00000000..72aed9bd
 +       FLARE_DS41_VRAM_RECLAIM=${RECLAIM:-1} \
 +       FLARE_TUNE_SCRATCH_TOLERANCE=0.05 FLARE_TUNE_SCRATCH_MIN_SAVING_MIB=16 \
 +       B12X_PCIE_TWOSHOT_PULL=$TWOSHOT B12X_MLA_DECODE_REMAINDER_STREAM=${ATTN:-1} B12X_MHC_PDL=${MHC_PDL:-1}
-+# On/off switches that TP3Config reads as "1" = on; set only when on, so an off export records the earlier values.
-+[ "${INDEX_SIDE:-1}" = 1 ] && export FLARE_DS41_INDEX_SIDE_STREAM=1
-+[ "${CONTEXT_SIDE:-1}" = 1 ] && export FLARE_DS41_CONTEXT_SIDE_STREAM=1
-+[ "${EMBED_ROWS:-1}" = 1 ] && export FLARE_DS41_EMBED_ROWS=1
-+[ -n "${ENGRAM_SIDE:-}" ] && export FLARE_DS41_ENGRAM_SIDE_LAYERS=$ENGRAM_SIDE
-+[ -n "${LIBRARY_SCRATCH:-}" ] && export FLARE_EXPORT_LIBRARY_SCRATCH=$LIBRARY_SCRATCH
-+[ "${PAD_ONCE:-1}" = 1 ] && export FLARE_DS41_MMA_PAD_ONCE=1
-+[ "${VISION_ARENA_HOST:-1}" = 1 ] && export FLARE_DS41_VISION_ARENA_HOST=1
-+[ "${MARKOV_HOST:-1}" = 1 ] && export FLARE_DS41_MARKOV_EMBED_HOST=1
-+[ "${MARKOV_STAGE:-1}" = 1 ] && export FLARE_DS41_MARKOV_STAGE_ROWS=1
-+[ -n "${MARKOV_TILE:-}" ] && export FLARE_DS41_MARKOV_TILE_ROWS=$MARKOV_TILE
-+[ -n "${MLA_SPLITS:-}" ] && export FLARE_DS41_MLA_DECODE_SPLITS=$MLA_SPLITS
-+[ -n "${H24:-}" ] && export FLARE_DS41_MLA_H24=$H24
-+[ "${GLUE2:-1}" = 1 ] && export FLARE_DS41_GLUE_PASS2=1
-+[ -n "${SKIP_SUFFIX:-}" ] && export FLARE_DS41_PREFILL_SKIP_SUFFIX=$SKIP_SUFFIX
-+[ -n "${IDX_SPLIT:-}" ] && export FLARE_DS41_INDEX_ROW_SPLIT=$IDX_SPLIT
-+[ -n "${IDX_SPLIT_MIN_CTX:-}" ] && export FLARE_DS41_INDEX_ROW_SPLIT_MIN_CTX=$IDX_SPLIT_MIN_CTX
-+[ -n "${IDX_SPLIT_VARIANTS:-}" ] && export FLARE_DS41_INDEX_ROW_SPLIT_VARIANTS=$IDX_SPLIT_VARIANTS
-+# the row split's check mode counts in a Python op (debug-serve only): an export must never carry it
-+[ -n "${FLARE_DS41_INDEX_ROW_SPLIT_CHECK:-}" ] && { echo "refusing: FLARE_DS41_INDEX_ROW_SPLIT_CHECK is debug-serve only" >&2; exit 2; }
-+[ "${SHARE_OPERANDS:-1}" = 1 ] && export FLARE_EXPORT_SHARE_COMPUTED_OPERANDS=1
-+[ -n "${DRAFT_VOCAB:-}" ] && export FLARE_DS41_DRAFT_VOCAB=$DRAFT_VOCAB
-+[ "${ROTARY_ONCE:-1}" = 1 ] && export FLARE_DS41_ROTARY_ONCE=1
-+[ "${PIN_QPROJ:-1}" = 1 ] && export FLARE_DS41_PIN_SMALL_QPROJ=1
-+[ "${LOGPROB_ONE_EXCHANGE:-1}" = 1 ] && export FLARE_DS41_LOGPROB_SINGLE_EXCHANGE=1
-+[ "${NO_GEN_LOGPROBS:-0}" = 1 ] && export FLARE_DS41_NO_GENERATION_LOGPROBS=1
-+[ -n "${DRAFT_HEAD_PLANS:-}" ] && export FLARE_DS41_DRAFT_HEAD_PLANS=$DRAFT_HEAD_PLANS
-+[ "${ROTARY_PREFILL:-1}" = 1 ] && export FLARE_DS41_ROTARY_ONCE_PREFILL=1
-+[ -n "${STEERING:-}" ] && [ "${STEERING_PLAIN_ID:-1}" = 1 ] && export FLARE_DS41_STEERING_PLAIN_IDENTITY=1
++export FLARE_DS41_INDEX_SIDE_STREAM=${INDEX_SIDE-1} \
++       FLARE_DS41_CONTEXT_SIDE_STREAM=${CONTEXT_SIDE-1} \
++       FLARE_DS41_EMBED_ROWS=${EMBED_ROWS-1} \
++       FLARE_DS41_MMA_PAD_ONCE=${PAD_ONCE-1} \
++       FLARE_DS41_VISION_ARENA_HOST=${VISION_ARENA_HOST-1} \
++       FLARE_DS41_MARKOV_EMBED_HOST=${MARKOV_HOST-1} \
++       FLARE_DS41_MARKOV_STAGE_ROWS=${MARKOV_STAGE-1} \
++       FLARE_DS41_MLA_DECODE_SPLITS=${MLA_SPLITS-18:10,37:5,47:4,62:3,94:2,96:3} \
++       FLARE_DS41_MLA_H24=${H24-9:0,96:1} \
++       FLARE_DS41_GLUE_PASS2=${GLUE2-1} \
++       FLARE_DS41_PREFILL_SKIP_SUFFIX=${SKIP_SUFFIX-4096} \
++       FLARE_EXPORT_SHARE_COMPUTED_OPERANDS=${SHARE_OPERANDS-1} \
++       FLARE_DS41_ROTARY_ONCE=${ROTARY_ONCE-1} \
++       FLARE_DS41_ROTARY_ONCE_PREFILL=${ROTARY_PREFILL-1} \
++       FLARE_DS41_PIN_SMALL_QPROJ=${PIN_QPROJ-1} \
++       FLARE_DS41_LOGPROB_SINGLE_EXCHANGE=${LOGPROB_ONE_EXCHANGE-1}
++# Omitted optional wrapper switches leave the underlying settings in place.
++[ "${ENGRAM_SIDE+x}" ] && export FLARE_DS41_ENGRAM_SIDE_LAYERS=$ENGRAM_SIDE
++[ "${LIBRARY_SCRATCH+x}" ] && export FLARE_EXPORT_LIBRARY_SCRATCH=$LIBRARY_SCRATCH
++[ "${MARKOV_TILE+x}" ] && export FLARE_DS41_MARKOV_TILE_ROWS=$MARKOV_TILE
++[ "${DRAFT_VOCAB+x}" ] && export FLARE_DS41_DRAFT_VOCAB=$DRAFT_VOCAB
++[ "${DRAFT_HEAD_PLANS+x}" ] && export FLARE_DS41_DRAFT_HEAD_PLANS=$DRAFT_HEAD_PLANS
++[ "${NO_GEN_LOGPROBS+x}" ] && export FLARE_DS41_NO_GENERATION_LOGPROBS=$NO_GEN_LOGPROBS
++if [ "${RECLAIM:-}" = 0 ]; then
++    export FLARE_DS41_SHARE_ENGRAM_TOKEN_MAP=$FLARE_DS41_VRAM_RECLAIM \
++           FLARE_DS41_TRIM_VOCAB_GATHER=$FLARE_DS41_VRAM_RECLAIM \
++           FLARE_DS41_SKIP_DRAFT_VOCAB_GATHER=$FLARE_DS41_VRAM_RECLAIM \
++           FLARE_DS41_SHARE_VOCAB_COLUMNS=$FLARE_DS41_VRAM_RECLAIM
++fi
++if [ "${STEERING_PLAIN_ID+x}" ] || [ -n "${STEERING:-}" ]; then
++    export FLARE_DS41_STEERING_PLAIN_IDENTITY=${STEERING_PLAIN_ID-1}
++fi
++
++export FLARE_DS41_INDEX_ROW_SPLIT=${IDX_SPLIT-4096}
++if [[ "$FLARE_DS41_INDEX_ROW_SPLIT" =~ ^[[:space:]]*(0)?[[:space:]]*$ ]]; then
++    unset FLARE_DS41_INDEX_ROW_SPLIT_MIN_CTX FLARE_DS41_INDEX_ROW_SPLIT_VARIANTS
++else
++    export FLARE_DS41_INDEX_ROW_SPLIT_MIN_CTX=${IDX_SPLIT_MIN_CTX-32768}
++    if [ -z "$FLARE_DS41_INDEX_ROW_SPLIT_MIN_CTX" ]; then
++        unset FLARE_DS41_INDEX_ROW_SPLIT_VARIANTS
++    elif [ "${IDX_SPLIT_VARIANTS+x}" ]; then
++        export FLARE_DS41_INDEX_ROW_SPLIT_VARIANTS=$IDX_SPLIT_VARIANTS
++    fi
++fi
++# The row split check uses a Python operator available only in debug-serve.
++[ -n "${FLARE_DS41_INDEX_ROW_SPLIT_CHECK:-}" ] && { echo "FLARE_DS41_INDEX_ROW_SPLIT_CHECK is debug-serve only" >&2; exit 2; }
 +exec .venv/bin/ignition export "$CKPT" --gpus "${GPUS:-0,1,2}" --max-concurrency "${MAXC:-16}" \
 +  --prefill-chunk-size "${PREFILL:-4096}" --mtp-draft-tokens "${DRAFTS:-5}" --draft-head-quantization nvfp4 \
 +  --markov-head-quantization fp8 --vocabulary-parallel-sampling --mtp-only --verbose \
@@ -103299,10 +103902,10 @@ index 00000000..73ae9a93
 +  --mtp-draft-tokens "${DRAFTS:-5}" --scheduler-policy "${SCHEDULER:-interactive}" ${EXTRA[@]+"${EXTRA[@]}"}
 diff --git a/tp3-tools/release/make_checkpoint_view.sh b/tp3-tools/release/make_checkpoint_view.sh
 new file mode 100755
-index 00000000..9f6c53ed
+index 00000000..3a2ef7cb
 --- /dev/null
 +++ b/tp3-tools/release/make_checkpoint_view.sh
-@@ -0,0 +1,44 @@
+@@ -0,0 +1,78 @@
 +#!/bin/bash
 +# FP8-Engram checkpoint view for DeepSeek-V4.1-Flash-1017: symlinks to EVERY file of DeepSeek's original snapshot
 +# (shards 1-48, config.json, model.safetensors.index.json, tokenizer, ...). Shards 47-48 hold DeepSeek's FP8 Engram tables
@@ -103313,12 +103916,44 @@ index 00000000..9f6c53ed
 +#   expect: two "Engram table F8_E4M3 ... ok" lines and "96085 tensors in 48 shards, missing 0; payload 510286023000 vs index total_size 510286023000"
 +set -euo pipefail
 +[ $# -eq 2 ] || { echo "usage: $0 <deepseek snapshot dir> <output dir>" >&2; exit 2; }
-+DS=$(readlink -f "$1"); OUT=$2
-+[ -e "$OUT" ] && { echo "refuse: $OUT exists" >&2; exit 2; }
-+mkdir -p "$OUT"
-+for f in "$DS"/*; do ln -s "$(readlink -f "$f")" "$OUT/$(basename "$f")"; done
-+cd "$OUT"
-+/usr/bin/python3 -I - "$OUT" <<'PY'
++DS=$(realpath -e -- "$1")
++OUT=$2
++while [[ "$OUT" == */ ]]; do OUT=${OUT%/}; done
++[ -n "$OUT" ] && [ ! -e "$OUT" ] && [ ! -L "$OUT" ] || { echo "Refusing existing output $2" >&2; exit 2; }
++[ -d "$DS" ] || { echo "Checkpoint snapshot is not a directory at $DS" >&2; exit 2; }
++# Include each named ancestor before resolving the output's symlinks.
++declare -A output_ancestors=()
++ancestor=$(dirname -- "$OUT")
++while :; do
++    resolved=$(realpath -m -- "$ancestor")
++    output_ancestors["$resolved"]=1
++    [[ "$ancestor" == / || "$ancestor" == . ]] && break
++    ancestor=$(dirname -- "$ancestor")
++done
++OUT=$(realpath -m -- "$OUT")
++shopt -s dotglob nullglob
++entries=()
++targets=()
++# A source directory that contains the output would make the view link back to itself.
++for f in "$DS"/*; do
++    target=$(realpath -e -- "$f")
++    if [[ "${output_ancestors[$target]+x}" || "$OUT" == "${target%/}/"* ]]; then
++        continue
++    fi
++    entries+=("${f##*/}")
++    targets+=("$target")
++done
++PARENT=$(dirname -- "$OUT")
++mkdir -p -- "$PARENT"
++STAGE=$(mktemp -d -- "$PARENT/.checkpoint-view.XXXXXXXX")
++trap 'rm -rf -- "$STAGE"' EXIT
++trap 'exit 130' INT
++trap 'exit 143' TERM
++mkdir -- "$STAGE/view"
++for i in "${!entries[@]}"; do
++    ln -s -- "${targets[i]}" "$STAGE/view/${entries[i]}"
++done
++/usr/bin/python3 -I - "$STAGE/view" <<'PY'
 +import json, os, struct, sys
 +out = sys.argv[1]
 +idx = json.load(open(f"{out}/model.safetensors.index.json"))
@@ -103346,6 +103981,8 @@ index 00000000..9f6c53ed
 +print(f"{len(idx['weight_map'])} tensors in {len(seen)} shards, missing {len(missing)}; payload {total} vs index total_size {ts}")
 +sys.exit(1 if missing or bad or ts != total else 0)
 +PY
++mv -nT -- "$STAGE/view" "$OUT"
++[ ! -d "$STAGE/view" ] || { echo "Refusing existing output $OUT" >&2; exit 2; }
 +echo "FP8 checkpoint view ready: $OUT"
 diff --git a/tp3-tools/release/serve.sh b/tp3-tools/release/serve.sh
 new file mode 100755
