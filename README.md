@@ -1,6 +1,14 @@
 #  Native TP3
 
-**DS41 TP3 maintenance update. No re-export is needed if you already have the Nov 21 package.** The updated `flare` fixes steering access and accepts an explicit zero steering scale on Messages and Responses. Rebuild the server from `hyperflare-tp3-20261121.1` and restart it with your existing package. The update was tested on all three GPUs with `gb202-tp3-202611201530`. [Release notes](https://github.com/AzallazA/hyperflare-inference/releases/tag/hyperflare-tp3-20261121.1)
+## DS41 TP3 update
+
+**Already have the Nov 21 package? Keep `gb202-tp3-202611201530`. No re-export is needed.**
+
+- **Server.** Build `flare` from `hyperflare-tp3-20261121.1` if you have the original Nov 21 binary. The maintenance binary fixes steering access and accepts an explicit zero steering scale on Messages and Responses.
+- **Export and preparation.** The tools check overlay capabilities, honor explicit export switches, and preserve previous outputs if preparation fails.
+- **Release scripts.** Refresh the Nov 21 recipe folder from `main`. The launcher honors the requested Engram storage and feature settings even when the shell exports conflicting values. Custom exports enable the 4,096-row variants only when the selected prefill ladder includes them. Preflight recognizes tagged shallow fork checkouts when run from the fork, checks the adjacent source patch when run from the recipe, and requires three distinct visible GPU indices.
+
+If you already run the `.1` binary, use the updated scripts with it on your next launch. [Release notes](https://github.com/AzallazA/hyperflare-inference/releases/tag/hyperflare-tp3-20261121.1)
 
 Inference recipes for 3x RTX PRO 6000 Blackwell (TP3) with vLLM and NVIDIA Hyperflare (formerly Flare). Each folder is one build:
 image or export recipe, launch files, measurements and the source changes.

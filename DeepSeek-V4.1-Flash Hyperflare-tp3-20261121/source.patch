@@ -84016,10 +84016,10 @@ index 00000000..e6de0768
 +            graph.reset()
 diff --git a/tests/recipes/test_deepseek41_index_row_split.py b/tests/recipes/test_deepseek41_index_row_split.py
 new file mode 100644
-index 00000000..ba1e7ae9
+index 00000000..522a4627
 --- /dev/null
 +++ b/tests/recipes/test_deepseek41_index_row_split.py
-@@ -0,0 +1,771 @@
+@@ -0,0 +1,777 @@
 +# SPDX-FileCopyrightText: Copyright (c) 2026 Flare community contributors
 +# SPDX-License-Identifier: Apache-2.0
 +
@@ -84691,9 +84691,12 @@ index 00000000..ba1e7ae9
 +def test_export_script_knob_reaches_the_switch():
 +    from tests.recipes.test_deepseek41_tp3_config import export_environment
 +
-+    assert export_environment()["FLARE_DS41_INDEX_ROW_SPLIT"] == "4096"  # 20261121 default: split from 32K tokens
-+    assert export_environment()["FLARE_DS41_INDEX_ROW_SPLIT_MIN_CTX"] == "32768"
-+    assert "FLARE_DS41_INDEX_ROW_SPLIT" not in export_environment(IDX_SPLIT="", IDX_SPLIT_MIN_CTX="")  # replicated
++    default = TP3Config.from_environment(export_environment())
++    assert default.index_row_split == (4096,)
++    assert default.index_row_split_min_context == 32768
++    off = TP3Config.from_environment(export_environment(IDX_SPLIT="", IDX_SPLIT_MIN_CTX=""))
++    assert off.index_row_split is None
++    assert off.index_row_split_min_context is None
 +    assert TP3Config.from_environment(export_environment(IDX_SPLIT="1")).index_row_split == ROW_SPLIT_DEFAULT
 +    assert TP3Config.from_environment(export_environment(IDX_SPLIT="4096")).index_row_split == (4096,)
 +
@@ -84756,12 +84759,15 @@ index 00000000..ba1e7ae9
 +        split_module.prefill_split_context(tp3=longctx, variant=True, **{**kw, "capacity": 3584})
 +
 +
-+def test_export_sh_passes_the_min_context_knob():
-+    from tests.recipes.test_deepseek41_tp3_config import EXPORT_SH
++def test_export_script_overrides_the_index_split_min_context():
++    from tests.recipes.test_deepseek41_tp3_config import export_environment
 +
-+    text = EXPORT_SH.read_text()
-+    assert 'FLARE_DS41_INDEX_ROW_SPLIT_MIN_CTX=$IDX_SPLIT_MIN_CTX' in text
-+    assert text.index("FLARE_DS41_INDEX_ROW_SPLIT_MIN_CTX=$IDX_SPLIT_MIN_CTX") < text.index("exec .venv/bin/ignition export")
++    custom = TP3Config.from_environment(export_environment(IDX_SPLIT_MIN_CTX="65536"))
++    assert custom.index_row_split_min_context == 65536
++    off = TP3Config.from_environment(export_environment(IDX_SPLIT_MIN_CTX="", IDX_SPLIT_VARIANTS="prefill"))
++    assert off.index_row_split == (4096,)
++    assert off.index_row_split_min_context is None
++    assert off.index_row_split_variant_graphs is None
 +
 +
 +def test_variant_graph_kinds_switch_parses_validates_records_and_selects():
@@ -89439,10 +89445,10 @@ index 00000000..2aa35415
 +    assert bootstrap._expert_selection_summary({}).endswith("none; micro/tiny_decode in: none")
 diff --git a/tests/recipes/test_deepseek41_tp3_config.py b/tests/recipes/test_deepseek41_tp3_config.py
 new file mode 100644
-index 00000000..585dc636
+index 00000000..741f9cc4
 --- /dev/null
 +++ b/tests/recipes/test_deepseek41_tp3_config.py
-@@ -0,0 +1,550 @@
+@@ -0,0 +1,598 @@
 +# SPDX-License-Identifier: Apache-2.0
 +"""TP3 fork configuration: environment parsing, defaults, validation and the metadata record (CPU only)."""
 +
@@ -89458,17 +89464,17 @@ index 00000000..585dc636
 +# release: PARK 20-39, HOT=355, COUNTS = the blended order in expert-orders/order-mix-provisional-exl3S, the round-3
 +# switches and GATHER_PULL/ROTARY_PREFILL on; before: HOT=342, COUNTS=$HERE/expert-order), VISION_HOST/VISION_STAGE 1, ENGRAM_CHUNK_ROWS 1024, SHARE_ENGRAM_RESIDUAL 1, and since the
 +# 20261116 release PARKED_ROWS 0, 768-row prefill all-reduce parts, index/context side streams, uneven wo_a split,
-+# host-row embedding gather, VRAM reclaim, mHC PDL): the script's environment block runs in bash (everything before
-+# ``exec``) and its FLARE_DS41_* / HF_HUB_OFFLINE / B12X_* values are read back, so a change to the script's defaults
-+# reaches these tests. The default two-shot pull and gather pull need B12X_OVERLAY (a directory with ``b12x_tree`` and
++# host-row embedding gather, VRAM reclaim, mHC PDL). A stub Ignition executable reports the environment
++# passed by the release wrapper. The default two-shot pull and gather pull need B12X_OVERLAY (a directory with ``b12x_tree`` and
 +# both patches): the test supplies an overlay layout with the required capability markers.
 +EXPORT_SH = Path(__file__).resolve().parents[2] / "tp3-tools" / "release" / "export.sh"
 +RELEASE_CKPT = "/models/ds41-1017-engram-fp8"
 +
 +
-+def _overlay_stub():
++def _export_stubs():
 +    import atexit
 +    import shutil
++    import sys
 +    import tempfile
 +
 +    root = Path(tempfile.mkdtemp(prefix="b12x-overlay-stub-"))
@@ -89481,11 +89487,20 @@ index 00000000..585dc636
 +    (pcie / "_dcp_a2a_cute.py").write_text(
 +        "def _gather_pull_enabled(world_size): ...\ngather_pull = _gather_pull_enabled(world_size)\n"
 +    )
++    venv_bin = root / ".venv" / "bin"
++    venv_bin.mkdir(parents=True)
++    (venv_bin / "python").symlink_to(sys.executable)
++    exporter = venv_bin / "ignition"
++    exporter.write_text(
++        "#!/bin/bash\n"
++        'for name in ${!FLARE_DS41_@} ${!B12X_@} HF_HUB_OFFLINE; do printf "%s=%s\\0" "$name" "${!name}"; done\n'
++    )
++    exporter.chmod(0o755)
 +    atexit.register(shutil.rmtree, root, True)
 +    return str(root)
 +
 +
-+OVERLAY_STUB = _overlay_stub()
++OVERLAY_STUB = _export_stubs()
 +
 +
 +def export_environment(**variables):
@@ -89498,12 +89513,11 @@ index 00000000..585dc636
 +    import os
 +    import subprocess
 +
-+    script = EXPORT_SH.read_text()
-+    body = script[:script.index("\nexec ")]
-+    dump = '\nfor name in ${!FLARE_DS41_@} ${!B12X_@} HF_HUB_OFFLINE; do printf "%s=%s\\0" "$name" "${!name}"; done'
-+    output = subprocess.run(["bash", "-c", body + dump, str(EXPORT_SH)], check=True, capture_output=True,
-+                            env={"PATH": os.environ.get("PATH", "/usr/bin:/bin"), "CKPT": RELEASE_CKPT,
-+                                 "B12X_OVERLAY": OVERLAY_STUB, **variables})
++    output = subprocess.run(
++        ["bash", str(EXPORT_SH)], cwd=OVERLAY_STUB, check=True, capture_output=True,
++        env={"PATH": os.environ.get("PATH", "/usr/bin:/bin"), "CKPT": RELEASE_CKPT,
++             "PYTHONPATH": str(EXPORT_SH.parents[2]), "B12X_OVERLAY": OVERLAY_STUB, **variables},
++    )
 +    pairs = (item.split("=", 1) for item in output.stdout.decode().split("\0") if "=" in item)
 +    return {key: value for key, value in pairs
 +            if key.startswith(("FLARE_DS41_", "B12X_")) or key == "HF_HUB_OFFLINE"}
@@ -89550,6 +89564,46 @@ index 00000000..585dc636
 +    assert config.index_row_split_variant_graphs is None
 +    assert not config.no_generation_logprobs
 +    assert config.share_engram_token_map and not config.share_vocab_columns
++
++
++@pytest.mark.parametrize(("chunk", "ladder", "includes_4096"), [
++    (2048, "", False),
++    (8192, "128,2048,8192", False),
++    (24576, "", False),
++    (8192, "128, 04096, 8192", True),
++])
++def test_export_script_prefill_defaults_follow_captured_capacities(chunk, ladder, includes_4096):
++    from ignition.recipes.deepseek41.bootstrap import PreparationConfig
++
++    config = TP3Config.from_environment(export_environment(
++        PREFILL=str(chunk), FLARE_DS41_PREFILL_GRAPHS=ladder, IDX_SPLIT_VARIANTS="prefill",
++    ))
++    preparation = PreparationConfig(max_active=4, devices=(0, 1, 2), prefill_chunk_size=chunk, tp3=config)
++    assert (4096 in preparation.prefill_capacities) == includes_4096
++    assert config.prefill_skip_suffix == config.index_row_split == ((4096,) if includes_4096 else None)
++    assert config.index_row_split_min_context == (32768 if includes_4096 else None)
++    assert config.index_row_split_variant_graphs == (("prefill",) if includes_4096 else None)
++
++
++def test_export_script_preserves_explicit_prefill_capacities():
++    from ignition.recipes.deepseek41.bootstrap import PreparationConfig
++
++    config = TP3Config.from_environment(export_environment(PREFILL="2048", SKIP_SUFFIX="2048", IDX_SPLIT="1024"))
++    assert config.prefill_skip_suffix == (2048,)
++    assert config.index_row_split == (1024,)
++    PreparationConfig(max_active=4, devices=(0, 1, 2), prefill_chunk_size=2048, tp3=config)
++
++
++@pytest.mark.parametrize(("switch", "error"), [
++    ("SKIP_SUFFIX", "FLARE_DS41_PREFILL_SKIP_SUFFIX"),
++    ("IDX_SPLIT", "FLARE_DS41_INDEX_ROW_SPLIT"),
++])
++def test_export_script_rejects_explicit_uncaptured_prefill_capacity(switch, error):
++    from ignition.recipes.deepseek41.bootstrap import PreparationConfig
++
++    config = TP3Config.from_environment(export_environment(PREFILL="2048", **{switch: "4096"}))
++    with pytest.raises(ValueError, match=rf"{error}.*not captured"):
++        PreparationConfig(max_active=4, devices=(0, 1, 2), prefill_chunk_size=2048, tp3=config)
 +
 +
 +def test_export_script_environment_is_parsed_not_copied():
@@ -96622,12 +96676,180 @@ index 5e3f1cab..bcf234e4 100644
  @pytest.mark.skipif(os.environ.get("FLARE_RUN_CUDA_TESTS") != "1", reason="explicit CUDA assignment required")
  @torch.no_grad()
  def test_cloned_value_survives_scratch_overwrite():
+diff --git a/tests/test_tp3_preflight.py b/tests/test_tp3_preflight.py
+new file mode 100644
+index 00000000..65de8d2c
+--- /dev/null
++++ b/tests/test_tp3_preflight.py
+@@ -0,0 +1,162 @@
++# SPDX-License-Identifier: Apache-2.0
++import os
++from pathlib import Path
++import shutil
++import subprocess
++
++import pytest
++
++
++SCRIPT = Path(__file__).resolve().parents[1] / "tp3-tools/release/check_env.sh"
++RELEASE_TAG = "hyperflare-tp3-20261121.1"
++SOURCE_PATCH = "--- a/release.txt\n+++ b/release.txt\n@@ -1 +1 @@\n-upstream\n+fork\n"
++
++
++def git(checkout, *args):
++    return subprocess.check_output(["git", "-C", checkout, *args], text=True).strip()
++
++
++def copy_script(directory):
++    directory.mkdir(parents=True)
++    return Path(shutil.copy2(SCRIPT, directory))
++
++
++@pytest.fixture
++def checkout(tmp_path):
++    checkout = tmp_path / "upstream"
++    checkout.mkdir()
++    git(checkout, "init", "-q")
++    git(checkout, "config", "user.name", "TP3 Test")
++    git(checkout, "config", "user.email", "test@example.test")
++    git(checkout, "config", "commit.gpgsign", "false")
++    (checkout / "release.txt").write_text("upstream\n")
++    git(checkout, "add", "release.txt")
++    git(checkout, "commit", "-qm", "Upstream base")
++    return checkout
++
++
++@pytest.fixture
++def run_preflight(tmp_path):
++    commands = tmp_path / "bin"
++    commands.mkdir()
++
++    def stub(name, body):
++        command = commands / name
++        command.write_text(f"#!/bin/sh\n{body}\n")
++        command.chmod(0o755)
++
++    stub("nvcc", 'case "$1" in --version) echo "release 13.1";; *) echo sm_120a;; esac')
++    for tool, version in (("rustc", "1.88"), ("cargo", "1.88"), ("uv", "0.11")):
++        stub(tool, f'echo "{tool} {version}"')
++    stub("nvidia-smi", '''case "$1" in
++        --query-gpu=driver_version) echo 615.71.09;;
++        *) for i in $VISIBLE_GPUS; do echo "$i, Blackwell, 12.0, 0, 450, 3000, 2000"; done;;
++    esac''')
++    bash_env = tmp_path / "bash_env"
++    bash_env.write_text("ulimit() { echo unlimited; }\n")
++
++    def run(script, checkout, base, **settings):
++        return subprocess.run(
++            [script, checkout],
++            cwd=tmp_path,
++            env={
++                "PATH": f"{commands}:{os.environ['PATH']}",
++                "BASH_ENV": str(bash_env),
++                "CUDA_HOME": str(commands.parent),
++                "FLARE_CACHE": str(tmp_path),
++                "MIN_FREE_GB": "0",
++                "BASE": base,
++                "VISIBLE_GPUS": "0 1 2 3",
++                **settings,
++            },
++            capture_output=True,
++            text=True,
++            check=False,
++        )
++
++    return run
++
++
++def test_fork_preflight_accepts_tagged_shallow_checkout(checkout, tmp_path, run_preflight):
++    base = git(checkout, "rev-parse", "HEAD")
++    script = copy_script(checkout / "tp3-tools/release")
++    patch = checkout / "tp3-patches/flashinfer-tuning-world3.patch"
++    patch.parent.mkdir()
++    patch.touch()
++    git(checkout, "add", "tp3-tools", "tp3-patches")
++    git(checkout, "commit", "-qm", "TP3 release")
++    git(checkout, "tag", "-am", "TP3 release", RELEASE_TAG)
++
++    result = run_preflight(script, checkout, base)
++    assert result.returncode == 0, result.stdout + result.stderr
++    assert "contains upstream base" in result.stdout
++
++    shallow = tmp_path / "shallow"
++    git(checkout, "clone", "-q", "--depth=1", "--branch", RELEASE_TAG, checkout.as_uri(), shallow)
++    script = shallow / "tp3-tools/release/check_env.sh"
++    result = run_preflight(script, shallow, base)
++    assert result.returncode == 0, result.stdout + result.stderr
++    assert "has a release tag at HEAD" in result.stdout
++
++    git(shallow, "tag", "-d", RELEASE_TAG)
++    result = run_preflight(script, shallow, base)
++    assert result.returncode == 1
++    assert "cannot verify TP3 fork checkout" in result.stdout
++
++
++def test_fork_preflight_requires_committed_release_files(checkout, run_preflight):
++    base = git(checkout, "rev-parse", "HEAD")
++    script = copy_script(checkout / "tp3-tools/release")
++    result = run_preflight(script, checkout, base)
++    assert result.returncode == 1
++    assert "lacks the committed TP3 release tools or FlashInfer patch" in result.stdout
++
++
++def test_recipe_preflight_checks_adjacent_patch(checkout, tmp_path, run_preflight):
++    base = git(checkout, "rev-parse", "HEAD")
++    script = copy_script(tmp_path / "recipe")
++    result = run_preflight(script, checkout, base)
++    assert result.returncode == 1
++    assert "recipe source patch missing or unreadable" in result.stdout
++
++    patch = script.with_name("source.patch")
++    patch.write_text(SOURCE_PATCH)
++    result = run_preflight(script, checkout, base)
++    assert result.returncode == 0, result.stdout + result.stderr
++    assert "WARN  source.patch applies cleanly" in result.stdout
++    assert (checkout / "release.txt").read_text() == "upstream\n"
++
++    git(checkout, "apply", patch)
++    result = run_preflight(script, checkout, base)
++    assert result.returncode == 0, result.stdout + result.stderr
++    assert "PASS  source.patch applied" in result.stdout
++
++    (checkout / "release.txt").write_text("local change\n")
++    result = run_preflight(script, checkout, base)
++    assert result.returncode == 1
++    assert "source.patch neither applied nor applicable" in result.stdout
++
++
++@pytest.mark.parametrize(
++    ("gpus", "visible", "error"),
++    [
++        ("2,0,3", "0 1 2 3", None),
++        ("0,0,1", "0 1 2 3", "exactly 3 distinct"),
++        ("0,1,2,9", "0 1 2 3", "exactly 3 distinct"),
++        ("0,1,2,", "0 1 2 3", "exactly 3 distinct"),
++        ("0,,2", "0 1 2 3", "exactly 3 distinct"),
++        ("0,1,3", "0 0 1", "2 of the 3 GPUs"),
++    ],
++)
++def test_preflight_requires_three_distinct_visible_indices(checkout, tmp_path, run_preflight, gpus, visible, error):
++    base = git(checkout, "rev-parse", "HEAD")
++    script = copy_script(tmp_path / "recipe")
++    script.with_name("source.patch").write_text(SOURCE_PATCH)
++    result = run_preflight(script, checkout, base, GPUS=gpus, VISIBLE_GPUS=visible)
++    if error:
++        assert result.returncode == 1
++        assert error in result.stdout
++        assert "visible and idle" not in result.stdout
++    else:
++        assert result.returncode == 0, result.stdout + result.stderr
++        assert f"PASS  3 SM120 GPUs ({gpus}) visible and idle" in result.stdout
 diff --git a/tests/test_tp3_release_tools.py b/tests/test_tp3_release_tools.py
 new file mode 100644
-index 00000000..db258a31
+index 00000000..7319b17f
 --- /dev/null
 +++ b/tests/test_tp3_release_tools.py
-@@ -0,0 +1,225 @@
+@@ -0,0 +1,249 @@
 +# SPDX-License-Identifier: Apache-2.0
 +import json
 +import os
@@ -96853,6 +97075,30 @@ index 00000000..db258a31
 +        assert env[name] == "0"
 +    assert env["FLARE_DS41_MARKOV_TILE_ROWS"] == "4"
 +    assert env["FLARE_DS41_MLA_DECODE_SPLITS"] == env["FLARE_DS41_ENGRAM_SIDE_LAYERS"] == ""
++
++
++@pytest.mark.parametrize("mode", ["1", "layer1", "0"])
++def test_serve_resolves_storage_and_explicit_off_switches(tmp_path, mode):
++    probe = tmp_path / "flare"
++    probe.write_text("#!/usr/bin/python3\nimport json, os, sys\nprint(json.dumps([sys.argv[1:], dict(os.environ)]))\n")
++    probe.chmod(0o755)
++    inherited = {
++        "FLARE_ENGRAM_RAM_TABLES": "0", "FLARE_ENGRAM_RAM_LAYERS": "99",
++        "FLARE_ENGRAM_PRIVATE_TABLES": "1", "FLARE_FAST_EXIT": "1",
++        "FLARE_CUDA_STACK_LIMIT": "256", "FLARE_SCHEDULER_PREFILL_MERGE_MIN_ROWS": "512",
++        "FLARE_ENGRAM_READ_AHEAD": "1",
++    }
++    result = run_script("release/serve.sh", tmp_path, FLARE=str(probe), ENGRAM_RAM=mode,
++                        FAST="0", STACK_LIMIT="", PREFILL_MERGE="", READ_AHEAD="", **inherited)
++    assert result.returncode == 0, result.stderr
++    argv, env = json.loads(result.stdout)
++    selectors = {"1": {"FLARE_ENGRAM_RAM_TABLES": "0"}, "layer1": {"FLARE_ENGRAM_RAM_LAYERS": "0"}, "0": {}}
++    assert {key: env[key] for key in inherited if key in env} == selectors[mode]
++    if mode == "1":
++        assert "--embedding-table-cache-size" not in argv
++    else:
++        assert argv[argv.index("--embedding-table-storage") + 1] == "disk"
++        assert argv[argv.index("--embedding-table-cache-size") + 1] == "32GiB"
 diff --git a/third_party/rust/README.md b/third_party/rust/README.md
 index b12895fa..988a22a8 100644
 --- a/third_party/rust/README.md
@@ -102096,25 +102342,24 @@ index 00000000..519d2fd6
 +              f" | merged {results['merged']:6.1f} us | merged saves {saved:5.1f} us/layer ({saved / results['serial'] * 100:4.1f}%) | rel err {err:.4f}")
 diff --git a/tp3-tools/release/check_env.sh b/tp3-tools/release/check_env.sh
 new file mode 100755
-index 00000000..7c560123
+index 00000000..1b5e8f4e
 --- /dev/null
 +++ b/tp3-tools/release/check_env.sh
-@@ -0,0 +1,147 @@
+@@ -0,0 +1,176 @@
 +#!/bin/bash
 +# Preflight for building and serving this release. Read-only: it changes nothing and starts nothing on the GPUs.
-+#   usage: ./check_env.sh <fork checkout dir>    the Flare clone at BASE below (EXPORT.md step 2), before or after source.patch
++#   usage: ./check_env.sh <checkout dir>    a Flare fork checkout or the upstream clone for recipe source.patch
 +#   env:   CUDA_HOME     CUDA toolkit root (default /usr/local/cuda-13.1 if present, else the nvcc on PATH)
 +#          FLARE_CACHE   where packages and the kernel tuning cache go (default ~/.cache/flare)
 +#          MIN_FREE_GB   free space required on the drive holding FLARE_CACHE (default 1100: DeepSeek checkpoint ~510 GB,
 +#                        package ~505 GB (469 GiB), tuning cache 60-80 GB; lower it if the checkpoint lives on another drive)
-+#          GPUS          GPU indices you will export and serve on (default 0,1,2)
++#          GPUS          three distinct comma-separated GPU indices (default 0,1,2)
 +# Prints one PASS / WARN / FAIL line per check and exits 1 if anything FAILed. WARN lines are steps not done yet.
 +set -uo pipefail
-+FORK=${1:?usage: check_env.sh <fork checkout dir>}
++FORK=${1:?usage: check_env.sh <checkout dir>}
 +HERE=$(dirname "$(readlink -f "$0")")
 +FLARE_CACHE=${FLARE_CACHE:-$HOME/.cache/flare}; MIN_FREE_GB=${MIN_FREE_GB:-1100}; GPUS=${GPUS:-0,1,2}
-+# Upstream base of source.patch: Hyperflare main 70069281 since the 2026-11-14 port (releases from 20261116 on);
-+# cbf21a12 for the 2026-11-10 ds41-tp3-sync builds, 972e28e4 up to 20261111.
++# Upstream Git revision targeted by the recipe's source.patch.
 +BASE=${BASE:-70069281cb3ace4365b86f4bfbbcb409da89434b}
 +fails=0
 +pass(){ echo "PASS  $*"; }; warn(){ echo "WARN  $*"; }; fail(){ echo "FAIL  $*"; fails=$((fails+1)); }
@@ -102150,16 +102395,39 @@ index 00000000..7c560123
 +command -v git >/dev/null || fail "git not found"
 +
 +# --- fork checkout and source.patch
-+if ! git -C "$FORK" rev-parse --git-dir >/dev/null 2>&1; then
++if ! checkout=$(git -C "$FORK" rev-parse --show-toplevel 2>/dev/null) ||
++   ! head=$(git -C "$FORK" rev-parse --verify HEAD 2>/dev/null); then
 +  fail "$FORK is not a git checkout (EXPORT.md step 2)"
++elif [ "$HERE" = "$checkout/tp3-tools/release" ]; then
++  if ! git -C "$FORK" cat-file -e HEAD:tp3-tools/release/check_env.sh 2>/dev/null ||
++     ! git -C "$FORK" cat-file -e HEAD:tp3-patches/flashinfer-tuning-world3.patch 2>/dev/null; then
++    fail "checkout ${head:0:8} lacks the committed TP3 release tools or FlashInfer patch"
++  elif git -C "$FORK" merge-base --is-ancestor "$BASE" "$head" 2>/dev/null; then
++    pass "TP3 fork checkout ${head:0:8} contains upstream base ${BASE:0:8}"
++  elif [ "$(git -C "$FORK" rev-parse --is-shallow-repository)" = true ] &&
++       git -C "$FORK" tag --points-at "$head" | grep -E '^hyperflare-tp3-[0-9]{8}(\.[0-9]+)?$' >/dev/null; then
++    pass "shallow TP3 release checkout ${head:0:8} has a release tag at HEAD"
++  else
++    fail "cannot verify TP3 fork checkout ${head:0:8}; use the tagged release or fetch history through ${BASE:0:8}"
++  fi
 +else
-+  head=$(git -C "$FORK" rev-parse HEAD)
-+  if [ "$head" = "$BASE" ]; then pass "fork checkout at upstream Flare ${BASE:0:8}"
-+  elif git -C "$FORK" merge-base --is-ancestor "$BASE" "$head" 2>/dev/null; then warn "fork HEAD ${head:0:8} is ahead of ${BASE:0:8} (fine if you committed source.patch on top of it)"
-+  else fail "fork HEAD ${head:0:8} is not ${BASE:0:8}: git checkout $BASE (fresh clone if coming from 20261105)"; fi
-+  if git -C "$FORK" apply --check --reverse "$HERE/source.patch" 2>/dev/null; then pass "source.patch applied"
-+  elif git -C "$FORK" apply --check "$HERE/source.patch" 2>/dev/null; then warn "source.patch not applied yet (it applies cleanly): git -C $FORK apply $HERE/source.patch"
-+  else fail "source.patch neither applied nor applicable: wrong base commit or local changes (git -C $FORK status)"; fi
++  if [ "$head" = "$(git -C "$FORK" rev-parse --verify "$BASE^{commit}" 2>/dev/null)" ]; then
++    pass "checkout at upstream Flare base ${BASE:0:8}"
++  elif git -C "$FORK" merge-base --is-ancestor "$BASE" "$head" 2>/dev/null; then
++    warn "checkout ${head:0:8} descends from ${BASE:0:8}; checking for the recipe patch"
++  else
++    fail "checkout ${head:0:8} requires upstream base $BASE (EXPORT.md step 2)"
++  fi
++  source_patch=$HERE/source.patch
++  if [ ! -f "$source_patch" ] || [ ! -r "$source_patch" ]; then
++    fail "recipe source patch missing or unreadable at $source_patch"
++  elif git -C "$FORK" apply --check --reverse "$source_patch" 2>/dev/null; then
++    pass "source.patch applied"
++  elif git -C "$FORK" apply --check "$source_patch" 2>/dev/null; then
++    warn "source.patch applies cleanly; run git -C '$FORK' apply '$source_patch'"
++  else
++    fail "source.patch neither applied nor applicable; check the base revision and local changes"
++  fi
 +fi
 +
 +# --- Python environment: uv-managed Python 3.12, FlashInfer patches, ignition.runtime_patches
@@ -102223,23 +102491,30 @@ index 00000000..7c560123
 +else fail "$free GB free on the drive holding $FLARE_CACHE; $MIN_FREE_GB GB needed (set MIN_FREE_GB if the checkpoints are on another drive)"; fi
 +
 +# --- GPUs: 3 visible SM120 cards, idle. Kernel tuning captures the power limit and clocks in effect during the export.
-+if ! command -v nvidia-smi >/dev/null; then
++IFS=, read -r gpu0 gpu1 gpu2 <<< "$GPUS"
++if [[ ! $GPUS =~ ^[0-9]+,[0-9]+,[0-9]+$ || $gpu0 = "$gpu1" || $gpu0 = "$gpu2" || $gpu1 = "$gpu2" ]]; then
++  fail "GPUS=$GPUS must specify exactly 3 distinct comma-separated GPU indices"
++elif ! command -v nvidia-smi >/dev/null; then
 +  fail "nvidia-smi not found (NVIDIA driver 615.71.09 or any driver supporting CUDA 13.1)"
++elif ! gpu_rows=$(nvidia-smi --query-gpu=index,name,compute_cap,memory.used,power.limit,clocks.max.sm,clocks.max.memory --format=csv,noheader,nounits); then
++  fail "nvidia-smi could not report visible GPUs"
 +else
 +  drv=$(nvidia-smi --query-gpu=driver_version --format=csv,noheader | head -1 | tr -d ' ')
 +  n=0; bad=0
-+  IFS=, read -ra want <<< "$GPUS"
++  want=("$gpu0" "$gpu1" "$gpu2")
 +  while IFS=, read -r idx name cc used plim smmax memmax; do
 +    idx=${idx// /}; cc=${cc// /}; used=${used// /}; plim=${plim// /}; smmax=${smmax// /}; memmax=${memmax// /}; name=${name# }
-+    for w in "${want[@]}"; do
-+      [ "$w" = "$idx" ] || continue
++    for i in "${!want[@]}"; do
++      [ "${want[i]}" = "$idx" ] || continue
++      unset 'want[i]'
 +      n=$((n+1))
 +      [ "$cc" = "12.0" ] || { fail "GPU $idx: compute capability $cc, need 12.0 (SM120, RTX PRO 6000 Blackwell)"; bad=1; }
 +      [ "$used" -lt 1024 ] || { fail "GPU $idx: $used MiB in use; stop the server and other GPU processes before exporting"; bad=1; }
 +      echo "      GPU $idx: $name · power limit $plim W · max clocks SM $smmax MHz, memory $memmax MHz · $used MiB used"
++      break
 +    done
-+  done < <(nvidia-smi --query-gpu=index,name,compute_cap,memory.used,power.limit,clocks.max.sm,clocks.max.memory --format=csv,noheader,nounits)
-+  if [ "$n" -ne 3 ]; then fail "$n of the GPUs in GPUS=$GPUS are visible; this release needs exactly 3"
++  done <<< "$gpu_rows"
++  if [ "$n" -ne 3 ]; then fail "$n of the 3 GPUs in GPUS=$GPUS are visible"
 +  elif [ "$bad" = 0 ]; then pass "3 SM120 GPUs ($GPUS) visible and idle, driver $drv"; fi
 +  echo "      Export with the power limit and clock offsets you will serve with: the tuning cache records kernels measured"
 +  echo "      at those settings. The release numbers were taken at 450 W, +75 MHz core, +6000 MHz memory offset; 350 W is 10-14% slower."
@@ -103520,10 +103795,10 @@ index 00000000..52a8ae4d
 \ No newline at end of file
 diff --git a/tp3-tools/release/export.sh b/tp3-tools/release/export.sh
 new file mode 100755
-index 00000000..fca732ec
+index 00000000..54de3b15
 --- /dev/null
 +++ b/tp3-tools/release/export.sh
-@@ -0,0 +1,172 @@
+@@ -0,0 +1,196 @@
 +#!/bin/bash
 +# Export the package from a checkpoint view (make_checkpoint_view.sh). Run it from the fork checkout with its .venv
 +# (uv sync, then re-apply tp3-patches/ to the installed FlashInfer; Hyperflare's torch/Triton fixes are applied in memory
@@ -103570,9 +103845,11 @@ index 00000000..fca732ec
 +#   MARKOV_STAGE 1 (default) = with MARKOV_HOST=1, copy each request's Markov row into VRAM once per draft step
 +#   MARKOV_TILE N = Markov score tiles cover N request rows per program (default unset = one program per row)
 +#   GLUE2    1 (default) = second decode-glue pass (fewer zero fills and copies around verification; same bytes)
-+#   SKIP_SUFFIX  prefill capacities that get an encoder-only twin (default 4096; empty = none): non-final chunks of long
-+#            prompts skip layers 21-39 and the head (serve with --scheduler-encoder-prefill false to turn it off)
-+#   IDX_SPLIT  prefill capacities whose index layers split the indexer rows across the GPUs (default 4096; empty = off)
++#   SKIP_SUFFIX  prefill capacities that get an encoder-only twin (default 4096 when captured; empty = none).
++#            Non-final chunks of long prompts skip layers 21-39 and the head. Disable at serve time with
++#            --scheduler-encoder-prefill false.
++#   IDX_SPLIT  prefill capacities whose index layers split the indexer rows across the GPUs (default 4096 when captured;
++#            empty = off)
 +#   IDX_SPLIT_MIN_CTX  only for prefill chunks from this many tokens on (default 32768; shorter prompts keep the
 +#            replicated graphs); IDX_SPLIT_VARIANTS = prefill, encoder_prefill or both (default both)
 +#   SHARE_OPERANDS  1 (default) = one computed copy per shared pointwise operand of opaque calls
@@ -103655,7 +103932,6 @@ index 00000000..fca732ec
 +       FLARE_DS41_MLA_DECODE_SPLITS=${MLA_SPLITS-18:10,37:5,47:4,62:3,94:2,96:3} \
 +       FLARE_DS41_MLA_H24=${H24-9:0,96:1} \
 +       FLARE_DS41_GLUE_PASS2=${GLUE2-1} \
-+       FLARE_DS41_PREFILL_SKIP_SUFFIX=${SKIP_SUFFIX-4096} \
 +       FLARE_EXPORT_SHARE_COMPUTED_OPERANDS=${SHARE_OPERANDS-1} \
 +       FLARE_DS41_ROTARY_ONCE=${ROTARY_ONCE-1} \
 +       FLARE_DS41_ROTARY_ONCE_PREFILL=${ROTARY_PREFILL-1} \
@@ -103678,7 +103954,32 @@ index 00000000..fca732ec
 +    export FLARE_DS41_STEERING_PLAIN_IDENTITY=${STEERING_PLAIN_ID-1}
 +fi
 +
-+export FLARE_DS41_INDEX_ROW_SPLIT=${IDX_SPLIT-4096}
++# The row split check uses a Python operator available only in debug-serve.
++[ -n "${FLARE_DS41_INDEX_ROW_SPLIT_CHECK:-}" ] && { echo "FLARE_DS41_INDEX_ROW_SPLIT_CHECK is debug-serve only" >&2; exit 2; }
++PREFILL=${PREFILL:-4096}
++DEFAULT_PREFILL_VARIANT=
++if [ "$PREFILL" = 4096 ] && [ -z "${FLARE_DS41_PREFILL_GRAPHS:-}" ]; then
++    DEFAULT_PREFILL_VARIANT=4096
++elif [ -z "${SKIP_SUFFIX+x}" ] || [ -z "${IDX_SPLIT+x}" ]; then
++    DEFAULT_PREFILL_VARIANT=$(.venv/bin/python - "$PREFILL" "${FLARE_DS41_PREFILL_GRAPHS:-}" <<'PY'
++import sys
++
++from ignition.components.capacity import prefill_capacities
++from ignition.recipes.deepseek41.tp3_config import parse_capacities
++
++try:
++    chunk = int(sys.argv[1])
++    selected = parse_capacities(sys.argv[2])
++except ValueError:
++    # Ignition reports invalid arguments and graph capacities during configuration.
++    sys.exit()
++if 4096 in prefill_capacities(chunk) and (selected is None or 4096 in selected):
++    print(4096)
++PY
++    )
++fi
++export FLARE_DS41_PREFILL_SKIP_SUFFIX=${SKIP_SUFFIX-$DEFAULT_PREFILL_VARIANT}
++export FLARE_DS41_INDEX_ROW_SPLIT=${IDX_SPLIT-$DEFAULT_PREFILL_VARIANT}
 +if [[ "$FLARE_DS41_INDEX_ROW_SPLIT" =~ ^[[:space:]]*(0)?[[:space:]]*$ ]]; then
 +    unset FLARE_DS41_INDEX_ROW_SPLIT_MIN_CTX FLARE_DS41_INDEX_ROW_SPLIT_VARIANTS
 +else
@@ -103689,10 +103990,8 @@ index 00000000..fca732ec
 +        export FLARE_DS41_INDEX_ROW_SPLIT_VARIANTS=$IDX_SPLIT_VARIANTS
 +    fi
 +fi
-+# The row split check uses a Python operator available only in debug-serve.
-+[ -n "${FLARE_DS41_INDEX_ROW_SPLIT_CHECK:-}" ] && { echo "FLARE_DS41_INDEX_ROW_SPLIT_CHECK is debug-serve only" >&2; exit 2; }
 +exec .venv/bin/ignition export "$CKPT" --gpus "${GPUS:-0,1,2}" --max-concurrency "${MAXC:-16}" \
-+  --prefill-chunk-size "${PREFILL:-4096}" --mtp-draft-tokens "${DRAFTS:-5}" --draft-head-quantization nvfp4 \
++  --prefill-chunk-size "$PREFILL" --mtp-draft-tokens "${DRAFTS:-5}" --draft-head-quantization nvfp4 \
 +  --markov-head-quantization fp8 --vocabulary-parallel-sampling --mtp-only --verbose \
 +  ${COMPILE_WORKERS:+--compile-workers "$COMPILE_WORKERS"} ${CONFIG:+--config "$CONFIG"} \
 +  ${STEERING:+--steering-sidecar "$STEERING"}
@@ -103986,7 +104285,7 @@ index 00000000..3a2ef7cb
 +echo "FP8 checkpoint view ready: $OUT"
 diff --git a/tp3-tools/release/serve.sh b/tp3-tools/release/serve.sh
 new file mode 100755
-index 00000000..4836b672
+index 00000000..9d6eb336
 --- /dev/null
 +++ b/tp3-tools/release/serve.sh
 @@ -0,0 +1,61 @@
@@ -104017,18 +104316,21 @@ index 00000000..4836b672
 +#   TAIL_MERGE    --scheduler-prefill-tail-merge (default true)
 +#   PREFILL_MERGE short message pieces at a request's own checkpoint merge into the next chunk up to this many tokens
 +#                 (FLARE_SCHEDULER_PREFILL_MERGE_MIN_ROWS; default 512; empty or 0 = off)
-+#   STACK_LIMIT   CUDA per-thread stack limit in bytes (FLARE_CUDA_STACK_LIMIT; default 256; empty = the driver
-+#                 default 1,024, fewer KV tokens)
++#   STACK_LIMIT   CUDA per-thread stack limit in bytes (FLARE_CUDA_STACK_LIMIT; default 256; empty = use the limit
++#                 recorded in the core, 1,024 for the release package)
 +#   FAST=0        turn off private Engram tables on 4 KiB pages and fast exit (FLARE_ENGRAM_PRIVATE_TABLES,
 +#                 FLARE_FAST_EXIT; on by default: faster start and stop)
 +#   GPUS, PORT, HOST   default 0,1,2 / 15015 / 127.0.0.1 (plain HTTP: see README "Over a network" before changing HOST)
 +set -euo pipefail
 +FLARE=${FLARE:-flare-cli/target/release/flare}
 +PACKAGE=${PACKAGE:-ds41-1017-engram-fp8}
++# Start with the wrapper's settings even when a parent service exported Flare overrides.
++unset FLARE_ENGRAM_RAM_TABLES FLARE_ENGRAM_RAM_LAYERS FLARE_ENGRAM_PRIVATE_TABLES FLARE_FAST_EXIT
++unset FLARE_CUDA_STACK_LIMIT FLARE_SCHEDULER_PREFILL_MERGE_MIN_ROWS FLARE_ENGRAM_READ_AHEAD
 +ENV=() STORAGE=() EXTRA=()
 +case ${ENGRAM_RAM:-1} in
 +  1) ENV+=(FLARE_ENGRAM_RAM_TABLES=0) ;;
-+  layer1) ENV+=(FLARE_ENGRAM_RAM_LAYERS=0); STORAGE=(--embedding-table-cache-size "${ENGRAM_CACHE:-32GiB}") ;;
++  layer1) ENV+=(FLARE_ENGRAM_RAM_LAYERS=0); STORAGE=(--embedding-table-storage disk --embedding-table-cache-size "${ENGRAM_CACHE:-32GiB}") ;;
 +  0) STORAGE=(--embedding-table-storage disk --embedding-table-cache-size "${ENGRAM_CACHE:-32GiB}") ;;
 +  *) echo "ENGRAM_RAM must be 1, layer1 or 0" >&2; exit 2 ;;
 +esac
@@ -104042,10 +104344,7 @@ index 00000000..4836b672
 +  [ -r "$STEERING_KEYS_FILE" ] || { echo "STEERING_KEYS_FILE $STEERING_KEYS_FILE is not readable" >&2; exit 2; }
 +  ENV+=(FLARE_STEERING_API_KEYS_FILE="$STEERING_KEYS_FILE")
 +fi
-+# /usr/bin/env explicitly: some shells put another `env` (for example uv's) first on PATH. -u: an empty
-+# READ_AHEAD turns read-ahead off even if the caller's environment sets it.
-+UNSET=(); [ -n "$RA" ] || UNSET=(-u FLARE_ENGRAM_READ_AHEAD)
-+exec /usr/bin/env "${UNSET[@]}" "${ENV[@]}" "$FLARE" run "$PACKAGE" --gpus "${GPUS:-0,1,2}" --port "${PORT:-15015}" \
++exec /usr/bin/env "${ENV[@]}" "$FLARE" run "$PACKAGE" --gpus "${GPUS:-0,1,2}" --port "${PORT:-15015}" \
 +  --host "${HOST:-127.0.0.1}" --served-model-name DeepSeek-V4.1-Flash --prefix-cache-memory "${PREFIX_CACHE:-12G}" \
 +  --mtp-draft-tokens "${DRAFTS:-5}" --mtp-adaptive-verification --mtp-max-verification-token-budget "${BUDGET:-32}" \
 +  --mtp-adaptive-verification-alpha "${ALPHA:-0.8}" --scheduler-policy "${SCHEDULER:-interactive}" \

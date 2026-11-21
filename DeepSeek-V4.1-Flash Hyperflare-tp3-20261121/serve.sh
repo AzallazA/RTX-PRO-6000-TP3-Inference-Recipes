@@ -25,18 +25,21 @@
 #   TAIL_MERGE    --scheduler-prefill-tail-merge (default true)
 #   PREFILL_MERGE short message pieces at a request's own checkpoint merge into the next chunk up to this many tokens
 #                 (FLARE_SCHEDULER_PREFILL_MERGE_MIN_ROWS; default 512; empty or 0 = off)
-#   STACK_LIMIT   CUDA per-thread stack limit in bytes (FLARE_CUDA_STACK_LIMIT; default 256; empty = the driver
-#                 default 1,024, fewer KV tokens)
+#   STACK_LIMIT   CUDA per-thread stack limit in bytes (FLARE_CUDA_STACK_LIMIT; default 256; empty = use the limit
+#                 recorded in the core, 1,024 for the release package)
 #   FAST=0        turn off private Engram tables on 4 KiB pages and fast exit (FLARE_ENGRAM_PRIVATE_TABLES,
 #                 FLARE_FAST_EXIT; on by default: faster start and stop)
 #   GPUS, PORT, HOST   default 0,1,2 / 15015 / 127.0.0.1 (plain HTTP: see README "Over a network" before changing HOST)
 set -euo pipefail
 FLARE=${FLARE:-flare-cli/target/release/flare}
 PACKAGE=${PACKAGE:-ds41-1017-engram-fp8}
+# Start with the wrapper's settings even when a parent service exported Flare overrides.
+unset FLARE_ENGRAM_RAM_TABLES FLARE_ENGRAM_RAM_LAYERS FLARE_ENGRAM_PRIVATE_TABLES FLARE_FAST_EXIT
+unset FLARE_CUDA_STACK_LIMIT FLARE_SCHEDULER_PREFILL_MERGE_MIN_ROWS FLARE_ENGRAM_READ_AHEAD
 ENV=() STORAGE=() EXTRA=()
 case ${ENGRAM_RAM:-1} in
   1) ENV+=(FLARE_ENGRAM_RAM_TABLES=0) ;;
-  layer1) ENV+=(FLARE_ENGRAM_RAM_LAYERS=0); STORAGE=(--embedding-table-cache-size "${ENGRAM_CACHE:-32GiB}") ;;
+  layer1) ENV+=(FLARE_ENGRAM_RAM_LAYERS=0); STORAGE=(--embedding-table-storage disk --embedding-table-cache-size "${ENGRAM_CACHE:-32GiB}") ;;
   0) STORAGE=(--embedding-table-storage disk --embedding-table-cache-size "${ENGRAM_CACHE:-32GiB}") ;;
   *) echo "ENGRAM_RAM must be 1, layer1 or 0" >&2; exit 2 ;;
 esac
@@ -50,10 +53,7 @@ if [ -n "${STEERING_KEYS_FILE:-}" ]; then
   [ -r "$STEERING_KEYS_FILE" ] || { echo "STEERING_KEYS_FILE $STEERING_KEYS_FILE is not readable" >&2; exit 2; }
   ENV+=(FLARE_STEERING_API_KEYS_FILE="$STEERING_KEYS_FILE")
 fi
-# /usr/bin/env explicitly: some shells put another `env` (for example uv's) first on PATH. -u: an empty
-# READ_AHEAD turns read-ahead off even if the caller's environment sets it.
-UNSET=(); [ -n "$RA" ] || UNSET=(-u FLARE_ENGRAM_READ_AHEAD)
-exec /usr/bin/env "${UNSET[@]}" "${ENV[@]}" "$FLARE" run "$PACKAGE" --gpus "${GPUS:-0,1,2}" --port "${PORT:-15015}" \
+exec /usr/bin/env "${ENV[@]}" "$FLARE" run "$PACKAGE" --gpus "${GPUS:-0,1,2}" --port "${PORT:-15015}" \
   --host "${HOST:-127.0.0.1}" --served-model-name DeepSeek-V4.1-Flash --prefix-cache-memory "${PREFIX_CACHE:-12G}" \
   --mtp-draft-tokens "${DRAFTS:-5}" --mtp-adaptive-verification --mtp-max-verification-token-budget "${BUDGET:-32}" \
   --mtp-adaptive-verification-alpha "${ALPHA:-0.8}" --scheduler-policy "${SCHEDULER:-interactive}" \

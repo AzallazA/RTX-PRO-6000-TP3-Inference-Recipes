@@ -1,6 +1,14 @@
 # Exporting the package yourself
 
-**DS41 TP3 maintenance update. No re-export is needed if you already have the Nov 21 package.** The updated `flare` fixes steering access and accepts an explicit zero steering scale on Messages and Responses. Rebuild the server from `hyperflare-tp3-20261121.1` and restart it with your existing package. The update was tested on all three GPUs with `gb202-tp3-202611201530`. [Release notes](https://github.com/AzallazA/hyperflare-inference/releases/tag/hyperflare-tp3-20261121.1)
+## DS41 TP3 update
+
+**Already have the Nov 21 package? Keep `gb202-tp3-202611201530`. No re-export is needed.**
+
+- **Server.** Build `flare` from `hyperflare-tp3-20261121.1` if you have the original Nov 21 binary. The maintenance binary fixes steering access and accepts an explicit zero steering scale on Messages and Responses.
+- **Export and preparation.** The tools check overlay capabilities, honor explicit export switches, and preserve previous outputs if preparation fails.
+- **Release scripts.** Refresh the Nov 21 recipe folder from `main`. The launcher honors the requested Engram storage and feature settings even when the shell exports conflicting values. Custom exports enable the 4,096-row variants only when the selected prefill ladder includes them. Preflight recognizes tagged shallow fork checkouts when run from the fork, checks the adjacent source patch when run from the recipe, and requires three distinct visible GPU indices.
+
+If you already run the `.1` binary, use the updated scripts with it on your next launch. [Release notes](https://github.com/AzallazA/hyperflare-inference/releases/tag/hyperflare-tp3-20261121.1)
 
 **To update an existing server**, build the tagged fork in a fresh checkout:
 
@@ -47,7 +55,7 @@ The exact versions behind every number in this folder (driver, toolkit, torch, F
 ## 2. Build the fork
 
 This folder’s `source.patch` applies to upstream NVIDIA Hyperflare at `70069281` and reproduces fork commit
-`d53fd8d4`, tag `hyperflare-tp3-20261121.1`. The original Nov 21 benchmarks used the binary built from `a7c3a04a`.
+`607fb7f9`. Its runtime matches tag `hyperflare-tp3-20261121.1`; the later commits update release scripts and their tests. The original Nov 21 benchmarks used the binary built from `a7c3a04a`.
 The maintenance binary was verified against that same exported package.
 (Releases up to 20261111 were based on `972e28e4`, the 2026-11-10 sync builds on `cbf21a12`; the 2026-11-14 port moved
 the base to `70069281`. A checkout of an older base needs a fresh `git checkout`, not a patch on top.)

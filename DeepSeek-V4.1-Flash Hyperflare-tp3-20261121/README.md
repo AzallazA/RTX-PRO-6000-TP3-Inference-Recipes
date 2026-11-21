@@ -1,6 +1,14 @@
 # DeepSeek-V4.1-Flash-1017 on NVIDIA Hyperflare at TP3 — 20261121
 
-**DS41 TP3 maintenance update. No re-export is needed if you already have the Nov 21 package.** The updated `flare` fixes steering access and accepts an explicit zero steering scale on Messages and Responses. Rebuild the server from `hyperflare-tp3-20261121.1` and restart it with your existing package. The update was tested on all three GPUs with `gb202-tp3-202611201530`. [Release notes](https://github.com/AzallazA/hyperflare-inference/releases/tag/hyperflare-tp3-20261121.1)
+## DS41 TP3 update
+
+**Already have the Nov 21 package? Keep `gb202-tp3-202611201530`. No re-export is needed.**
+
+- **Server.** Build `flare` from `hyperflare-tp3-20261121.1` if you have the original Nov 21 binary. The maintenance binary fixes steering access and accepts an explicit zero steering scale on Messages and Responses.
+- **Export and preparation.** The tools check overlay capabilities, honor explicit export switches, and preserve previous outputs if preparation fails.
+- **Release scripts.** Refresh the Nov 21 recipe folder from `main`. The launcher honors the requested Engram storage and feature settings even when the shell exports conflicting values. Custom exports enable the 4,096-row variants only when the selected prefill ladder includes them. Preflight recognizes tagged shallow fork checkouts when run from the fork, checks the adjacent source patch when run from the recipe, and requires three distinct visible GPU indices.
+
+If you already run the `.1` binary, use the updated scripts with it on your next launch. [Release notes](https://github.com/AzallazA/hyperflare-inference/releases/tag/hyperflare-tp3-20261121.1)
 
 > **Flare = Hyperflare.** NVIDIA renamed Flare to **Hyperflare** ([NVIDIA/hyperflare-inference](https://github.com/NVIDIA/hyperflare-inference)).
 > The binary, the CLI (`flare run`, `flare models`) and the cache paths (`~/.cache/flare`) are still called `flare`.
@@ -33,8 +41,8 @@ Weights: [deepseek-ai/DeepSeek-V4.1-Flash-1017](https://huggingface.co/deepseek-
 Steering sidecar: [jcartu/WARMIND-1017-Steering-Sidecar](https://huggingface.co/jcartu/WARMIND-1017-Steering-Sidecar)
 @ `1bf69d8f`, file `warmind-v1.1-orth4c-steering.safetensors` (sha256 `68551f9b…6a2d`, MIT).
 Runtime: [NVIDIA Hyperflare](https://github.com/NVIDIA/hyperflare-inference) `main` @ `70069281` plus this fork
-(`source.patch`; the same code is the public fork https://github.com/AzallazA/hyperflare-inference at tag
-`hyperflare-tp3-20261121.1`), FlashInfer @ `aa6c4221` (upstream's pin, 0.7.3) plus the patches in `tp3-patches/` and the b12x
+(`source.patch`; the public fork is https://github.com/AzallazA/hyperflare-inference at commit
+`607fb7f9`, with runtime from `hyperflare-tp3-20261121.1`), FlashInfer @ `aa6c4221` (upstream's pin, 0.7.3) plus the patches in `tp3-patches/` and the b12x
 overlay patches in `tp3-patches/overlay/` (`flashinfer-pcie-twoshot-pull-world3.patch`, `flashinfer-dcp-gather-pull-world3.patch`).
 The fused layer tail is adapted from [fraserprice/DeepSeek-4.1-Flash-1017-BRRR](https://huggingface.co/fraserprice/DeepSeek-4.1-Flash-1017-BRRR) (Apache-2.0).
 
@@ -394,7 +402,7 @@ The model name is the checkpoint directory's name: this view exports as `ds41-10
 | `ENGRAM-PRECISION.md` | MXFP4 vs FP8 Engram tables (unchanged from 20261116) |
 | `serve.sh` / `export.sh` | serve the package / export it from a checkpoint view |
 | `make_checkpoint_view.sh` | build the FP8 checkpoint view from DeepSeek's snapshot |
-| `source.patch` | the fork's changes against Hyperflare `70069281` (`git diff --binary 70069281 d53fd8d4`, fork tag `hyperflare-tp3-20261121.1`; 720 files, 419 new; applied to a clean `70069281` it gives the fork tree exactly) |
+| `source.patch` | the fork's changes against Hyperflare `70069281` (`git diff --binary 70069281 607fb7f9`, runtime tag `hyperflare-tp3-20261121.1`; 721 files, 420 new; applied to a clean `70069281` it gives the fork tree exactly) |
 | `expert-order/` | per-layer route counts that set the hot-expert placement: the blended code and prose order (new; `expert-order/SHA256SUMS`) |
 | `tp3-patches/` | the four FlashInfer patches, and `overlay/` with the b12x two-shot pull patch and the DCP gather pull patch (`flashinfer-dcp-gather-pull-world3.patch`, new) |
 | `tools/` | as in 20261116 (`ttft_under_load.py`, `bench_steps.py`, `verify_fix.py`, `consistency.py`, `llm-bench-flare-steps.patch`), plus the steering tools `steer_proxy.py`, `refusal_set.py`, `steering_access_check.py` (see [Steering tools](#steering-tools)); sha256 of every tool in `tools/SHA256SUMS` |

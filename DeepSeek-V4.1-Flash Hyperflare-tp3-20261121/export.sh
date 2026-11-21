@@ -44,9 +44,11 @@
 #   MARKOV_STAGE 1 (default) = with MARKOV_HOST=1, copy each request's Markov row into VRAM once per draft step
 #   MARKOV_TILE N = Markov score tiles cover N request rows per program (default unset = one program per row)
 #   GLUE2    1 (default) = second decode-glue pass (fewer zero fills and copies around verification; same bytes)
-#   SKIP_SUFFIX  prefill capacities that get an encoder-only twin (default 4096; empty = none): non-final chunks of long
-#            prompts skip layers 21-39 and the head (serve with --scheduler-encoder-prefill false to turn it off)
-#   IDX_SPLIT  prefill capacities whose index layers split the indexer rows across the GPUs (default 4096; empty = off)
+#   SKIP_SUFFIX  prefill capacities that get an encoder-only twin (default 4096 when captured; empty = none).
+#            Non-final chunks of long prompts skip layers 21-39 and the head. Disable at serve time with
+#            --scheduler-encoder-prefill false.
+#   IDX_SPLIT  prefill capacities whose index layers split the indexer rows across the GPUs (default 4096 when captured;
+#            empty = off)
 #   IDX_SPLIT_MIN_CTX  only for prefill chunks from this many tokens on (default 32768; shorter prompts keep the
 #            replicated graphs); IDX_SPLIT_VARIANTS = prefill, encoder_prefill or both (default both)
 #   SHARE_OPERANDS  1 (default) = one computed copy per shared pointwise operand of opaque calls
@@ -129,7 +131,6 @@ export FLARE_DS41_INDEX_SIDE_STREAM=${INDEX_SIDE-1} \
        FLARE_DS41_MLA_DECODE_SPLITS=${MLA_SPLITS-18:10,37:5,47:4,62:3,94:2,96:3} \
        FLARE_DS41_MLA_H24=${H24-9:0,96:1} \
        FLARE_DS41_GLUE_PASS2=${GLUE2-1} \
-       FLARE_DS41_PREFILL_SKIP_SUFFIX=${SKIP_SUFFIX-4096} \
        FLARE_EXPORT_SHARE_COMPUTED_OPERANDS=${SHARE_OPERANDS-1} \
        FLARE_DS41_ROTARY_ONCE=${ROTARY_ONCE-1} \
        FLARE_DS41_ROTARY_ONCE_PREFILL=${ROTARY_PREFILL-1} \
@@ -152,7 +153,32 @@ if [ "${STEERING_PLAIN_ID+x}" ] || [ -n "${STEERING:-}" ]; then
     export FLARE_DS41_STEERING_PLAIN_IDENTITY=${STEERING_PLAIN_ID-1}
 fi
 
-export FLARE_DS41_INDEX_ROW_SPLIT=${IDX_SPLIT-4096}
+# The row split check uses a Python operator available only in debug-serve.
+[ -n "${FLARE_DS41_INDEX_ROW_SPLIT_CHECK:-}" ] && { echo "FLARE_DS41_INDEX_ROW_SPLIT_CHECK is debug-serve only" >&2; exit 2; }
+PREFILL=${PREFILL:-4096}
+DEFAULT_PREFILL_VARIANT=
+if [ "$PREFILL" = 4096 ] && [ -z "${FLARE_DS41_PREFILL_GRAPHS:-}" ]; then
+    DEFAULT_PREFILL_VARIANT=4096
+elif [ -z "${SKIP_SUFFIX+x}" ] || [ -z "${IDX_SPLIT+x}" ]; then
+    DEFAULT_PREFILL_VARIANT=$(.venv/bin/python - "$PREFILL" "${FLARE_DS41_PREFILL_GRAPHS:-}" <<'PY'
+import sys
+
+from ignition.components.capacity import prefill_capacities
+from ignition.recipes.deepseek41.tp3_config import parse_capacities
+
+try:
+    chunk = int(sys.argv[1])
+    selected = parse_capacities(sys.argv[2])
+except ValueError:
+    # Ignition reports invalid arguments and graph capacities during configuration.
+    sys.exit()
+if 4096 in prefill_capacities(chunk) and (selected is None or 4096 in selected):
+    print(4096)
+PY
+    )
+fi
+export FLARE_DS41_PREFILL_SKIP_SUFFIX=${SKIP_SUFFIX-$DEFAULT_PREFILL_VARIANT}
+export FLARE_DS41_INDEX_ROW_SPLIT=${IDX_SPLIT-$DEFAULT_PREFILL_VARIANT}
 if [[ "$FLARE_DS41_INDEX_ROW_SPLIT" =~ ^[[:space:]]*(0)?[[:space:]]*$ ]]; then
     unset FLARE_DS41_INDEX_ROW_SPLIT_MIN_CTX FLARE_DS41_INDEX_ROW_SPLIT_VARIANTS
 else
@@ -163,10 +189,8 @@ else
         export FLARE_DS41_INDEX_ROW_SPLIT_VARIANTS=$IDX_SPLIT_VARIANTS
     fi
 fi
-# The row split check uses a Python operator available only in debug-serve.
-[ -n "${FLARE_DS41_INDEX_ROW_SPLIT_CHECK:-}" ] && { echo "FLARE_DS41_INDEX_ROW_SPLIT_CHECK is debug-serve only" >&2; exit 2; }
 exec .venv/bin/ignition export "$CKPT" --gpus "${GPUS:-0,1,2}" --max-concurrency "${MAXC:-16}" \
-  --prefill-chunk-size "${PREFILL:-4096}" --mtp-draft-tokens "${DRAFTS:-5}" --draft-head-quantization nvfp4 \
+  --prefill-chunk-size "$PREFILL" --mtp-draft-tokens "${DRAFTS:-5}" --draft-head-quantization nvfp4 \
   --markov-head-quantization fp8 --vocabulary-parallel-sampling --mtp-only --verbose \
   ${COMPILE_WORKERS:+--compile-workers "$COMPILE_WORKERS"} ${CONFIG:+--config "$CONFIG"} \
   ${STEERING:+--steering-sidecar "$STEERING"}
