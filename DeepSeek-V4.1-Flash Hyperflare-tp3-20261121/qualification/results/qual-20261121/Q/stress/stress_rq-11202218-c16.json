@@ -1,0 +1,14 @@
+{
+ "preset": "rq-11202218-c16",
+ "capacity": 5687040,
+ "verdict": "PASS",
+ "waves": 2,
+ "long_ok": 32,
+ "long_total": 32,
+ "ping_ok": 168,
+ "ping_total": 168,
+ "prompt_tokens": 19025719,
+ "min_free_mib": 78,
+ "bad_log_lines": [],
+ "wall_min": 20.328493718306223
+}

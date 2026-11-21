@@ -1,0 +1,599 @@
+22:47:51 rewritten 0 passthrough 1 errors 0 disconnects 0 idle 0 completed 0
+22:47:51 rewritten 0 passthrough 1 errors 0 disconnects 0 idle 0 completed 1
+22:47:51 rewritten 0 passthrough 2 errors 0 disconnects 0 idle 0 completed 1
+22:47:51 rewritten 0 passthrough 2 errors 0 disconnects 0 idle 0 completed 2
+22:47:51 REWRITE POST /v1/chat/completions steering_scale 1.0 (client sent absent)
+22:47:51 rewritten 1 passthrough 2 errors 0 disconnects 0 idle 0 completed 2
+22:47:51 REWRITE POST /v1/chat/completions steering_scale 1.0 (client sent absent)
+22:47:51 rewritten 2 passthrough 2 errors 0 disconnects 0 idle 0 completed 2
+22:47:51 REWRITE POST /v1/chat/completions steering_scale 1.0 (client sent absent)
+22:47:51 rewritten 3 passthrough 2 errors 0 disconnects 0 idle 0 completed 2
+22:47:51 REWRITE POST /v1/chat/completions steering_scale 1.0 (client sent absent)
+22:47:51 rewritten 4 passthrough 2 errors 0 disconnects 0 idle 0 completed 2
+22:47:51 REWRITE POST /v1/chat/completions steering_scale 1.0 (client sent absent)
+22:47:51 rewritten 5 passthrough 2 errors 0 disconnects 0 idle 0 completed 2
+22:47:51 REWRITE POST /v1/chat/completions steering_scale 1.0 (client sent absent)
+22:47:51 rewritten 6 passthrough 2 errors 0 disconnects 0 idle 0 completed 2
+22:47:51 REWRITE POST /v1/chat/completions steering_scale 1.0 (client sent absent)
+22:47:51 rewritten 7 passthrough 2 errors 0 disconnects 0 idle 0 completed 2
+22:47:51 REWRITE POST /v1/chat/completions steering_scale 1.0 (client sent absent)
+22:47:51 rewritten 8 passthrough 2 errors 0 disconnects 0 idle 0 completed 2
+22:47:54 rewritten 8 passthrough 2 errors 0 disconnects 0 idle 0 completed 3
+22:47:54 REWRITE POST /v1/chat/completions steering_scale 1.0 (client sent absent)
+22:47:54 rewritten 9 passthrough 2 errors 0 disconnects 0 idle 0 completed 3
+22:47:54 rewritten 9 passthrough 2 errors 0 disconnects 0 idle 0 completed 4
+22:47:55 REWRITE POST /v1/chat/completions steering_scale 1.0 (client sent absent)
+22:47:55 rewritten 10 passthrough 2 errors 0 disconnects 0 idle 0 completed 4
+22:47:55 rewritten 10 passthrough 2 errors 0 disconnects 0 idle 0 completed 5
+22:47:55 REWRITE POST /v1/chat/completions steering_scale 1.0 (client sent absent)
+22:47:55 rewritten 11 passthrough 2 errors 0 disconnects 0 idle 0 completed 5
+22:47:56 rewritten 11 passthrough 2 errors 0 disconnects 0 idle 0 completed 6
+22:47:56 REWRITE POST /v1/chat/completions steering_scale 1.0 (client sent absent)
+22:47:56 rewritten 12 passthrough 2 errors 0 disconnects 0 idle 0 completed 6
+22:47:56 rewritten 12 passthrough 2 errors 0 disconnects 0 idle 0 completed 7
+22:47:56 REWRITE POST /v1/chat/completions steering_scale 1.0 (client sent absent)
+22:47:56 rewritten 13 passthrough 2 errors 0 disconnects 0 idle 0 completed 7
+22:47:57 rewritten 13 passthrough 2 errors 0 disconnects 0 idle 0 completed 8
+22:47:57 REWRITE POST /v1/chat/completions steering_scale 1.0 (client sent absent)
+22:47:57 rewritten 14 passthrough 2 errors 0 disconnects 0 idle 0 completed 8
+22:48:01 rewritten 14 passthrough 2 errors 0 disconnects 0 idle 0 completed 9
+22:48:01 REWRITE POST /v1/chat/completions steering_scale 1.0 (client sent absent)
+22:48:01 rewritten 15 passthrough 2 errors 0 disconnects 0 idle 0 completed 9
+22:48:06 rewritten 15 passthrough 2 errors 0 disconnects 0 idle 0 completed 10
+22:48:06 REWRITE POST /v1/chat/completions steering_scale 1.0 (client sent absent)
+22:48:06 rewritten 16 passthrough 2 errors 0 disconnects 0 idle 0 completed 10
+22:48:08 rewritten 16 passthrough 2 errors 0 disconnects 0 idle 0 completed 11
+22:48:08 REWRITE POST /v1/chat/completions steering_scale 1.0 (client sent absent)
+22:48:08 rewritten 17 passthrough 2 errors 0 disconnects 0 idle 0 completed 11
+22:48:12 rewritten 17 passthrough 2 errors 0 disconnects 0 idle 0 completed 12
+22:48:12 REWRITE POST /v1/chat/completions steering_scale 1.0 (client sent absent)
+22:48:12 rewritten 18 passthrough 2 errors 0 disconnects 0 idle 0 completed 12
+22:48:12 rewritten 18 passthrough 2 errors 0 disconnects 0 idle 0 completed 13
+22:48:12 REWRITE POST /v1/chat/completions steering_scale 1.0 (client sent absent)
+22:48:12 rewritten 19 passthrough 2 errors 0 disconnects 0 idle 0 completed 13
+22:48:18 rewritten 19 passthrough 2 errors 0 disconnects 0 idle 0 completed 14
+22:48:18 REWRITE POST /v1/chat/completions steering_scale 1.0 (client sent absent)
+22:48:18 rewritten 20 passthrough 2 errors 0 disconnects 0 idle 0 completed 14
+22:48:19 rewritten 20 passthrough 2 errors 0 disconnects 0 idle 0 completed 15
+22:48:19 REWRITE POST /v1/chat/completions steering_scale 1.0 (client sent absent)
+22:48:19 rewritten 21 passthrough 2 errors 0 disconnects 0 idle 0 completed 15
+22:48:29 rewritten 21 passthrough 2 errors 0 disconnects 0 idle 0 completed 16
+22:48:29 REWRITE POST /v1/chat/completions steering_scale 1.0 (client sent absent)
+22:48:29 rewritten 22 passthrough 2 errors 0 disconnects 0 idle 0 completed 16
+22:48:29 rewritten 22 passthrough 2 errors 0 disconnects 0 idle 0 completed 17
+22:48:29 REWRITE POST /v1/chat/completions steering_scale 1.0 (client sent absent)
+22:48:29 rewritten 23 passthrough 2 errors 0 disconnects 0 idle 0 completed 17
+22:48:48 rewritten 23 passthrough 2 errors 0 disconnects 0 idle 0 completed 18
+22:48:48 REWRITE POST /v1/chat/completions steering_scale 1.0 (client sent absent)
+22:48:48 rewritten 24 passthrough 2 errors 0 disconnects 0 idle 0 completed 18
+22:49:01 rewritten 24 passthrough 2 errors 0 disconnects 0 idle 0 completed 19
+22:49:01 REWRITE POST /v1/chat/completions steering_scale 1.0 (client sent absent)
+22:49:01 rewritten 25 passthrough 2 errors 0 disconnects 0 idle 0 completed 19
+22:49:04 rewritten 25 passthrough 2 errors 0 disconnects 0 idle 0 completed 20
+22:49:04 REWRITE POST /v1/chat/completions steering_scale 1.0 (client sent absent)
+22:49:04 rewritten 26 passthrough 2 errors 0 disconnects 0 idle 0 completed 20
+22:49:10 rewritten 26 passthrough 2 errors 0 disconnects 0 idle 0 completed 21
+22:49:10 REWRITE POST /v1/chat/completions steering_scale 1.0 (client sent absent)
+22:49:10 rewritten 27 passthrough 2 errors 0 disconnects 0 idle 0 completed 21
+22:49:16 rewritten 27 passthrough 2 errors 0 disconnects 0 idle 0 completed 22
+22:49:16 REWRITE POST /v1/chat/completions steering_scale 1.0 (client sent absent)
+22:49:16 rewritten 28 passthrough 2 errors 0 disconnects 0 idle 0 completed 22
+22:49:29 rewritten 28 passthrough 2 errors 0 disconnects 0 idle 0 completed 23
+22:49:29 REWRITE POST /v1/chat/completions steering_scale 1.0 (client sent absent)
+22:49:29 rewritten 29 passthrough 2 errors 0 disconnects 0 idle 0 completed 23
+22:50:06 rewritten 29 passthrough 2 errors 0 disconnects 0 idle 0 completed 24
+22:50:06 REWRITE POST /v1/chat/completions steering_scale 1.0 (client sent absent)
+22:50:06 rewritten 30 passthrough 2 errors 0 disconnects 0 idle 0 completed 24
+22:50:15 rewritten 30 passthrough 2 errors 0 disconnects 0 idle 0 completed 25
+22:50:15 REWRITE POST /v1/chat/completions steering_scale 1.0 (client sent absent)
+22:50:15 rewritten 31 passthrough 2 errors 0 disconnects 0 idle 0 completed 25
+22:50:18 rewritten 31 passthrough 2 errors 0 disconnects 0 idle 0 completed 26
+22:50:18 REWRITE POST /v1/chat/completions steering_scale 1.0 (client sent absent)
+22:50:18 rewritten 32 passthrough 2 errors 0 disconnects 0 idle 0 completed 26
+22:50:37 rewritten 32 passthrough 2 errors 0 disconnects 0 idle 0 completed 27
+22:50:37 REWRITE POST /v1/chat/completions steering_scale 1.0 (client sent absent)
+22:50:37 rewritten 33 passthrough 2 errors 0 disconnects 0 idle 0 completed 27
+22:50:41 rewritten 33 passthrough 2 errors 0 disconnects 0 idle 0 completed 28
+22:50:41 REWRITE POST /v1/chat/completions steering_scale 1.0 (client sent absent)
+22:50:41 rewritten 34 passthrough 2 errors 0 disconnects 0 idle 0 completed 28
+22:50:57 rewritten 34 passthrough 2 errors 0 disconnects 0 idle 0 completed 29
+22:50:57 REWRITE POST /v1/chat/completions steering_scale 1.0 (client sent absent)
+22:50:57 rewritten 35 passthrough 2 errors 0 disconnects 0 idle 0 completed 29
+22:51:06 rewritten 35 passthrough 2 errors 0 disconnects 0 idle 0 completed 30
+22:51:06 REWRITE POST /v1/chat/completions steering_scale 1.0 (client sent absent)
+22:51:06 rewritten 36 passthrough 2 errors 0 disconnects 0 idle 0 completed 30
+22:51:11 rewritten 36 passthrough 2 errors 0 disconnects 0 idle 0 completed 31
+22:51:11 REWRITE POST /v1/chat/completions steering_scale 1.0 (client sent absent)
+22:51:11 rewritten 37 passthrough 2 errors 0 disconnects 0 idle 0 completed 31
+22:51:27 rewritten 37 passthrough 2 errors 0 disconnects 0 idle 0 completed 32
+22:51:27 REWRITE POST /v1/chat/completions steering_scale 1.0 (client sent absent)
+22:51:27 rewritten 38 passthrough 2 errors 0 disconnects 0 idle 0 completed 32
+22:51:41 rewritten 38 passthrough 2 errors 0 disconnects 0 idle 0 completed 33
+22:51:41 REWRITE POST /v1/chat/completions steering_scale 1.0 (client sent absent)
+22:51:41 rewritten 39 passthrough 2 errors 0 disconnects 0 idle 0 completed 33
+22:51:42 rewritten 39 passthrough 2 errors 0 disconnects 0 idle 0 completed 34
+22:51:42 REWRITE POST /v1/chat/completions steering_scale 1.0 (client sent absent)
+22:51:42 rewritten 40 passthrough 2 errors 0 disconnects 0 idle 0 completed 34
+22:51:44 rewritten 40 passthrough 2 errors 0 disconnects 0 idle 0 completed 35
+22:51:44 REWRITE POST /v1/chat/completions steering_scale 1.0 (client sent absent)
+22:51:44 rewritten 41 passthrough 2 errors 0 disconnects 0 idle 0 completed 35
+22:51:45 rewritten 41 passthrough 2 errors 0 disconnects 0 idle 0 completed 36
+22:51:45 REWRITE POST /v1/chat/completions steering_scale 1.0 (client sent absent)
+22:51:45 rewritten 42 passthrough 2 errors 0 disconnects 0 idle 0 completed 36
+22:51:48 rewritten 42 passthrough 2 errors 0 disconnects 0 idle 0 completed 37
+22:51:48 REWRITE POST /v1/chat/completions steering_scale 1.0 (client sent absent)
+22:51:48 rewritten 43 passthrough 2 errors 0 disconnects 0 idle 0 completed 37
+22:51:51 rewritten 43 passthrough 2 errors 0 disconnects 0 idle 0 completed 38
+22:51:52 REWRITE POST /v1/chat/completions steering_scale 1.0 (client sent absent)
+22:51:52 rewritten 44 passthrough 2 errors 0 disconnects 0 idle 0 completed 38
+22:51:53 rewritten 44 passthrough 2 errors 0 disconnects 0 idle 0 completed 39
+22:51:53 REWRITE POST /v1/chat/completions steering_scale 1.0 (client sent absent)
+22:51:53 rewritten 45 passthrough 2 errors 0 disconnects 0 idle 0 completed 39
+22:51:55 rewritten 45 passthrough 2 errors 0 disconnects 0 idle 0 completed 40
+22:51:55 REWRITE POST /v1/chat/completions steering_scale 1.0 (client sent absent)
+22:51:55 rewritten 46 passthrough 2 errors 0 disconnects 0 idle 0 completed 40
+22:52:03 rewritten 46 passthrough 2 errors 0 disconnects 0 idle 0 completed 41
+22:52:03 REWRITE POST /v1/chat/completions steering_scale 1.0 (client sent absent)
+22:52:03 rewritten 47 passthrough 2 errors 0 disconnects 0 idle 0 completed 41
+22:52:08 rewritten 47 passthrough 2 errors 0 disconnects 0 idle 0 completed 42
+22:52:08 REWRITE POST /v1/chat/completions steering_scale 1.0 (client sent absent)
+22:52:08 rewritten 48 passthrough 2 errors 0 disconnects 0 idle 0 completed 42
+22:52:10 rewritten 48 passthrough 2 errors 0 disconnects 0 idle 0 completed 43
+22:52:10 REWRITE POST /v1/chat/completions steering_scale 1.0 (client sent absent)
+22:52:10 rewritten 49 passthrough 2 errors 0 disconnects 0 idle 0 completed 43
+22:52:12 rewritten 49 passthrough 2 errors 0 disconnects 0 idle 0 completed 44
+22:52:12 REWRITE POST /v1/chat/completions steering_scale 1.0 (client sent absent)
+22:52:12 rewritten 50 passthrough 2 errors 0 disconnects 0 idle 0 completed 44
+22:52:19 rewritten 50 passthrough 2 errors 0 disconnects 0 idle 0 completed 45
+22:52:19 REWRITE POST /v1/chat/completions steering_scale 1.0 (client sent absent)
+22:52:19 rewritten 51 passthrough 2 errors 0 disconnects 0 idle 0 completed 45
+22:52:22 rewritten 51 passthrough 2 errors 0 disconnects 0 idle 0 completed 46
+22:52:22 REWRITE POST /v1/chat/completions steering_scale 1.0 (client sent absent)
+22:52:22 rewritten 52 passthrough 2 errors 0 disconnects 0 idle 0 completed 46
+22:52:27 rewritten 52 passthrough 2 errors 0 disconnects 0 idle 0 completed 47
+22:52:27 REWRITE POST /v1/chat/completions steering_scale 1.0 (client sent absent)
+22:52:27 rewritten 53 passthrough 2 errors 0 disconnects 0 idle 0 completed 47
+22:52:46 rewritten 53 passthrough 2 errors 0 disconnects 0 idle 0 completed 48
+22:52:46 REWRITE POST /v1/chat/completions steering_scale 1.0 (client sent absent)
+22:52:46 rewritten 54 passthrough 2 errors 0 disconnects 0 idle 0 completed 48
+22:52:49 rewritten 54 passthrough 2 errors 0 disconnects 0 idle 0 completed 49
+22:52:49 REWRITE POST /v1/chat/completions steering_scale 1.0 (client sent absent)
+22:52:49 rewritten 55 passthrough 2 errors 0 disconnects 0 idle 0 completed 49
+22:52:52 rewritten 55 passthrough 2 errors 0 disconnects 0 idle 0 completed 50
+22:52:52 rewritten 55 passthrough 2 errors 0 disconnects 0 idle 0 completed 51
+22:52:52 REWRITE POST /v1/chat/completions steering_scale 1.0 (client sent absent)
+22:52:52 rewritten 56 passthrough 2 errors 0 disconnects 0 idle 0 completed 51
+22:52:52 REWRITE POST /v1/chat/completions steering_scale 1.0 (client sent absent)
+22:52:52 rewritten 57 passthrough 2 errors 0 disconnects 0 idle 0 completed 51
+22:52:55 rewritten 57 passthrough 2 errors 0 disconnects 0 idle 0 completed 52
+22:52:55 REWRITE POST /v1/chat/completions steering_scale 1.0 (client sent absent)
+22:52:55 rewritten 58 passthrough 2 errors 0 disconnects 0 idle 0 completed 52
+22:52:58 rewritten 58 passthrough 2 errors 0 disconnects 0 idle 0 completed 53
+22:52:58 REWRITE POST /v1/chat/completions steering_scale 1.0 (client sent absent)
+22:52:58 rewritten 59 passthrough 2 errors 0 disconnects 0 idle 0 completed 53
+22:53:02 rewritten 59 passthrough 2 errors 0 disconnects 0 idle 0 completed 54
+22:53:02 REWRITE POST /v1/chat/completions steering_scale 1.0 (client sent absent)
+22:53:02 rewritten 60 passthrough 2 errors 0 disconnects 0 idle 0 completed 54
+22:53:11 rewritten 60 passthrough 2 errors 0 disconnects 0 idle 0 completed 55
+22:53:11 REWRITE POST /v1/chat/completions steering_scale 1.0 (client sent absent)
+22:53:11 rewritten 61 passthrough 2 errors 0 disconnects 0 idle 0 completed 55
+22:53:11 rewritten 61 passthrough 2 errors 0 disconnects 0 idle 0 completed 56
+22:53:11 REWRITE POST /v1/chat/completions steering_scale 1.0 (client sent absent)
+22:53:11 rewritten 62 passthrough 2 errors 0 disconnects 0 idle 0 completed 56
+22:53:32 rewritten 62 passthrough 2 errors 0 disconnects 0 idle 0 completed 57
+22:53:32 REWRITE POST /v1/chat/completions steering_scale 1.0 (client sent absent)
+22:53:32 rewritten 63 passthrough 2 errors 0 disconnects 0 idle 0 completed 57
+22:53:44 rewritten 63 passthrough 2 errors 0 disconnects 0 idle 0 completed 58
+22:53:44 REWRITE POST /v1/chat/completions steering_scale 1.0 (client sent absent)
+22:53:44 rewritten 64 passthrough 2 errors 0 disconnects 0 idle 0 completed 58
+22:53:45 rewritten 64 passthrough 2 errors 0 disconnects 0 idle 0 completed 59
+22:53:45 REWRITE POST /v1/chat/completions steering_scale 1.0 (client sent absent)
+22:53:45 rewritten 65 passthrough 2 errors 0 disconnects 0 idle 0 completed 59
+22:53:51 rewritten 65 passthrough 2 errors 0 disconnects 0 idle 0 completed 60
+22:53:51 REWRITE POST /v1/chat/completions steering_scale 1.0 (client sent absent)
+22:53:51 rewritten 66 passthrough 2 errors 0 disconnects 0 idle 0 completed 60
+22:53:55 rewritten 66 passthrough 2 errors 0 disconnects 0 idle 0 completed 61
+22:53:55 REWRITE POST /v1/chat/completions steering_scale 1.0 (client sent absent)
+22:53:55 rewritten 67 passthrough 2 errors 0 disconnects 0 idle 0 completed 61
+22:53:57 rewritten 67 passthrough 2 errors 0 disconnects 0 idle 0 completed 62
+22:53:57 REWRITE POST /v1/chat/completions steering_scale 1.0 (client sent absent)
+22:53:57 rewritten 68 passthrough 2 errors 0 disconnects 0 idle 0 completed 62
+22:53:58 rewritten 68 passthrough 2 errors 0 disconnects 0 idle 0 completed 63
+22:53:58 REWRITE POST /v1/chat/completions steering_scale 1.0 (client sent absent)
+22:53:58 rewritten 69 passthrough 2 errors 0 disconnects 0 idle 0 completed 63
+22:54:02 rewritten 69 passthrough 2 errors 0 disconnects 0 idle 0 completed 64
+22:54:02 REWRITE POST /v1/chat/completions steering_scale 1.0 (client sent absent)
+22:54:02 rewritten 70 passthrough 2 errors 0 disconnects 0 idle 0 completed 64
+22:54:04 rewritten 70 passthrough 2 errors 0 disconnects 0 idle 0 completed 65
+22:54:04 REWRITE POST /v1/chat/completions steering_scale 1.0 (client sent absent)
+22:54:04 rewritten 71 passthrough 2 errors 0 disconnects 0 idle 0 completed 65
+22:54:07 rewritten 71 passthrough 2 errors 0 disconnects 0 idle 0 completed 66
+22:54:07 REWRITE POST /v1/chat/completions steering_scale 1.0 (client sent absent)
+22:54:07 rewritten 72 passthrough 2 errors 0 disconnects 0 idle 0 completed 66
+22:54:08 rewritten 72 passthrough 2 errors 0 disconnects 0 idle 0 completed 67
+22:54:08 REWRITE POST /v1/chat/completions steering_scale 1.0 (client sent absent)
+22:54:08 rewritten 73 passthrough 2 errors 0 disconnects 0 idle 0 completed 67
+22:54:13 rewritten 73 passthrough 2 errors 0 disconnects 0 idle 0 completed 68
+22:54:13 REWRITE POST /v1/chat/completions steering_scale 1.0 (client sent absent)
+22:54:13 rewritten 74 passthrough 2 errors 0 disconnects 0 idle 0 completed 68
+22:54:14 rewritten 74 passthrough 2 errors 0 disconnects 0 idle 0 completed 69
+22:54:14 REWRITE POST /v1/chat/completions steering_scale 1.0 (client sent absent)
+22:54:14 rewritten 75 passthrough 2 errors 0 disconnects 0 idle 0 completed 69
+22:54:16 rewritten 75 passthrough 2 errors 0 disconnects 0 idle 0 completed 70
+22:54:16 REWRITE POST /v1/chat/completions steering_scale 1.0 (client sent absent)
+22:54:16 rewritten 76 passthrough 2 errors 0 disconnects 0 idle 0 completed 70
+22:54:18 rewritten 76 passthrough 2 errors 0 disconnects 0 idle 0 completed 71
+22:54:18 REWRITE POST /v1/chat/completions steering_scale 1.0 (client sent absent)
+22:54:18 rewritten 77 passthrough 2 errors 0 disconnects 0 idle 0 completed 71
+22:54:24 rewritten 77 passthrough 2 errors 0 disconnects 0 idle 0 completed 72
+22:54:24 REWRITE POST /v1/chat/completions steering_scale 1.0 (client sent absent)
+22:54:24 rewritten 78 passthrough 2 errors 0 disconnects 0 idle 0 completed 72
+22:54:27 rewritten 78 passthrough 2 errors 0 disconnects 0 idle 0 completed 73
+22:54:27 REWRITE POST /v1/chat/completions steering_scale 1.0 (client sent absent)
+22:54:27 rewritten 79 passthrough 2 errors 0 disconnects 0 idle 0 completed 73
+22:54:46 rewritten 79 passthrough 2 errors 0 disconnects 0 idle 0 completed 74
+22:54:46 REWRITE POST /v1/chat/completions steering_scale 1.0 (client sent absent)
+22:54:46 rewritten 80 passthrough 2 errors 0 disconnects 0 idle 0 completed 74
+22:54:55 rewritten 80 passthrough 2 errors 0 disconnects 0 idle 0 completed 75
+22:54:55 REWRITE POST /v1/chat/completions steering_scale 1.0 (client sent absent)
+22:54:55 rewritten 81 passthrough 2 errors 0 disconnects 0 idle 0 completed 75
+22:55:04 rewritten 81 passthrough 2 errors 0 disconnects 0 idle 0 completed 76
+22:55:04 REWRITE POST /v1/chat/completions steering_scale 1.0 (client sent absent)
+22:55:04 rewritten 82 passthrough 2 errors 0 disconnects 0 idle 0 completed 76
+22:55:22 rewritten 82 passthrough 2 errors 0 disconnects 0 idle 0 completed 77
+22:55:22 REWRITE POST /v1/chat/completions steering_scale 1.0 (client sent absent)
+22:55:22 rewritten 83 passthrough 2 errors 0 disconnects 0 idle 0 completed 77
+22:55:28 rewritten 83 passthrough 2 errors 0 disconnects 0 idle 0 completed 78
+22:55:28 REWRITE POST /v1/chat/completions steering_scale 1.0 (client sent absent)
+22:55:28 rewritten 84 passthrough 2 errors 0 disconnects 0 idle 0 completed 78
+22:55:33 rewritten 84 passthrough 2 errors 0 disconnects 0 idle 0 completed 79
+22:55:33 REWRITE POST /v1/chat/completions steering_scale 1.0 (client sent absent)
+22:55:33 rewritten 85 passthrough 2 errors 0 disconnects 0 idle 0 completed 79
+22:55:43 rewritten 85 passthrough 2 errors 0 disconnects 0 idle 0 completed 80
+22:55:43 REWRITE POST /v1/chat/completions steering_scale 1.0 (client sent absent)
+22:55:43 rewritten 86 passthrough 2 errors 0 disconnects 0 idle 0 completed 80
+22:55:51 rewritten 86 passthrough 2 errors 0 disconnects 0 idle 0 completed 81
+22:55:51 REWRITE POST /v1/chat/completions steering_scale 1.0 (client sent absent)
+22:55:51 rewritten 87 passthrough 2 errors 0 disconnects 0 idle 0 completed 81
+22:56:13 rewritten 87 passthrough 2 errors 0 disconnects 0 idle 0 completed 82
+22:56:13 REWRITE POST /v1/chat/completions steering_scale 1.0 (client sent absent)
+22:56:13 rewritten 88 passthrough 2 errors 0 disconnects 0 idle 0 completed 82
+22:56:19 rewritten 88 passthrough 2 errors 0 disconnects 0 idle 0 completed 83
+22:56:19 REWRITE POST /v1/chat/completions steering_scale 1.0 (client sent absent)
+22:56:19 rewritten 89 passthrough 2 errors 0 disconnects 0 idle 0 completed 83
+22:56:39 rewritten 89 passthrough 2 errors 0 disconnects 0 idle 0 completed 84
+22:56:39 REWRITE POST /v1/chat/completions steering_scale 1.0 (client sent absent)
+22:56:39 rewritten 90 passthrough 2 errors 0 disconnects 0 idle 0 completed 84
+22:56:50 rewritten 90 passthrough 2 errors 0 disconnects 0 idle 0 completed 85
+22:56:50 REWRITE POST /v1/chat/completions steering_scale 1.0 (client sent absent)
+22:56:50 rewritten 91 passthrough 2 errors 0 disconnects 0 idle 0 completed 85
+22:58:04 rewritten 91 passthrough 2 errors 0 disconnects 0 idle 0 completed 86
+22:58:04 REWRITE POST /v1/chat/completions steering_scale 1.0 (client sent absent)
+22:58:04 rewritten 92 passthrough 2 errors 0 disconnects 0 idle 0 completed 86
+22:58:18 rewritten 92 passthrough 2 errors 0 disconnects 0 idle 0 completed 87
+22:58:18 REWRITE POST /v1/chat/completions steering_scale 1.0 (client sent absent)
+22:58:18 rewritten 93 passthrough 2 errors 0 disconnects 0 idle 0 completed 87
+22:58:35 rewritten 93 passthrough 2 errors 0 disconnects 0 idle 0 completed 88
+22:58:35 REWRITE POST /v1/chat/completions steering_scale 1.0 (client sent absent)
+22:58:35 rewritten 94 passthrough 2 errors 0 disconnects 0 idle 0 completed 88
+22:58:46 rewritten 94 passthrough 2 errors 0 disconnects 0 idle 0 completed 89
+22:58:46 REWRITE POST /v1/chat/completions steering_scale 1.0 (client sent absent)
+22:58:46 rewritten 95 passthrough 2 errors 0 disconnects 0 idle 0 completed 89
+22:59:07 rewritten 95 passthrough 2 errors 0 disconnects 0 idle 0 completed 90
+22:59:07 REWRITE POST /v1/chat/completions steering_scale 1.0 (client sent absent)
+22:59:07 rewritten 96 passthrough 2 errors 0 disconnects 0 idle 0 completed 90
+22:59:16 rewritten 96 passthrough 2 errors 0 disconnects 0 idle 0 completed 91
+22:59:16 REWRITE POST /v1/chat/completions steering_scale 1.0 (client sent absent)
+22:59:16 rewritten 97 passthrough 2 errors 0 disconnects 0 idle 0 completed 91
+22:59:18 rewritten 97 passthrough 2 errors 0 disconnects 0 idle 0 completed 92
+22:59:18 REWRITE POST /v1/chat/completions steering_scale 1.0 (client sent absent)
+22:59:18 rewritten 98 passthrough 2 errors 0 disconnects 0 idle 0 completed 92
+22:59:26 rewritten 98 passthrough 2 errors 0 disconnects 0 idle 0 completed 93
+22:59:26 REWRITE POST /v1/chat/completions steering_scale 1.0 (client sent absent)
+22:59:26 rewritten 99 passthrough 2 errors 0 disconnects 0 idle 0 completed 93
+22:59:28 rewritten 99 passthrough 2 errors 0 disconnects 0 idle 0 completed 94
+22:59:28 REWRITE POST /v1/chat/completions steering_scale 1.0 (client sent absent)
+22:59:28 rewritten 100 passthrough 2 errors 0 disconnects 0 idle 0 completed 94
+22:59:45 rewritten 100 passthrough 2 errors 0 disconnects 0 idle 0 completed 95
+22:59:45 REWRITE POST /v1/chat/completions steering_scale 1.0 (client sent absent)
+22:59:45 rewritten 101 passthrough 2 errors 0 disconnects 0 idle 0 completed 95
+22:59:59 rewritten 101 passthrough 2 errors 0 disconnects 0 idle 0 completed 96
+22:59:59 REWRITE POST /v1/chat/completions steering_scale 1.0 (client sent absent)
+22:59:59 rewritten 102 passthrough 2 errors 0 disconnects 0 idle 0 completed 96
+23:00:10 rewritten 102 passthrough 2 errors 0 disconnects 0 idle 0 completed 97
+23:00:10 REWRITE POST /v1/chat/completions steering_scale 1.0 (client sent absent)
+23:00:10 rewritten 103 passthrough 2 errors 0 disconnects 0 idle 0 completed 97
+23:00:25 rewritten 103 passthrough 2 errors 0 disconnects 0 idle 0 completed 98
+23:00:25 REWRITE POST /v1/chat/completions steering_scale 1.0 (client sent absent)
+23:00:25 rewritten 104 passthrough 2 errors 0 disconnects 0 idle 0 completed 98
+23:00:31 rewritten 104 passthrough 2 errors 0 disconnects 0 idle 0 completed 99
+23:00:31 REWRITE POST /v1/chat/completions steering_scale 1.0 (client sent absent)
+23:00:31 rewritten 105 passthrough 2 errors 0 disconnects 0 idle 0 completed 99
+23:00:34 rewritten 105 passthrough 2 errors 0 disconnects 0 idle 0 completed 100
+23:00:34 REWRITE POST /v1/chat/completions steering_scale 1.0 (client sent absent)
+23:00:34 rewritten 106 passthrough 2 errors 0 disconnects 0 idle 0 completed 100
+23:00:41 rewritten 106 passthrough 2 errors 0 disconnects 0 idle 0 completed 101
+23:00:41 REWRITE POST /v1/chat/completions steering_scale 1.0 (client sent absent)
+23:00:41 rewritten 107 passthrough 2 errors 0 disconnects 0 idle 0 completed 101
+23:00:47 rewritten 107 passthrough 2 errors 0 disconnects 0 idle 0 completed 102
+23:00:47 REWRITE POST /v1/chat/completions steering_scale 1.0 (client sent absent)
+23:00:47 rewritten 108 passthrough 2 errors 0 disconnects 0 idle 0 completed 102
+23:00:49 rewritten 108 passthrough 2 errors 0 disconnects 0 idle 0 completed 103
+23:00:49 REWRITE POST /v1/chat/completions steering_scale 1.0 (client sent absent)
+23:00:49 rewritten 109 passthrough 2 errors 0 disconnects 0 idle 0 completed 103
+23:00:51 rewritten 109 passthrough 2 errors 0 disconnects 0 idle 0 completed 104
+23:00:51 REWRITE POST /v1/chat/completions steering_scale 1.0 (client sent absent)
+23:00:51 rewritten 110 passthrough 2 errors 0 disconnects 0 idle 0 completed 104
+23:00:53 rewritten 110 passthrough 2 errors 0 disconnects 0 idle 0 completed 105
+23:00:53 REWRITE POST /v1/chat/completions steering_scale 1.0 (client sent absent)
+23:00:53 rewritten 111 passthrough 2 errors 0 disconnects 0 idle 0 completed 105
+23:00:56 rewritten 111 passthrough 2 errors 0 disconnects 0 idle 0 completed 106
+23:00:56 REWRITE POST /v1/chat/completions steering_scale 1.0 (client sent absent)
+23:00:56 rewritten 112 passthrough 2 errors 0 disconnects 0 idle 0 completed 106
+23:01:00 rewritten 112 passthrough 2 errors 0 disconnects 0 idle 0 completed 107
+23:01:00 REWRITE POST /v1/chat/completions steering_scale 1.0 (client sent absent)
+23:01:00 rewritten 113 passthrough 2 errors 0 disconnects 0 idle 0 completed 107
+23:01:09 rewritten 113 passthrough 2 errors 0 disconnects 0 idle 0 completed 108
+23:01:09 REWRITE POST /v1/chat/completions steering_scale 1.0 (client sent absent)
+23:01:09 rewritten 114 passthrough 2 errors 0 disconnects 0 idle 0 completed 108
+23:01:19 rewritten 114 passthrough 2 errors 0 disconnects 0 idle 0 completed 109
+23:01:19 REWRITE POST /v1/chat/completions steering_scale 1.0 (client sent absent)
+23:01:19 rewritten 115 passthrough 2 errors 0 disconnects 0 idle 0 completed 109
+23:01:21 rewritten 115 passthrough 2 errors 0 disconnects 0 idle 0 completed 110
+23:01:21 REWRITE POST /v1/chat/completions steering_scale 1.0 (client sent absent)
+23:01:21 rewritten 116 passthrough 2 errors 0 disconnects 0 idle 0 completed 110
+23:01:32 rewritten 116 passthrough 2 errors 0 disconnects 0 idle 0 completed 111
+23:01:32 REWRITE POST /v1/chat/completions steering_scale 1.0 (client sent absent)
+23:01:32 rewritten 117 passthrough 2 errors 0 disconnects 0 idle 0 completed 111
+23:01:36 rewritten 117 passthrough 2 errors 0 disconnects 0 idle 0 completed 112
+23:01:36 REWRITE POST /v1/chat/completions steering_scale 1.0 (client sent absent)
+23:01:36 rewritten 118 passthrough 2 errors 0 disconnects 0 idle 0 completed 112
+23:01:46 rewritten 118 passthrough 2 errors 0 disconnects 0 idle 0 completed 113
+23:01:46 REWRITE POST /v1/chat/completions steering_scale 1.0 (client sent absent)
+23:01:46 rewritten 119 passthrough 2 errors 0 disconnects 0 idle 0 completed 113
+23:01:54 rewritten 119 passthrough 2 errors 0 disconnects 0 idle 0 completed 114
+23:01:54 REWRITE POST /v1/chat/completions steering_scale 1.0 (client sent absent)
+23:01:54 rewritten 120 passthrough 2 errors 0 disconnects 0 idle 0 completed 114
+23:01:56 rewritten 120 passthrough 2 errors 0 disconnects 0 idle 0 completed 115
+23:01:56 REWRITE POST /v1/chat/completions steering_scale 1.0 (client sent absent)
+23:01:56 rewritten 121 passthrough 2 errors 0 disconnects 0 idle 0 completed 115
+23:02:02 rewritten 121 passthrough 2 errors 0 disconnects 0 idle 0 completed 116
+23:02:02 REWRITE POST /v1/chat/completions steering_scale 1.0 (client sent absent)
+23:02:02 rewritten 122 passthrough 2 errors 0 disconnects 0 idle 0 completed 116
+23:02:09 rewritten 122 passthrough 2 errors 0 disconnects 0 idle 0 completed 117
+23:02:09 REWRITE POST /v1/chat/completions steering_scale 1.0 (client sent absent)
+23:02:09 rewritten 123 passthrough 2 errors 0 disconnects 0 idle 0 completed 117
+23:02:16 rewritten 123 passthrough 2 errors 0 disconnects 0 idle 0 completed 118
+23:02:16 REWRITE POST /v1/chat/completions steering_scale 1.0 (client sent absent)
+23:02:16 rewritten 124 passthrough 2 errors 0 disconnects 0 idle 0 completed 118
+23:02:20 rewritten 124 passthrough 2 errors 0 disconnects 0 idle 0 completed 119
+23:02:20 REWRITE POST /v1/chat/completions steering_scale 1.0 (client sent absent)
+23:02:20 rewritten 125 passthrough 2 errors 0 disconnects 0 idle 0 completed 119
+23:02:21 rewritten 125 passthrough 2 errors 0 disconnects 0 idle 0 completed 120
+23:02:21 REWRITE POST /v1/chat/completions steering_scale 1.0 (client sent absent)
+23:02:21 rewritten 126 passthrough 2 errors 0 disconnects 0 idle 0 completed 120
+23:02:23 rewritten 126 passthrough 2 errors 0 disconnects 0 idle 0 completed 121
+23:02:23 REWRITE POST /v1/chat/completions steering_scale 1.0 (client sent absent)
+23:02:23 rewritten 127 passthrough 2 errors 0 disconnects 0 idle 0 completed 121
+23:02:24 rewritten 127 passthrough 2 errors 0 disconnects 0 idle 0 completed 122
+23:02:24 REWRITE POST /v1/chat/completions steering_scale 1.0 (client sent absent)
+23:02:24 rewritten 128 passthrough 2 errors 0 disconnects 0 idle 0 completed 122
+23:02:48 rewritten 128 passthrough 2 errors 0 disconnects 0 idle 0 completed 123
+23:02:48 REWRITE POST /v1/chat/completions steering_scale 1.0 (client sent absent)
+23:02:48 rewritten 129 passthrough 2 errors 0 disconnects 0 idle 0 completed 123
+23:03:12 rewritten 129 passthrough 2 errors 0 disconnects 0 idle 0 completed 124
+23:03:12 REWRITE POST /v1/chat/completions steering_scale 1.0 (client sent absent)
+23:03:12 rewritten 130 passthrough 2 errors 0 disconnects 0 idle 0 completed 124
+23:03:18 rewritten 130 passthrough 2 errors 0 disconnects 0 idle 0 completed 125
+23:03:18 REWRITE POST /v1/chat/completions steering_scale 1.0 (client sent absent)
+23:03:18 rewritten 131 passthrough 2 errors 0 disconnects 0 idle 0 completed 125
+23:03:18 rewritten 131 passthrough 2 errors 0 disconnects 0 idle 0 completed 126
+23:03:18 REWRITE POST /v1/chat/completions steering_scale 1.0 (client sent absent)
+23:03:18 rewritten 132 passthrough 2 errors 0 disconnects 0 idle 0 completed 126
+23:03:29 rewritten 132 passthrough 2 errors 0 disconnects 0 idle 0 completed 127
+23:03:29 REWRITE POST /v1/chat/completions steering_scale 1.0 (client sent absent)
+23:03:29 rewritten 133 passthrough 2 errors 0 disconnects 0 idle 0 completed 127
+23:03:45 rewritten 133 passthrough 2 errors 0 disconnects 0 idle 0 completed 128
+23:03:45 REWRITE POST /v1/chat/completions steering_scale 1.0 (client sent absent)
+23:03:45 rewritten 134 passthrough 2 errors 0 disconnects 0 idle 0 completed 128
+23:03:54 rewritten 134 passthrough 2 errors 0 disconnects 0 idle 0 completed 129
+23:03:54 REWRITE POST /v1/chat/completions steering_scale 1.0 (client sent absent)
+23:03:54 rewritten 135 passthrough 2 errors 0 disconnects 0 idle 0 completed 129
+23:03:57 rewritten 135 passthrough 2 errors 0 disconnects 0 idle 0 completed 130
+23:03:57 REWRITE POST /v1/chat/completions steering_scale 1.0 (client sent absent)
+23:03:57 rewritten 136 passthrough 2 errors 0 disconnects 0 idle 0 completed 130
+23:04:01 rewritten 136 passthrough 2 errors 0 disconnects 0 idle 0 completed 131
+23:04:01 REWRITE POST /v1/chat/completions steering_scale 1.0 (client sent absent)
+23:04:01 rewritten 137 passthrough 2 errors 0 disconnects 0 idle 0 completed 131
+23:04:06 rewritten 137 passthrough 2 errors 0 disconnects 0 idle 0 completed 132
+23:04:06 REWRITE POST /v1/chat/completions steering_scale 1.0 (client sent absent)
+23:04:06 rewritten 138 passthrough 2 errors 0 disconnects 0 idle 0 completed 132
+23:04:11 rewritten 138 passthrough 2 errors 0 disconnects 0 idle 0 completed 133
+23:04:11 REWRITE POST /v1/chat/completions steering_scale 1.0 (client sent absent)
+23:04:11 rewritten 139 passthrough 2 errors 0 disconnects 0 idle 0 completed 133
+23:04:17 rewritten 139 passthrough 2 errors 0 disconnects 0 idle 0 completed 134
+23:04:17 REWRITE POST /v1/chat/completions steering_scale 1.0 (client sent absent)
+23:04:17 rewritten 140 passthrough 2 errors 0 disconnects 0 idle 0 completed 134
+23:04:31 rewritten 140 passthrough 2 errors 0 disconnects 0 idle 0 completed 135
+23:04:31 REWRITE POST /v1/chat/completions steering_scale 1.0 (client sent absent)
+23:04:31 rewritten 141 passthrough 2 errors 0 disconnects 0 idle 0 completed 135
+23:04:32 rewritten 141 passthrough 2 errors 0 disconnects 0 idle 0 completed 136
+23:04:32 REWRITE POST /v1/chat/completions steering_scale 1.0 (client sent absent)
+23:04:32 rewritten 142 passthrough 2 errors 0 disconnects 0 idle 0 completed 136
+23:04:33 rewritten 142 passthrough 2 errors 0 disconnects 0 idle 0 completed 137
+23:04:33 REWRITE POST /v1/chat/completions steering_scale 1.0 (client sent absent)
+23:04:33 rewritten 143 passthrough 2 errors 0 disconnects 0 idle 0 completed 137
+23:04:39 rewritten 143 passthrough 2 errors 0 disconnects 0 idle 0 completed 138
+23:04:39 REWRITE POST /v1/chat/completions steering_scale 1.0 (client sent absent)
+23:04:39 rewritten 144 passthrough 2 errors 0 disconnects 0 idle 0 completed 138
+23:04:40 rewritten 144 passthrough 2 errors 0 disconnects 0 idle 0 completed 139
+23:04:40 REWRITE POST /v1/chat/completions steering_scale 1.0 (client sent absent)
+23:04:40 rewritten 145 passthrough 2 errors 0 disconnects 0 idle 0 completed 139
+23:04:44 rewritten 145 passthrough 2 errors 0 disconnects 0 idle 0 completed 140
+23:04:44 REWRITE POST /v1/chat/completions steering_scale 1.0 (client sent absent)
+23:04:44 rewritten 146 passthrough 2 errors 0 disconnects 0 idle 0 completed 140
+23:04:57 rewritten 146 passthrough 2 errors 0 disconnects 0 idle 0 completed 141
+23:04:57 REWRITE POST /v1/chat/completions steering_scale 1.0 (client sent absent)
+23:04:57 rewritten 147 passthrough 2 errors 0 disconnects 0 idle 0 completed 141
+23:05:01 rewritten 147 passthrough 2 errors 0 disconnects 0 idle 0 completed 142
+23:05:01 REWRITE POST /v1/chat/completions steering_scale 1.0 (client sent absent)
+23:05:01 rewritten 148 passthrough 2 errors 0 disconnects 0 idle 0 completed 142
+23:05:03 rewritten 148 passthrough 2 errors 0 disconnects 0 idle 0 completed 143
+23:05:03 REWRITE POST /v1/chat/completions steering_scale 1.0 (client sent absent)
+23:05:03 rewritten 149 passthrough 2 errors 0 disconnects 0 idle 0 completed 143
+23:05:04 rewritten 149 passthrough 2 errors 0 disconnects 0 idle 0 completed 144
+23:05:04 REWRITE POST /v1/chat/completions steering_scale 1.0 (client sent absent)
+23:05:04 rewritten 150 passthrough 2 errors 0 disconnects 0 idle 0 completed 144
+23:05:17 rewritten 150 passthrough 2 errors 0 disconnects 0 idle 0 completed 145
+23:05:17 REWRITE POST /v1/chat/completions steering_scale 1.0 (client sent absent)
+23:05:17 rewritten 151 passthrough 2 errors 0 disconnects 0 idle 0 completed 145
+23:05:18 rewritten 151 passthrough 2 errors 0 disconnects 0 idle 0 completed 146
+23:05:18 REWRITE POST /v1/chat/completions steering_scale 1.0 (client sent absent)
+23:05:18 rewritten 152 passthrough 2 errors 0 disconnects 0 idle 0 completed 146
+23:05:21 rewritten 152 passthrough 2 errors 0 disconnects 0 idle 0 completed 147
+23:05:21 REWRITE POST /v1/chat/completions steering_scale 1.0 (client sent absent)
+23:05:21 rewritten 153 passthrough 2 errors 0 disconnects 0 idle 0 completed 147
+23:05:26 rewritten 153 passthrough 2 errors 0 disconnects 0 idle 0 completed 148
+23:05:26 REWRITE POST /v1/chat/completions steering_scale 1.0 (client sent absent)
+23:05:26 rewritten 154 passthrough 2 errors 0 disconnects 0 idle 0 completed 148
+23:05:32 rewritten 154 passthrough 2 errors 0 disconnects 0 idle 0 completed 149
+23:05:32 rewritten 154 passthrough 2 errors 0 disconnects 0 idle 0 completed 150
+23:05:32 REWRITE POST /v1/chat/completions steering_scale 1.0 (client sent absent)
+23:05:32 rewritten 155 passthrough 2 errors 0 disconnects 0 idle 0 completed 150
+23:05:32 REWRITE POST /v1/chat/completions steering_scale 1.0 (client sent absent)
+23:05:32 rewritten 156 passthrough 2 errors 0 disconnects 0 idle 0 completed 150
+23:05:36 rewritten 156 passthrough 2 errors 0 disconnects 0 idle 0 completed 151
+23:05:36 REWRITE POST /v1/chat/completions steering_scale 1.0 (client sent absent)
+23:05:36 rewritten 157 passthrough 2 errors 0 disconnects 0 idle 0 completed 151
+23:05:36 rewritten 157 passthrough 2 errors 0 disconnects 0 idle 0 completed 152
+23:05:36 REWRITE POST /v1/chat/completions steering_scale 1.0 (client sent absent)
+23:05:36 rewritten 158 passthrough 2 errors 0 disconnects 0 idle 0 completed 152
+23:05:38 rewritten 158 passthrough 2 errors 0 disconnects 0 idle 0 completed 153
+23:05:38 REWRITE POST /v1/chat/completions steering_scale 1.0 (client sent absent)
+23:05:38 rewritten 159 passthrough 2 errors 0 disconnects 0 idle 0 completed 153
+23:05:53 rewritten 159 passthrough 2 errors 0 disconnects 0 idle 0 completed 154
+23:05:53 REWRITE POST /v1/chat/completions steering_scale 1.0 (client sent absent)
+23:05:53 rewritten 160 passthrough 2 errors 0 disconnects 0 idle 0 completed 154
+23:05:57 rewritten 160 passthrough 2 errors 0 disconnects 0 idle 0 completed 155
+23:05:57 REWRITE POST /v1/chat/completions steering_scale 1.0 (client sent absent)
+23:05:57 rewritten 161 passthrough 2 errors 0 disconnects 0 idle 0 completed 155
+23:06:03 rewritten 161 passthrough 2 errors 0 disconnects 0 idle 0 completed 156
+23:06:03 REWRITE POST /v1/chat/completions steering_scale 1.0 (client sent absent)
+23:06:03 rewritten 162 passthrough 2 errors 0 disconnects 0 idle 0 completed 156
+23:06:08 rewritten 162 passthrough 2 errors 0 disconnects 0 idle 0 completed 157
+23:06:08 REWRITE POST /v1/chat/completions steering_scale 1.0 (client sent absent)
+23:06:08 rewritten 163 passthrough 2 errors 0 disconnects 0 idle 0 completed 157
+23:06:33 rewritten 163 passthrough 2 errors 0 disconnects 0 idle 0 completed 158
+23:06:33 REWRITE POST /v1/chat/completions steering_scale 1.0 (client sent absent)
+23:06:33 rewritten 164 passthrough 2 errors 0 disconnects 0 idle 0 completed 158
+23:06:36 rewritten 164 passthrough 2 errors 0 disconnects 0 idle 0 completed 159
+23:06:36 REWRITE POST /v1/chat/completions steering_scale 1.0 (client sent absent)
+23:06:36 rewritten 165 passthrough 2 errors 0 disconnects 0 idle 0 completed 159
+23:06:42 rewritten 165 passthrough 2 errors 0 disconnects 0 idle 0 completed 160
+23:06:42 REWRITE POST /v1/chat/completions steering_scale 1.0 (client sent absent)
+23:06:42 rewritten 166 passthrough 2 errors 0 disconnects 0 idle 0 completed 160
+23:06:47 rewritten 166 passthrough 2 errors 0 disconnects 0 idle 0 completed 161
+23:06:47 REWRITE POST /v1/chat/completions steering_scale 1.0 (client sent absent)
+23:06:47 rewritten 167 passthrough 2 errors 0 disconnects 0 idle 0 completed 161
+23:07:22 rewritten 167 passthrough 2 errors 0 disconnects 0 idle 0 completed 162
+23:07:22 REWRITE POST /v1/chat/completions steering_scale 1.0 (client sent absent)
+23:07:22 rewritten 168 passthrough 2 errors 0 disconnects 0 idle 0 completed 162
+23:07:27 rewritten 168 passthrough 2 errors 0 disconnects 0 idle 0 completed 163
+23:07:27 REWRITE POST /v1/chat/completions steering_scale 1.0 (client sent absent)
+23:07:27 rewritten 169 passthrough 2 errors 0 disconnects 0 idle 0 completed 163
+23:07:31 rewritten 169 passthrough 2 errors 0 disconnects 0 idle 0 completed 164
+23:07:31 REWRITE POST /v1/chat/completions steering_scale 1.0 (client sent absent)
+23:07:31 rewritten 170 passthrough 2 errors 0 disconnects 0 idle 0 completed 164
+23:07:33 rewritten 170 passthrough 2 errors 0 disconnects 0 idle 0 completed 165
+23:07:33 REWRITE POST /v1/chat/completions steering_scale 1.0 (client sent absent)
+23:07:33 rewritten 171 passthrough 2 errors 0 disconnects 0 idle 0 completed 165
+23:07:34 rewritten 171 passthrough 2 errors 0 disconnects 0 idle 0 completed 166
+23:07:34 REWRITE POST /v1/chat/completions steering_scale 1.0 (client sent absent)
+23:07:34 rewritten 172 passthrough 2 errors 0 disconnects 0 idle 0 completed 166
+23:07:38 rewritten 172 passthrough 2 errors 0 disconnects 0 idle 0 completed 167
+23:07:38 REWRITE POST /v1/chat/completions steering_scale 1.0 (client sent absent)
+23:07:38 rewritten 173 passthrough 2 errors 0 disconnects 0 idle 0 completed 167
+23:07:42 rewritten 173 passthrough 2 errors 0 disconnects 0 idle 0 completed 168
+23:07:42 REWRITE POST /v1/chat/completions steering_scale 1.0 (client sent absent)
+23:07:42 rewritten 174 passthrough 2 errors 0 disconnects 0 idle 0 completed 168
+23:07:42 rewritten 174 passthrough 2 errors 0 disconnects 0 idle 0 completed 169
+23:07:42 REWRITE POST /v1/chat/completions steering_scale 1.0 (client sent absent)
+23:07:42 rewritten 175 passthrough 2 errors 0 disconnects 0 idle 0 completed 169
+23:07:51 rewritten 175 passthrough 2 errors 0 disconnects 0 idle 0 completed 170
+23:07:51 REWRITE POST /v1/chat/completions steering_scale 1.0 (client sent absent)
+23:07:51 rewritten 176 passthrough 2 errors 0 disconnects 0 idle 0 completed 170
+23:07:53 rewritten 176 passthrough 2 errors 0 disconnects 0 idle 0 completed 171
+23:07:53 REWRITE POST /v1/chat/completions steering_scale 1.0 (client sent absent)
+23:07:53 rewritten 177 passthrough 2 errors 0 disconnects 0 idle 0 completed 171
+23:07:56 rewritten 177 passthrough 2 errors 0 disconnects 0 idle 0 completed 172
+23:07:56 REWRITE POST /v1/chat/completions steering_scale 1.0 (client sent absent)
+23:07:56 rewritten 178 passthrough 2 errors 0 disconnects 0 idle 0 completed 172
+23:07:56 rewritten 178 passthrough 2 errors 0 disconnects 0 idle 0 completed 173
+23:07:56 REWRITE POST /v1/chat/completions steering_scale 1.0 (client sent absent)
+23:07:56 rewritten 179 passthrough 2 errors 0 disconnects 0 idle 0 completed 173
+23:07:58 rewritten 179 passthrough 2 errors 0 disconnects 0 idle 0 completed 174
+23:07:58 REWRITE POST /v1/chat/completions steering_scale 1.0 (client sent absent)
+23:07:58 rewritten 180 passthrough 2 errors 0 disconnects 0 idle 0 completed 174
+23:08:07 rewritten 180 passthrough 2 errors 0 disconnects 0 idle 0 completed 175
+23:08:07 REWRITE POST /v1/chat/completions steering_scale 1.0 (client sent absent)
+23:08:07 rewritten 181 passthrough 2 errors 0 disconnects 0 idle 0 completed 175
+23:08:12 rewritten 181 passthrough 2 errors 0 disconnects 0 idle 0 completed 176
+23:08:12 REWRITE POST /v1/chat/completions steering_scale 1.0 (client sent absent)
+23:08:12 rewritten 182 passthrough 2 errors 0 disconnects 0 idle 0 completed 176
+23:08:14 rewritten 182 passthrough 2 errors 0 disconnects 0 idle 0 completed 177
+23:08:14 REWRITE POST /v1/chat/completions steering_scale 1.0 (client sent absent)
+23:08:14 rewritten 183 passthrough 2 errors 0 disconnects 0 idle 0 completed 177
+23:08:23 rewritten 183 passthrough 2 errors 0 disconnects 0 idle 0 completed 178
+23:08:23 REWRITE POST /v1/chat/completions steering_scale 1.0 (client sent absent)
+23:08:23 rewritten 184 passthrough 2 errors 0 disconnects 0 idle 0 completed 178
+23:08:31 rewritten 184 passthrough 2 errors 0 disconnects 0 idle 0 completed 179
+23:08:31 REWRITE POST /v1/chat/completions steering_scale 1.0 (client sent absent)
+23:08:31 rewritten 185 passthrough 2 errors 0 disconnects 0 idle 0 completed 179
+23:08:33 rewritten 185 passthrough 2 errors 0 disconnects 0 idle 0 completed 180
+23:08:33 REWRITE POST /v1/chat/completions steering_scale 1.0 (client sent absent)
+23:08:33 rewritten 186 passthrough 2 errors 0 disconnects 0 idle 0 completed 180
+23:08:48 rewritten 186 passthrough 2 errors 0 disconnects 0 idle 0 completed 181
+23:08:48 REWRITE POST /v1/chat/completions steering_scale 1.0 (client sent absent)
+23:08:48 rewritten 187 passthrough 2 errors 0 disconnects 0 idle 0 completed 181
+23:08:53 rewritten 187 passthrough 2 errors 0 disconnects 0 idle 0 completed 182
+23:08:53 REWRITE POST /v1/chat/completions steering_scale 1.0 (client sent absent)
+23:08:53 rewritten 188 passthrough 2 errors 0 disconnects 0 idle 0 completed 182
+23:09:04 rewritten 188 passthrough 2 errors 0 disconnects 0 idle 0 completed 183
+23:09:04 REWRITE POST /v1/chat/completions steering_scale 1.0 (client sent absent)
+23:09:04 rewritten 189 passthrough 2 errors 0 disconnects 0 idle 0 completed 183
+23:09:07 rewritten 189 passthrough 2 errors 0 disconnects 0 idle 0 completed 184
+23:09:07 REWRITE POST /v1/chat/completions steering_scale 1.0 (client sent absent)
+23:09:07 rewritten 190 passthrough 2 errors 0 disconnects 0 idle 0 completed 184
+23:09:09 rewritten 190 passthrough 2 errors 0 disconnects 0 idle 0 completed 185
+23:09:09 REWRITE POST /v1/chat/completions steering_scale 1.0 (client sent absent)
+23:09:09 rewritten 191 passthrough 2 errors 0 disconnects 0 idle 0 completed 185
+23:09:18 rewritten 191 passthrough 2 errors 0 disconnects 0 idle 0 completed 186
+23:09:18 REWRITE POST /v1/chat/completions steering_scale 1.0 (client sent absent)
+23:09:18 rewritten 192 passthrough 2 errors 0 disconnects 0 idle 0 completed 186
+23:09:23 rewritten 192 passthrough 2 errors 0 disconnects 0 idle 0 completed 187
+23:09:23 REWRITE POST /v1/chat/completions steering_scale 1.0 (client sent absent)
+23:09:23 rewritten 193 passthrough 2 errors 0 disconnects 0 idle 0 completed 187
+23:09:24 rewritten 193 passthrough 2 errors 0 disconnects 0 idle 0 completed 188
+23:09:24 REWRITE POST /v1/chat/completions steering_scale 1.0 (client sent absent)
+23:09:24 rewritten 194 passthrough 2 errors 0 disconnects 0 idle 0 completed 188
+23:09:25 rewritten 194 passthrough 2 errors 0 disconnects 0 idle 0 completed 189
+23:09:25 REWRITE POST /v1/chat/completions steering_scale 1.0 (client sent absent)
+23:09:25 rewritten 195 passthrough 2 errors 0 disconnects 0 idle 0 completed 189
+23:09:27 rewritten 195 passthrough 2 errors 0 disconnects 0 idle 0 completed 190
+23:09:27 REWRITE POST /v1/chat/completions steering_scale 1.0 (client sent absent)
+23:09:27 rewritten 196 passthrough 2 errors 0 disconnects 0 idle 0 completed 190
+23:09:30 rewritten 196 passthrough 2 errors 0 disconnects 0 idle 0 completed 191
+23:09:30 REWRITE POST /v1/chat/completions steering_scale 1.0 (client sent absent)
+23:09:30 rewritten 197 passthrough 2 errors 0 disconnects 0 idle 0 completed 191
+23:09:32 rewritten 197 passthrough 2 errors 0 disconnects 0 idle 0 completed 192
+23:09:32 REWRITE POST /v1/chat/completions steering_scale 1.0 (client sent absent)
+23:09:32 rewritten 198 passthrough 2 errors 0 disconnects 0 idle 0 completed 192
+23:09:33 rewritten 198 passthrough 2 errors 0 disconnects 0 idle 0 completed 193
+23:09:35 rewritten 198 passthrough 2 errors 0 disconnects 0 idle 0 completed 194
+23:09:45 rewritten 198 passthrough 2 errors 0 disconnects 0 idle 0 completed 195
+23:09:46 rewritten 198 passthrough 2 errors 0 disconnects 0 idle 0 completed 196
+23:09:58 rewritten 198 passthrough 2 errors 0 disconnects 0 idle 0 completed 197
+23:10:00 rewritten 198 passthrough 2 errors 0 disconnects 0 idle 0 completed 198
+23:10:34 rewritten 198 passthrough 2 errors 0 disconnects 0 idle 0 completed 199
+23:10:37 rewritten 198 passthrough 2 errors 0 disconnects 0 idle 0 completed 200
+23:10:37 STOP rewritten 198 passthrough 2 errors 0 disconnects 0 idle 0 completed 200

@@ -1,0 +1,6 @@
+llm-inference-bench v0.9.1 + local diff sha e75f133b5d1d (Flare steps patch, = 20261116); llm_decode_bench.py sha 93ba67f2635a
+tool-eval-bench 570951a7 2.7.1.dev14+g570951a77 (= 20261116)
+GPQA Diamond dataset sha a8472c5a82ea (= 20261116); qualification kit = 20261116 qual-core kit (qualification/ of this folder), stress patched to 16 streams as the 20261116 rerun
+ttft_under_load.py af6eabd03936 (= 20261116); qual_parse.py a112af03b6ca; verify_fix.py 4f48b318ad36
+steer_proxy.py v3 3f93a1cf05a4; gpqa_cmp.py 8798444657d8; relqual-chain.sh a9e5b54ab28c; relqual-lib-nocli.sh 9adc46743d42
+python 3.14.4, bench venv 3.14.4

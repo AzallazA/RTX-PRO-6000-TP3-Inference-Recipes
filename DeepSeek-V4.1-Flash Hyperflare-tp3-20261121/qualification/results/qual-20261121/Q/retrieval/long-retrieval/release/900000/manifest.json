@@ -1,0 +1,36 @@
+{
+ "target": 900000,
+ "request_sha256": "434523b3f6ba1090e66ade56b2539acf0f6faf2fab21d469c229e27304316ac6",
+ "attempts": [
+  {
+   "records": 90000,
+   "tokens": 810105
+  },
+  {
+   "records": 99987,
+   "tokens": 899988
+  }
+ ],
+ "settings": {
+  "model": "DeepSeek-V4.1-Flash",
+  "temperature": 1,
+  "top_p": 1.0,
+  "seed": 900000,
+  "min_tokens": 0,
+  "ignore_eos": false,
+  "max_completion_tokens": 2048,
+  "repetition_penalty": 1,
+  "tool_choice": "none",
+  "cache_salt": "ds41-release-retrieval-900000",
+  "reasoning_effort": "max"
+ },
+ "expected": {
+  "A": "ALPHA-R34-7K2M9Q",
+  "B": "BETA-R34-8P6V3X",
+  "C": "GAMMA-R34-4T9N2Z"
+ },
+ "runtime": {
+  "server": "flare",
+  "cmdline": ""
+ }
+}

@@ -1,0 +1,28 @@
+{
+ "id": "chatcmpl-9da28efef5379c80-380",
+ "object": "chat.completion",
+ "created": 1795231139,
+ "model": "ds41-1017-engram-fp8",
+ "choices": [
+  {
+   "index": 0,
+   "message": {
+    "role": "assistant",
+    "content": "{\"A\":\"ALPHA-R34-7K2M9Q\",\"B\":\"BETA-R34-8P6V3X\",\"C\":\"GAMMA-R34-4T9N2Z\"}",
+    "reasoning_content": "We need answer only JSON object keys A B C exact marker values. Need inspect prompt. Three markers explicitly:\nMarker A = ALPHA-R34-7K2M9Q\nMarker B = BETA-R34-8P6V3X\nMarker C = GAMMA-R34-4T9N2Z\nNeed return only JSON. Ensure exact. No markdown? \"Return only a JSON object\". Final."
+   },
+   "finish_reason": "stop"
+  }
+ ],
+ "usage": {
+  "prompt_tokens": 127986,
+  "completion_tokens": 137,
+  "total_tokens": 128123,
+  "prompt_tokens_details": {
+   "cached_tokens": 0
+  },
+  "completion_tokens_details": {
+   "reasoning_tokens": 90
+  }
+ }
+}

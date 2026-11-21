@@ -1,0 +1,5 @@
+[rq-11202218-c16] capacity=5,687,040 tok -> 2 waves x 16 x ~530,000 tok unique prompts (+ pinger)
+  wave 1/2: 16/16 ok, 9,511,893 prompt tok, 606s, minfree so far 78 MiB
+  wave 2/2: 16/16 ok, 9,513,826 prompt tok, 609s, minfree so far 78 MiB
+(Flare log: 0 preemption lines, reported separately)
+[rq-11202218-c16] PASS: 32/32 long requests ok, pinger 168/168 ok, 19,025,719 prompt tok pushed, min free VRAM 78 MiB (600 samples), health=200, bad log lines=0, wall 20.3 min

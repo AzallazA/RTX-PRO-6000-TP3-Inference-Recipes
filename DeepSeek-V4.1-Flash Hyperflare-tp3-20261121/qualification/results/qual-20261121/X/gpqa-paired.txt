@@ -1,0 +1,1 @@
+GPQA PAIRED PASS: A 181/198, B 177/198; wrong only in B 4, only in A 0; exact McNemar p 0.125

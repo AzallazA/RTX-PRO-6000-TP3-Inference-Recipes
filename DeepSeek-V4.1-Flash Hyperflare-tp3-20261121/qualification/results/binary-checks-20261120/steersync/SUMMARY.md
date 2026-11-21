@@ -1,0 +1,62 @@
+# DS41 steer-sync binary (steersync-80764e80) qualification (ds41-steersync-1120-1951)
+
+binary <fork-worktree> (sha cc43edd748bf); package gb202-tp3-202611201530 (seq382's steering export, KV gate 5687040); served by <serve-dir>/ds41-tp3.sh with P= + FLARE_DIR= only; boot KV 5687040; bindec A = gb202-tp3-202611192051 on sync-394fcb21 (package differs: report only, +3% gate); seq seq389 after seq388
+
+| kind | gate | result | detail |
+|---|---|---|---|
+| GATE | def | PASS | gb202-tp3-202611192051 (line 73): record seq370 ds41-e3ca-adopt-1119-2154 ADOPTED, KV 5679744; line 89 = sync-394fcb21 (record seq386); A arm + restore target = this default |
+| GATE | live-before | PASS | pid 48184 = gb202-tp3-202611192051 on sync-394fcb21, KV 5679744 == record |
+| GATE | boot | PASS | gb202-tp3-202611201530 on steersync-80764e80 cc43edd748bf via ds41-tp3.sh P= + FLARE_DIR= only, up in 52 s, flags = live default's (encoder prefill true), FLARE_* = ds41-tp3.sh's, Engram both in RAM, access open |
+| GATE | boot-kv | PASS | served KV 5687040 == the package's KV 5687040 (seq382 S-kv) |
+| GATE | boot-log | PASS | 15 [ OK ] lines = seq382's boot of this package on steer-84aaf40b |
+| GATE | smoke | PASS | smoke 2/2 thinking-off:ok '391' stop 0.05s thinking-on:ok '391' stop 0.12s |
+| GATE | image | PASS | IMAGE_SMOKE steersync served 5/5 correct 5/5 / small: ok 222p 0.1s / large 1920x900: ok 998p 0.2s / over-max 4160x1280 (downscaled): ok 974p 0.3s / two images: ok 422p 0.1s / four images: ok 828p 0.2s |
+| GATE | imagex | PASS | IMAGEX PASS 4/4 / png16-gray: ok (correct True) HTTP 200 222p 'JNDL-XX4W' 0.12s / png16-rgb: ok (correct True) HTTP 200 222p 'TAYH-6EVG' 0.12s / gif: ok (correct True) HTTP 200 222p 'XTJA-WMK6' 0.1s / gif-animated: ok (refused cleanly) HTTP 400 '{"error":{"type":"invalid_request_error","message":"animated GIF is not supported; provide a still image","param":null,"code":"invalid_reque |
+| GATE | toolcheck | PASS | TOOLCHECK PASS 5/5 / oai: ok HTTP 200 finish tool_calls calls 1 args ['{"city": "Paris"}'] 0.15s / oai-stream: ok HTTP 200 [DONE] True errors 0 finish tool_calls calls 1 args ['{"city": "Paris"}'] 0.07s / anthropic: ok HTTP 200 stop tool_use tool_use 1 input [{'city': 'Paris'}] 0.07s / single: ok HTTP 200 finish tool_calls calls 1 (want exactly 1) 0.2s / big-history: ok HTTP 200 served (1126430 B argument) '{"id":"chatcmpl-9742983836723728-15","object":"chat.completion","created":1795222376,"model":"ds41-1017-engram-f |
+| GATE | eval43 | PASS | EVAL43 known 43/43 needle True concurrent_errors 0 |
+| GATE | verify | PASS | verify_fix 10: TRUE corruptions 0 (retried 0, candidates skipped 0) |
+| GATE | refusal | PASS | s=0: REFUSAL s=0.0: trigger 23/30 refused (+2 deflected), benign 0/30 refused (+0 deflected), errors 0 / s=1: REFUSAL s=1.0: trigger 2/30 refused (+2 deflected), benign 0/30 refused (+0 deflected), errors 0 (texts only in private/) |
+| GATE | prefix | PASS | PREFIX PASS: cached_tokens s0 0, s1-after-s0 0 (want 0), s0-again 3429, s1-again 3429, omitted-after-s0 3429 (want > 0); /metrics reused-token deltas [0.0, 0.0, 3429.0, 3429.0, 3429.0]; prompt tokens 3429; errors 0 |
+| GATE | mixed8 | PASS | MIXED c8 PASS: first token equal to the homogeneous run of its scale 8/8 (differs on lanes -; on lanes whose own homogeneous repeat differs -); 16-token exact 5/8, mean common prefix 0.703; homogeneous repeat equal 1/8; steering moved 5/8 lanes (hom0 vs hom1); long lanes prompt tokens [32895, 32895] (>= 32768: True); errors 0 |
+| GATE | proxycheck | PASS | PROXYCHECK PASS: proxied s=1.0 answered (24 tokens, finish length); proxy log (REWRITE line): 1 chat request(s) rewritten with steering_scale 1.0; INFO: common prefix with direct 1.0 0/24 tokens, moved vs 0.0 (classifier refused -> answered) |
+| GATE | stress8 | PASS | PASS 16/16 long, ping 88/88, min free 78 MiB, bad lines 0, wall 9.5 min (min free < 480 MiB kit margin, >= 16 MiB floor) |
+| GATE | stress8-vram-sampled | PASS | kit min free 78 MiB sampled (all GPUs) |
+| GATE | stress8-vram-per-gpu | PASS | stress: GPU 0 min free 78 MiB (used 97264, 519 samples, max gap 1 s); GPU 1 min free 78 MiB (used 97264, 519 samples, max gap 1 s); GPU 2 min free 78 MiB (used 97264, 519 samples, max gap 1 s) / whole candidate run so far: GPU 0 78 MiB; GPU 1 78 MiB; GPU 2 78 MiB (floor 16 MiB per GPU) |
+| GATE | post-smoke | PASS | smoke 2/2 thinking-off:ok '391' stop 0.05s thinking-on:ok '391' stop 0.09s |
+| GATE | post-kv | PASS | served KV 5687040 = boot value |
+| GATE | scan | PASS | serve log 0 fault lines, kernel log 0 NVRM fault lines |
+| GATE | scan-kernel-readable | PASS | journalctl -k read (1 lines) |
+| GATE | scan-oom | PASS | no OOM kill in the kernel log since the chain start |
+| GATE | boot-access | PASS | gb202-tp3-202611201530 on steersync-80764e80 cc43edd748bf via ds41-tp3.sh P= + FLARE_DIR= + the key-file variable only, up in 52 s, flags = live default's (encoder prefill true), FLARE_* = ds41-tp3.sh's + the key-file variable, Engram both in RAM, access restricted (1 key) |
+| GATE | boot-access-kv | PASS | served KV 5687040 == the package's KV 5687040 (seq382 S-kv) |
+| GATE | boot-access-log | PASS | 15 [ OK ] lines = seq382's boot of this package on steer-84aaf40b |
+| GATE | access-smoke | PASS | smoke 2/2 thinking-off:ok '391' stop 0.04s thinking-on:ok '391' stop 0.11s |
+| GATE | access | PASS | ACCESS PASS: 403 x7/7 (no key, wrong X-Steering-Key, wrong Bearer, chat_template_kwargs, completions, messages (Anthropic), stream); right key X-Steering-Key 200 cached 0, Bearer 200 cached 3423, stream 200 deltas 16; s=0 no key 200 cached 3423, omitted 200 cached 3423; INFO steered text moved vs s=0 |
+| GATE | access-key-scan | PASS | key not in the serve log, server argv / environ, run files or queue log (environ carries the file path only) |
+| GATE | access-key-removed | PASS | per-run key file + folder deleted |
+| GATE | bindec-bootA-r1 | INFO | gb202-tp3-202611192051 on sync-394fcb21 up in 53 s, KV 5679744, identity = boot gates |
+| GATE | bindec-A-r1 | INFO | cells 2/2 |
+| GATE | bindec-boot-r1 | INFO | gb202-tp3-202611201530 on steersync-80764e80 up in 54 s, KV 5687040, identity = boot gates |
+| GATE | bindec-D-r1 | INFO | cells 2/2 |
+| GATE | bindec-bootA-r2 | INFO | gb202-tp3-202611192051 on sync-394fcb21 up in 53 s, KV 5679744, identity = boot gates |
+| GATE | bindec-A-r2 | INFO | cells 2/2 |
+| GATE | bindec-boot-r2 | INFO | gb202-tp3-202611201530 on steersync-80764e80 up in 53 s, KV 5687040, identity = boot gates |
+| GATE | bindec-D-r2 | INFO | cells 2/2 |
+| GATE | bindec-bootA-r3 | INFO | gb202-tp3-202611192051 on sync-394fcb21 up in 53 s, KV 5679744, identity = boot gates |
+| GATE | bindec-A-r3 | INFO | cells 2/2 |
+| GATE | bindec-boot-r3 | INFO | gb202-tp3-202611201530 on steersync-80764e80 up in 53 s, KV 5687040, identity = boot gates |
+| GATE | bindec-D-r3 | INFO | cells 2/2 |
+| GATE | bindec-scan-A-r1 | PASS | serve log 0 fault lines, kernel log 0 NVRM fault lines |
+| GATE | bindec-scan-A-r2 | PASS | serve log 0 fault lines, kernel log 0 NVRM fault lines |
+| GATE | bindec-scan-A-r3 | PASS | serve log 0 fault lines, kernel log 0 NVRM fault lines |
+| GATE | bindec-scan-D-r1 | PASS | serve log 0 fault lines, kernel log 0 NVRM fault lines |
+| GATE | bindec-scan-D-r2 | PASS | serve log 0 fault lines, kernel log 0 NVRM fault lines |
+| GATE | bindec-scan-D-r3 | PASS | serve log 0 fault lines, kernel log 0 NVRM fault lines |
+| GATE | bindec | INFO | FINAL BINDEC LEVEL: c1-32k new 6.236 vs current worst 6.133 (A-r2) +1.7% [D-r1 6.412, D-r2 6.155, D-r3 6.147; info -]; c8-32k new 8.070 vs current worst 8.267 (A-r1) -2.4% [D-r1 8.158, D-r2 8.087, D-r3 7.967; info -] (corrected GPU ms/round at equal offered drafts; final binary vs current binary ds41-steersync-1120-1951 A rounds; FAIL if > current worst x 1.03) (BINDEC.md; A = 192051 on sync-394fcb21 in-chain, B = 201530 on steersync as D-r*; packages differ: report only) |
+| GATE | ready | PASS | <work-dir>/steersync-20261120/STEERSYNC-READY written (line 73 -> gb202-tp3-202611201530, line 89 -> steersync-80764e80, read-ahead lines) |
+| GATE | switch | PASS | ds41-tp3.sh line 73 -> gb202-tp3-202611201530, line 89 -> steersync-80764e80, read-ahead on (inode 9343959 -> 9343960, sha 003fd1285d67); backup <serve-dir>/history/ds41-tp3.sh.pre-steersync  |
+| GATE | adopted | PASS | OK pid 2802630 gb202-tp3-202611201530 KV 5687040 smoke 391 (exe cc43edd748bf, encoder prefill true, Engram both in RAM) |
+| GATE | adopted-ra-inert | PASS | FLARE_ENGRAM_READ_AHEAD=1 in environ; no read-ahead metric lines, no read-ahead threads (both tables in RAM) |
+| GATE | adopted-steer | PASS | STEER SANITY PASS: trigger #8 moved (s=0 vs s=1 text differs; 1 tried, errors 0) |
+
+PASS: STEERSYNC ADOPTED all gates PASS; default = gb202-tp3-202611201530 on steersync-80764e80 + read-ahead on (KV 5687040; PASS: ACCESS PASS: 403 x7/7 (no key, wrong X-Steering-Key, wrong Bearer, chat_template_kwargs, completions, messages (Anthropic), stream); right key X-Steering-Key 200 cached 0, Bearer 200 cached 3423, stream 200 deltas 16; s=0 no key 200 cached 3423, omitted ; per-GPU PASS: stress: GPU 0 min free 78 MiB (used 97264, 519 samples, max gap 1 s); GPU 1 min free 78 MiB (used 97264, 519 samples, max gap 1 s); GPU 2 min free 78 MiB (used 97264, 519 samples, max gap 1 s) | whole candidate run so far: GPU 0 78 MiB; GPU 1 78 MiB; GPU; INFO: FINAL BINDEC LEVEL: c1-32k new 6.236 vs current worst 6.133 (A-r2) +1.7% [D-r1 6.412, D-r2 6.155, D-r3 6.147; info -]; c8-32k new 8.070 vs current worst 8.267 (A-r1) -2.4% [D-r1 8.158, D-r2 8.087, D-r3 7.967; info -] (corrected GPU ms/round at equal offered drafts; final binary vs current binary ds41-steersync-1120-1951 A rounds; FAIL if > current worst x 1.03) (BINDEC.md; A = 192051 on sync-394fcb21 in-chain, ; script SWITCHED (ds41-tp3.sh line 73 -> gb202-tp3-202611201530, line 89 -> steersync-80764e80, read-ahead on (inode 9343959 -> 9343960, sha 003fd1285d67); backup <serve-dir>/history/ds41-tp3.sh.pre-steersync); adopted OK pid 2802630 gb202-tp3-202611201530 KV 5687040 smoke 391; 47 min) | ~/bench-results/ds41-steersync-1120-1951
