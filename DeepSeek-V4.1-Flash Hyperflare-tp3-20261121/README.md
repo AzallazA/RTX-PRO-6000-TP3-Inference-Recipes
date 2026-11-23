@@ -8,7 +8,7 @@
 - **Export and preparation.** The tools check overlay capabilities, honor explicit export switches, and preserve previous outputs if preparation fails.
 - **Release scripts.** Refresh the Nov 21 recipe folder from `main`. The launcher honors the requested Engram storage and feature settings even when the shell exports conflicting values. Custom exports enable the 4,096-row variants only when the selected prefill ladder includes them. Preflight recognizes tagged shallow fork checkouts when run from the fork, checks the adjacent source patch when run from the recipe, and requires three distinct visible GPU indices.
 
-If you already run the `.1` binary, use the updated scripts with it on your next launch. [Release notes](https://github.com/AzallazA/hyperflare-inference/releases/tag/hyperflare-tp3-20261121.1)
+If you already run the `.1` binary, use the updated scripts with it on your next launch. [Release notes](https://github.com/AzallazA/hyperflare-inference/releases/tag/hyperflare-tp3-20261121.1) · [Upgrade instructions](EXPORT.md#ds41-tp3-update)
 
 > **Flare = Hyperflare.** NVIDIA renamed Flare to **Hyperflare** ([NVIDIA/hyperflare-inference](https://github.com/NVIDIA/hyperflare-inference)).
 > The binary, the CLI (`flare run`, `flare models`) and the cache paths (`~/.cache/flare`) are still called `flare`.

@@ -1,32 +1,29 @@
 #  Native TP3
 
-## DS41 TP3 update
-
-**Already have the Nov 21 package? Keep `gb202-tp3-202611201530`. No re-export is needed.**
-
-- **Server.** Build `flare` from `hyperflare-tp3-20261121.1` if you have the original Nov 21 binary. The maintenance binary fixes steering access and accepts an explicit zero steering scale on Messages and Responses.
-- **Export and preparation.** The tools check overlay capabilities, honor explicit export switches, and preserve previous outputs if preparation fails.
-- **Release scripts.** Refresh the Nov 21 recipe folder from `main`. The launcher honors the requested Engram storage and feature settings even when the shell exports conflicting values. Custom exports enable the 4,096-row variants only when the selected prefill ladder includes them. Preflight recognizes tagged shallow fork checkouts when run from the fork, checks the adjacent source patch when run from the recipe, and requires three distinct visible GPU indices.
-
-If you already run the `.1` binary, use the updated scripts with it on your next launch. [Release notes](https://github.com/AzallazA/hyperflare-inference/releases/tag/hyperflare-tp3-20261121.1)
-
 Inference recipes for 3x RTX PRO 6000 Blackwell (TP3) with vLLM and NVIDIA Hyperflare (formerly Flare). Each folder is one build:
 image or export recipe, launch files, measurements and the source changes.
 
-All builds run on 3x RTX PRO 6000 Blackwell 96 GB (PCIe), tensor parallel 3 unless a row says otherwise. Power is the
+All builds run on 3x RTX PRO 6000 Blackwell 96 GB (PCIe), tensor parallel 3 unless a section or row says otherwise. Power is the
 per-GPU limit the numbers were measured at. Newest first in each table.
 
 ## NVIDIA Flare / Hyperflare: DeepSeek-V4.1-Flash
 
+### TP3 (3x RTX PRO 6000)
+
 | Release | Date | Hardware / TP | Key numbers | Notes | Get it |
 | --- | --- | --- | --- | --- | --- |
-| [DeepSeek-V4.1-Flash Hyperflare-tp3-20261121](DeepSeek-V4.1-Flash%20Hyperflare-tp3-20261121/README.md) | 2026-11-21 | TP3, 450 W | 16 slots, 5.69M KV (cap 32, 12G prefix cache); 32K c1/c4/c8/c16 311-324/773-810/1,059-1,102/1,459-1,467 tok/s (range of 3 runs); prefill 32K 18.3K, 128K up to 19.1K tok/s; 8-stream agent replay 658 turns, first token p50 0.39 s | DeepSeek-V4.1-Flash-1017 on NVIDIA Hyperflare (binary still `flare`), maintenance tag `hyperflare-tp3-20261121.1`, using the Nov 21 package. Original release features: optional per-request steering (WARMIND v1.1 sidecar, `steering_scale`, steering inside the BRRR kernel, optional steering keys), blended expert order (355 hot in layers 20-39), encoder-only prefill, indexer split from 32K, gather pull, Engram read-ahead, picked upstream fixes; export-tier qualification + release run (16-stream KV stress PASS, tool-eval 93, eval-43 43/43, GPQA 91.4% at scale 0 / 89.4% at scale 1) | export it yourself ([EXPORT.md](DeepSeek-V4.1-Flash%20Hyperflare-tp3-20261121/EXPORT.md)) |
-| [DeepSeek-V4.1-Flash Hyperflare-tp2-exl3-20261117](DeepSeek-V4.1-Flash%20Hyperflare-tp2-exl3-20261117/README.md) | 2026-11-17 | **TP2 on 2 GPUs**, 450 W | 8 slots, 2.14M KV; 32K c1/c4/c8 243/553/757 tok/s, 128K c1/c8 ~240/743; 32K prefill ~11.3K tok/s | diffbot's EXL3 3-bit expert pack on NVIDIA Hyperflare (binary still `flare`), fork tag `hyperflare-tp2-exl3-20261117`: ~85% of experts in VRAM, rest in host RAM; Engram tables in RAM (~151 GiB server RAM) or on disk (one table: ~110 GiB, no speed cost; both: ~64 GiB); minimum qualification (hotel 30/30, 8-stream stress PASS, GPQA 92.4%); guides for KV vs speed and for an expert order from your own traffic | export it yourself ([EXPORT.md](DeepSeek-V4.1-Flash%20Hyperflare-tp2-exl3-20261117/EXPORT.md)) |
+| [DeepSeek-V4.1-Flash Hyperflare-tp3-20261121](DeepSeek-V4.1-Flash%20Hyperflare-tp3-20261121/README.md) | 2026-11-21 | TP3, 450 W | 16 slots, 5.69M KV (cap 32, 12G prefix cache); 32K c1/c4/c8/c16 311-324/773-810/1,059-1,102/1,459-1,467 tok/s (range of 3 runs); prefill 32K 18.3K, 128K up to 19.1K tok/s; 8-stream agent replay 658 turns, first token p50 0.39 s | DeepSeek-V4.1-Flash-1017 on NVIDIA Hyperflare (binary still `flare`), maintenance tag `hyperflare-tp3-20261121.1` ([update notes](DeepSeek-V4.1-Flash%20Hyperflare-tp3-20261121/README.md#ds41-tp3-update); reuses the Nov 21 package, no re-export needed). Original release features: optional per-request steering (WARMIND v1.1 sidecar, `steering_scale`, steering inside the BRRR kernel, optional steering keys), blended expert order (355 hot in layers 20-39), encoder-only prefill, indexer split from 32K, gather pull, Engram read-ahead, picked upstream fixes; export-tier qualification + release run (16-stream KV stress PASS, tool-eval 93, eval-43 43/43, GPQA 91.4% at scale 0 / 89.4% at scale 1) | export it yourself ([EXPORT.md](DeepSeek-V4.1-Flash%20Hyperflare-tp3-20261121/EXPORT.md)) |
 | [DeepSeek-V4.1-Flash Hyperflare-tp3-20261116](DeepSeek-V4.1-Flash%20Hyperflare-tp3-20261116/README.md) | 2026-11-16 | TP3, 450 W | 16 slots, 5.40M KV (cap 32, 12G prefix cache); 32K c1/c8/c16 320/979/1,332 tok/s (single 30 s passes; c1/c8 level with 20261111); prefill 32K 15.8K tok/s; 8-stream agent replay first token p50 0.42 s | DeepSeek-V4.1-Flash-1017 on NVIDIA Hyperflare (binary still `flare`), fork tag `hyperflare-tp3-20261116`: new upstream base `70069281`, DeepSeek's FP8 Engram tables in RAM (256 GB host RAM minimum, ~217 GiB committed), round-2 export switches, prefill merge and shortest-first TTFT guard; minimum qualification (no LiveBench / long generation), 16-stream KV stress PASS | export it yourself ([EXPORT.md](DeepSeek-V4.1-Flash%20Hyperflare-tp3-20261116/EXPORT.md)) |
 | [DeepSeek-V4.1-Flash Hyperflare-tp3-20261111](DeepSeek-V4.1-Flash%20Hyperflare-tp3-20261111/README.md) | 2026-11-11 | TP3, 450 W | 3.01M KV (2.47M before graph scratch, same settings); 32K c1/c4/c8 ~301/734/988 tok/s; first token 0.36-0.38 s instead of 2-4 s while 3-7 streams decode (TTFT guard); LiveBench coding 83.5 | DeepSeek-V4.1-Flash-1017 on NVIDIA Hyperflare (formerly Flare; binary still `flare`), fork tag `hyperflare-tp3-20261111`: graph scratch, TTFT guard (`--scheduler-policy interactive`); same settings; full c8 qualification | export it yourself ([EXPORT.md](DeepSeek-V4.1-Flash%20Hyperflare-tp3-20261111/EXPORT.md)) |
 | [DeepSeek-V4.1-Flash Flare-tp3-20261108](DeepSeek-V4.1-Flash%20Flare-tp3-20261108/README.md) | 2026-11-08 | TP3, 450 W | 2.46M KV; 32K c1/c4/c8 ~306/719/973 tok/s; 0.11 s per image instead of 1.70 s | DeepSeek-V4.1-Flash-1017 on NVIDIA Flare, fork tag `flare-tp3-20261108`: 20261107 plus BRRR kernel hygiene, vision weight staging, Engram per-table storage, `flare run --dry-run`; same settings | export it yourself ([EXPORT.md](DeepSeek-V4.1-Flash%20Flare-tp3-20261108/EXPORT.md)) |
 | [DeepSeek-V4.1-Flash Flare-tp3-20261107](DeepSeek-V4.1-Flash%20Flare-tp3-20261107/README.md) | 2026-11-07 | TP3, 450 W | 1M context, 8 slots, 2.37M KV (6.25M variant); 32K c1/c4/c8 ~305/738/975 tok/s | DeepSeek-V4.1-Flash-1017 on NVIDIA Flare, rebased on upstream, BRRR fused layer tail; Engram in RAM or on disk. Supersedes 20261105 | export it yourself ([EXPORT.md](DeepSeek-V4.1-Flash%20Flare-tp3-20261107/EXPORT.md)) |
 | [DeepSeek-V4.1-Flash Flare-tp3-20261105](DeepSeek-V4.1-Flash%20Flare-tp3-20261105/README.md) | 2026-11-05 | TP3, 350 W | 1M context, 8 slots, 2.99M KV | DeepSeek-V4.1-Flash-1017 on NVIDIA Flare (original weights + NVIDIA MXFP4 Engram tables in RAM) | export it yourself ([EXPORT.md](DeepSeek-V4.1-Flash%20Flare-tp3-20261105/EXPORT.md)) |
+
+### TP2 (2x RTX PRO 6000)
+
+| Release | Date | Hardware / TP | Key numbers | Notes | Get it |
+| --- | --- | --- | --- | --- | --- |
+| [DeepSeek-V4.1-Flash Hyperflare-tp2-exl3-20261117](DeepSeek-V4.1-Flash%20Hyperflare-tp2-exl3-20261117/README.md) | 2026-11-17 | **TP2 on 2 GPUs**, 450 W | 8 slots, 2.14M KV; 32K c1/c4/c8 243/553/757 tok/s, 128K c1/c8 ~240/743; 32K prefill ~11.3K tok/s | diffbot's EXL3 3-bit expert pack on NVIDIA Hyperflare (binary still `flare`), fork tag `hyperflare-tp2-exl3-20261117`: ~85% of experts in VRAM, rest in host RAM; Engram tables in RAM (~151 GiB server RAM) or on disk (one table: ~110 GiB, no speed cost; both: ~64 GiB); minimum qualification (hotel 30/30, 8-stream stress PASS, GPQA 92.4%); guides for KV vs speed and for an expert order from your own traffic | export it yourself ([EXPORT.md](DeepSeek-V4.1-Flash%20Hyperflare-tp2-exl3-20261117/EXPORT.md)) |
 
 ## NVIDIA Flare / Hyperflare: GLM-5.3-Flash
 
