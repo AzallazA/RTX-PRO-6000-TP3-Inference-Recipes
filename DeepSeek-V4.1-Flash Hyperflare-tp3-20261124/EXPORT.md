@@ -1,6 +1,6 @@
 # Exporting the DS41 TP3 2026-11-24 Package
 
-This release uses the **post-split 3-repository Hyperflare stack**, tagged identically at **`hyperflare-tp3-20261124`** across all three forks — no manual `source.patch` or `.venv` `tp3-patches/` patching is required.
+This release uses the **post-split Hyperflare stack** tagged at **`hyperflare-tp3-20261124`** (`hyperflare-inference` and `hyperflare-recipes`) plus a single `b12x` patch (`tp3-patches/b12x-tp3-20261124.patch`) applied to upstream `local-inference-lab/flashinfer @ 0aa01681`.
 
 ## 1. Requirements
 
@@ -15,14 +15,19 @@ export PATH="$CUDA_HOME/bin:$PATH"
 ulimit -l   # must print "unlimited"
 ```
 
-## 2. Clone the 3 Tagged Repositories & Build `flare`
+## 2. Clone & Build `flare` + Patched `b12x` Overlay
 
 ```bash
+RECIPE_DIR=/path/to/this-folder
 mkdir -p ds41-tp3-20261124 && cd ds41-tp3-20261124
 
 git clone --branch hyperflare-tp3-20261124 --depth 1 https://github.com/AzallazA/hyperflare-inference.git flare-core
 git clone --branch hyperflare-tp3-20261124 --depth 1 https://github.com/AzallazA/hyperflare-recipes.git hyperflare-recipes
-git clone --branch hyperflare-tp3-20261124 --depth 1 https://github.com/AzallazA/flashinfer.git flashinfer
+
+# Upstream FlashInfer @ 0aa01681 + tp3-patches/b12x-tp3-20261124.patch
+git clone https://github.com/local-inference-lab/flashinfer.git flashinfer
+git -C flashinfer checkout 0aa01681
+patch -p1 -d flashinfer < "$RECIPE_DIR/tp3-patches/b12x-tp3-20261124.patch"
 
 # Build the Rust serving binary (flare-cli/target/release/flare) and Python Heliopause extension
 cargo build --locked --release --manifest-path flare-core/flare-cli/Cargo.toml
@@ -33,7 +38,7 @@ uv sync --locked --extra prepare
 cd ..
 ```
 
-### Build the `b12x` Overlay from `flashinfer@hyperflare-tp3-20261124`
+### Build the `b12x` Overlay
 
 ```bash
 mkdir -p b12x-overlay/b12x

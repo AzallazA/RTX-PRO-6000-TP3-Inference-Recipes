@@ -1,0 +1,1431 @@
+diff --git a/flashinfer/experimental/b12x/_lib/dense_gemm/preparation.py b/flashinfer/experimental/b12x/_lib/dense_gemm/preparation.py
+index 3d80d97f..bcbe98e7 100644
+--- a/flashinfer/experimental/b12x/_lib/dense_gemm/preparation.py
++++ b/flashinfer/experimental/b12x/_lib/dense_gemm/preparation.py
+@@ -385,7 +385,7 @@ def _lower_dense_gemm(
+             or sf_dtype != "float8_e8m0fnu"
+             or sf_vec_size != 32
+             or l != 1
+-            or m > 8
++            or m > 32
+             or out is None
+             or alpha is not None
+             or load_path != "tma"
+@@ -592,7 +592,7 @@ def _lower_dense_gemm(
+                 f"{_split_k_slices_override}"
+             )
+         if _split_k_slices_override > 1:
+-            row_limit = 16 if mxfp8_autotune else 8
++            row_limit = 32 if mxfp8_autotune else 8
+             if m > row_limit or m > mma_tiler_mn[0] or l != 1 or swap_ab:
+                 raise ValueError(
+                     f"split-K FP8 autotuning requires M<={row_limit} within one M tile, "
+diff --git a/flashinfer/experimental/b12x/comm/pcie/_collective_tuning.py b/flashinfer/experimental/b12x/comm/pcie/_collective_tuning.py
+index 8a168b33..6ec25cb7 100644
+--- a/flashinfer/experimental/b12x/comm/pcie/_collective_tuning.py
++++ b/flashinfer/experimental/b12x/comm/pcie/_collective_tuning.py
+@@ -1,5 +1,6 @@
+ """Logical PCIe operations with native transport and launch candidates."""
+ 
++import os
+ from dataclasses import asdict, dataclass, replace
+ from functools import lru_cache
+ 
+@@ -37,6 +38,19 @@ ISLAND_VARIANTS = {
+     "island_hybrid_rsag": (True, True, True),
+ }
+ 
++TWOSHOT_PULL = "twoshot_pull"
++TWOSHOT_ALTERNATIVES = ("twoshot", TWOSHOT_PULL)
++
++
++def twoshot_pull_enabled() -> bool:
++    """Race the BF16 two-shot pull transport beside the upstream push entry (TP3)."""
++    mode = os.environ.get("B12X_PCIE_TWOSHOT_PULL", "0").strip().lower()
++    if mode in ("", "0", "off", "false", "no"):
++        return False
++    if mode in ("1", "on", "true", "yes"):
++        return True
++    raise ValueError("B12X_PCIE_TWOSHOT_PULL must be 0 or 1")
++
+ 
+ @dataclass(frozen=True, kw_only=True)
+ class CollectiveConfig:
+@@ -251,7 +265,7 @@ def _configs(query, device=None):
+                     yield CollectiveConfig(
+                         implementation=name, threads=count_threads, blocks=count_blocks
+                     )
+-        elif name == "twoshot":
++        elif name in TWOSHOT_ALTERNATIVES:
+             from math import prod
+ 
+             packs = prod(call["shape"]) // 8
+@@ -488,10 +502,10 @@ def _validate_config(query, config, device):
+ 
+ 
+ def _equivalence_key(query, device, config):
+-    if config.implementation == "twoshot":
++    if config.implementation in TWOSHOT_ALTERNATIVES:
+         from math import prod
+ 
+-        packs = prod(query.alternatives["twoshot"]["call"]["shape"]) // 8
++        packs = prod(query.alternatives[config.implementation]["call"]["shape"]) // 8
+         shard = -(-packs // query.world_size)
+         return (
+             config.implementation,
+diff --git a/flashinfer/experimental/b12x/comm/pcie/_dcp_a2a_cute.py b/flashinfer/experimental/b12x/comm/pcie/_dcp_a2a_cute.py
+index ca3f9432..0ece9d99 100644
+--- a/flashinfer/experimental/b12x/comm/pcie/_dcp_a2a_cute.py
++++ b/flashinfer/experimental/b12x/comm/pcie/_dcp_a2a_cute.py
+@@ -3,6 +3,7 @@
+ from __future__ import annotations
+ 
+ from collections.abc import Callable, Sequence
++import os
+ 
+ from b12x._lib.compile_plan import attach_programs
+ import cuda.bindings.driver as cuda
+@@ -47,6 +48,37 @@ from ._cute_intrinsics import (
+ )
+ 
+ 
++def _gather_pull_enabled(world_size: int) -> bool:
++    """Select the pull data plane for the generic (non-TP2) head gather.
++
++    TP3 patch (ds41-tp3, 2026-11-09). On the Threadripper PRO 7965WX host, with
++    three GPUs on separate root ports (``nvidia-smi topo`` NODE), SM-issued
++    posted writes to a peer run at about 2.6 GB/s per GPU in aggregate, while
++    SM-issued peer reads reach about 40 GB/s (world-3 one-shot pull all-reduce
++    and LSE reduce-scatter). Pull stages the local segment into this rank's own
++    staging, crosses the same per-CTA barrier, and reads the peers' staging.
++    ``B12X_PCIE_DCP_GATHER_PULL``: ``auto`` (default, pull at world 3 only),
++    ``1`` (pull at every world, world 2 included: TP2 patch 2026-11-10, the
++    generic pull plane with one peer; small payloads keep the TP2 push),
++    ``0`` (always push, upstream).
++    """
++    mode = os.environ.get("B12X_PCIE_DCP_GATHER_PULL", "auto").strip().lower()
++    if mode in ("0", "off", "push", "false"):
++        return False
++    if mode in ("1", "on", "pull", "true"):
++        return True
++    return int(world_size) == 3
++
++
++def _gather_pull_min_bytes() -> int:
++    """Per-rank payload (bytes) from which the pull plane is used; smaller stays push.
++
++    Crossover from the 2026-11-09 TP3 measurements: push ~1.5 us + 2P/2.6 GB/s,
++    pull ~5-7 us + 2P/42 GB/s, equal near P = 4-5 KiB. ``0`` always pulls.
++    """
++    return max(0, int(os.environ.get("B12X_PCIE_DCP_GATHER_PULL_MIN_BYTES", "4096")))
++
++
+ _MAX_BLOCKS = 64
+ _MAX_RANKS = 16
+ _SLOT_ALIGNMENT = 256
+@@ -1583,6 +1615,10 @@ class _LseReduceScatterLaunch(_DCPA2ABase):
+ 
+ 
+ class _AllGatherHeadsLaunch(_DCPA2ABase):
++    # Set by _get_compiled_all_gather_heads; subclasses keep the push plane.
++    _gather_pull = False
++    _pull_min_packs = 0
++
+     def __init__(
+         self,
+         world_size: int,
+@@ -1848,135 +1884,96 @@ class _AllGatherHeadsLaunch(_DCPA2ABase):
+         warp_stride = Int32(gdim) * Int32(self._warps_per_block)
+         local_packs = local_heads * packs_per_head
+         tiles_per_rank = (local_packs + Int32(31)) // Int32(32)
+-        if cutlass.const_expr(self._world_size == 2):
+-            tiles = batch * tiles_per_rank
+-            tile = warp_first
+-            while tile < tiles:
+-                batch_index = tile // tiles_per_rank
+-                pack = (tile - batch_index * tiles_per_rank) * Int32(32) + lane
+-                if pack < local_packs:
+-                    source_pack = Int64(batch_index) * Int64(local_packs) + Int64(pack)
+-                    output_pack = (
+-                        Int64(batch_index) * Int64(2) + Int64(self._rank)
+-                    ) * Int64(local_packs) + Int64(pack)
+-                    values = ld_global_v4_u32(
+-                        (local_input + source_pack * Int64(4)).toint()
+-                    )
+-                    st_global_v4_u32(
+-                        (
+-                            self._staging_words(staging[1 - self._rank])
+-                            + source_pack * Int64(4)
+-                        ).toint(),
+-                        *values,
+-                    )
+-                    st_global_v4_u32((output + output_pack * Int64(4)).toint(), *values)
+-                tile += warp_stride
+-            block_pair_barrier(
++        if cutlass.const_expr(self._world_size == 2 and self._gather_pull):
++            # World-2 pull (opt-in, B12X_PCIE_DCP_GATHER_PULL=1): the generic pull plane
++            # with one peer; small payloads keep the TP2 push below.
++            if batch * local_packs >= Int32(self._pull_min_packs):
++                self._gather_pull_generic(
++                    local_input,
++                    output,
++                    staging,
++                    signals,
++                    batch,
++                    local_packs,
++                    tiles_per_rank,
++                    lane,
++                    warp_first,
++                    warp_stride,
++                    tidx,
++                )
++            else:
++                self._gather_push_tp2(
++                    local_input,
++                    output,
++                    staging,
++                    signals,
++                    batch,
++                    local_packs,
++                    tiles_per_rank,
++                    lane,
++                    warp_first,
++                    warp_stride,
++                    tidx,
++                )
++        elif cutlass.const_expr(self._world_size == 2):
++            self._gather_push_tp2(
++                local_input,
++                output,
++                staging,
+                 signals,
+-                self_signal=signals[self._rank],
+-                rank=self._rank,
+-                world_size=self._world_size,
+-                max_blocks=_MAX_BLOCKS,
++                batch,
++                local_packs,
++                tiles_per_rank,
++                lane,
++                warp_first,
++                warp_stride,
++                tidx,
+             )
+-            if Int32(tidx) == Int32(0):
+-                _membar_sys()
+-            cute.arch.sync_threads()
+-            tile = warp_first
+-            while tile < tiles:
+-                batch_index = tile // tiles_per_rank
+-                pack = (tile - batch_index * tiles_per_rank) * Int32(32) + lane
+-                if pack < local_packs:
+-                    source_pack = Int64(batch_index) * Int64(local_packs) + Int64(pack)
+-                    output_pack = (
+-                        Int64(batch_index) * Int64(2) + Int64(1 - self._rank)
+-                    ) * Int64(local_packs) + Int64(pack)
+-                    _copy_16b(
+-                        self._staging_words(staging[self._rank])
+-                        + source_pack * Int64(4),
+-                        output + output_pack * Int64(4),
+-                    )
+-                tile += warp_stride
++        elif cutlass.const_expr(self._gather_pull):
++            # Small payloads keep the push plane: its fixed cost is ~2 us lower and
++            # below ~4 KiB per rank the write bandwidth does not matter.
++            if batch * local_packs >= Int32(self._pull_min_packs):
++                self._gather_pull_generic(
++                    local_input,
++                    output,
++                    staging,
++                    signals,
++                    batch,
++                    local_packs,
++                    tiles_per_rank,
++                    lane,
++                    warp_first,
++                    warp_stride,
++                    tidx,
++                )
++            else:
++                self._gather_push_generic(
++                    local_input,
++                    output,
++                    staging,
++                    signals,
++                    batch,
++                    local_packs,
++                    tiles_per_rank,
++                    lane,
++                    warp_first,
++                    warp_stride,
++                    tidx,
++                )
+         else:
+-            tiles_per_batch = tiles_per_rank * Int32(self._world_size)
+-            tiles = batch * tiles_per_batch
+-            # Every rank pushes its segments into each peer's staging and reads only
+-            # its own memory after the barrier, so PCIe carries posted writes and no
+-            # peer reads. Staging holds the peers' segments in rank order without the
+-            # receiver's own.
+-            own_stage = self._staging_words(staging[self._rank])
+-            peers = Int64(self._world_size - 1)
+-
+-            # Assign complete 512-byte segments to warps, independently of head
+-            # boundaries. Each rank stages and reads the same CTA's segments.
+-            tile = warp_first
+-            while tile < tiles:
+-                batch_index = tile // tiles_per_batch
+-                batch_tile = tile - batch_index * tiles_per_batch
+-                source_rank = batch_tile // tiles_per_rank
+-                rank_tile = batch_tile - source_rank * tiles_per_rank
+-                pack = rank_tile * Int32(32) + lane
+-                if source_rank == Int32(self._rank) and pack < local_packs:
+-                    source_pack = Int64(batch_index) * Int64(local_packs) + Int64(pack)
+-                    for peer in cutlass.range_constexpr(self._world_size):
+-                        if cutlass.const_expr(peer != self._rank):
+-                            staged_pack = (
+-                                Int64(batch_index) * peers
+-                                + Int64(
+-                                    self._rank if self._rank < peer else self._rank - 1
+-                                )
+-                            ) * Int64(local_packs) + Int64(pack)
+-                            _copy_16b(
+-                                local_input + source_pack * Int64(4),
+-                                self._staging_words(staging[peer])
+-                                + staged_pack * Int64(4),
+-                            )
+-                tile += warp_stride
+-
+-            block_pair_barrier(
++            self._gather_push_generic(
++                local_input,
++                output,
++                staging,
+                 signals,
+-                self_signal=signals[self._rank],
+-                rank=self._rank,
+-                world_size=self._world_size,
+-                max_blocks=_MAX_BLOCKS,
++                batch,
++                local_packs,
++                tiles_per_rank,
++                lane,
++                warp_first,
++                warp_stride,
++                tidx,
+             )
+-            # Acquire the peers' pushed segments before reading them locally.
+-            if Int32(tidx) == Int32(0):
+-                _membar_sys()
+-            cute.arch.sync_threads()
+-
+-            tile = warp_first
+-            while tile < tiles:
+-                batch_index = tile // tiles_per_batch
+-                batch_tile = tile - batch_index * tiles_per_batch
+-                source_rank = batch_tile // tiles_per_rank
+-                rank_tile = batch_tile - source_rank * tiles_per_rank
+-                pack = rank_tile * Int32(32) + lane
+-                if pack < local_packs:
+-                    source_pack = Int64(batch_index) * Int64(local_packs) + Int64(pack)
+-                    output_pack = (
+-                        Int64(batch_index) * Int64(self._world_size)
+-                        + Int64(source_rank)
+-                    ) * Int64(local_packs) + Int64(pack)
+-                    source_address = Int64(
+-                        (local_input + source_pack * Int64(4)).toint()
+-                    )
+-                    for source in cutlass.range_constexpr(self._world_size):
+-                        if source_rank == Int32(source):
+-                            if cutlass.const_expr(source != self._rank):
+-                                staged_pack = (
+-                                    Int64(batch_index) * peers
+-                                    + Int64(
+-                                        source if source < self._rank else source - 1
+-                                    )
+-                                ) * Int64(local_packs) + Int64(pack)
+-                                source_address = Int64(
+-                                    (own_stage + staged_pack * Int64(4)).toint()
+-                                )
+-                    _copy_16b_addr(
+-                        source_address,
+-                        Int64((output + output_pack * Int64(4)).toint()),
+-                    )
+-                tile += warp_stride
+ 
+         if cutlass.const_expr(self._device_slot_selection):
+             if Int32(tidx) == Int32(0):
+@@ -1988,6 +1985,254 @@ class _AllGatherHeadsLaunch(_DCPA2ABase):
+                 )
+ 
+ 
++    @cute.jit
++    def _gather_push_tp2(
++        self,
++        local_input,
++        output,
++        staging,
++        signals,
++        batch,
++        local_packs,
++        tiles_per_rank,
++        lane,
++        warp_first,
++        warp_stride,
++        tidx,
++    ):
++        # Upstream TP2 data plane, unchanged: push this rank's segment into the
++        # peer's staging and its own output columns, pair barrier, then copy the
++        # peer's segment from local staging into the output.
++        tiles = batch * tiles_per_rank
++        tile = warp_first
++        while tile < tiles:
++            batch_index = tile // tiles_per_rank
++            pack = (tile - batch_index * tiles_per_rank) * Int32(32) + lane
++            if pack < local_packs:
++                source_pack = Int64(batch_index) * Int64(local_packs) + Int64(pack)
++                output_pack = (
++                    Int64(batch_index) * Int64(2) + Int64(self._rank)
++                ) * Int64(local_packs) + Int64(pack)
++                values = ld_global_v4_u32(
++                    (local_input + source_pack * Int64(4)).toint()
++                )
++                st_global_v4_u32(
++                    (
++                        self._staging_words(staging[1 - self._rank])
++                        + source_pack * Int64(4)
++                    ).toint(),
++                    *values,
++                )
++                st_global_v4_u32((output + output_pack * Int64(4)).toint(), *values)
++            tile += warp_stride
++        block_pair_barrier(
++            signals,
++            self_signal=signals[self._rank],
++            rank=self._rank,
++            world_size=self._world_size,
++            max_blocks=_MAX_BLOCKS,
++        )
++        if Int32(tidx) == Int32(0):
++            _membar_sys()
++        cute.arch.sync_threads()
++        tile = warp_first
++        while tile < tiles:
++            batch_index = tile // tiles_per_rank
++            pack = (tile - batch_index * tiles_per_rank) * Int32(32) + lane
++            if pack < local_packs:
++                source_pack = Int64(batch_index) * Int64(local_packs) + Int64(pack)
++                output_pack = (
++                    Int64(batch_index) * Int64(2) + Int64(1 - self._rank)
++                ) * Int64(local_packs) + Int64(pack)
++                _copy_16b(
++                    self._staging_words(staging[self._rank])
++                    + source_pack * Int64(4),
++                    output + output_pack * Int64(4),
++                )
++            tile += warp_stride
++
++    @cute.jit
++    def _gather_pull_generic(
++        self,
++        local_input,
++        output,
++        staging,
++        signals,
++        batch,
++        local_packs,
++        tiles_per_rank,
++        lane,
++        warp_first,
++        warp_stride,
++        tidx,
++    ):
++        # Pull data plane (TP3 patch). Phase one copies this rank's segment
++        # into its OWN staging (local writes) and its own output columns.
++        # Phase two reads every peer's staging (PCIe reads, which this
++        # fabric serves ~15x faster than SM posted writes) into the output.
++        # Both phases walk the same tile -> warp map, so after the per-CTA
++        # pair barrier CTA b only reads segments that peer CTA b staged.
++        # Reuse of a staging slot two calls later is ordered exactly as in
++        # the world-3 LSE reduce-scatter pull path (stream order plus the
++        # intervening call's barrier).
++        own_stage = self._staging_words(staging[self._rank])
++        tiles = batch * tiles_per_rank
++        tile = warp_first
++        while tile < tiles:
++            batch_index = tile // tiles_per_rank
++            pack = (tile - batch_index * tiles_per_rank) * Int32(32) + lane
++            if pack < local_packs:
++                source_pack = Int64(batch_index) * Int64(local_packs) + Int64(pack)
++                output_pack = (
++                    Int64(batch_index) * Int64(self._world_size)
++                    + Int64(self._rank)
++                ) * Int64(local_packs) + Int64(pack)
++                values = ld_global_v4_u32(
++                    (local_input + source_pack * Int64(4)).toint()
++                )
++                st_global_v4_u32((own_stage + source_pack * Int64(4)).toint(), *values)
++                st_global_v4_u32((output + output_pack * Int64(4)).toint(), *values)
++            tile += warp_stride
++
++        block_pair_barrier(
++            signals,
++            self_signal=signals[self._rank],
++            rank=self._rank,
++            world_size=self._world_size,
++            max_blocks=_MAX_BLOCKS,
++        )
++        # Acquire the peers' staged segments before reading them remotely.
++        if Int32(tidx) == Int32(0):
++            _membar_sys()
++        cute.arch.sync_threads()
++
++        tile = warp_first
++        while tile < tiles:
++            batch_index = tile // tiles_per_rank
++            pack = (tile - batch_index * tiles_per_rank) * Int32(32) + lane
++            if pack < local_packs:
++                source_pack = Int64(batch_index) * Int64(local_packs) + Int64(pack)
++                # Issue every peer's 16-byte load before any store so each
++                # lane keeps world-1 PCIe reads in flight.
++                fetched = []
++                for peer_index in cutlass.range_constexpr(1, self._world_size):
++                    peer = (self._rank + peer_index) % self._world_size
++                    fetched.append(
++                        ld_global_v4_u32(
++                            (
++                                self._staging_words(staging[peer])
++                                + source_pack * Int64(4)
++                            ).toint()
++                        )
++                    )
++                for peer_index in cutlass.range_constexpr(1, self._world_size):
++                    peer = (self._rank + peer_index) % self._world_size
++                    output_pack = (
++                        Int64(batch_index) * Int64(self._world_size) + Int64(peer)
++                    ) * Int64(local_packs) + Int64(pack)
++                    st_global_v4_u32(
++                        (output + output_pack * Int64(4)).toint(),
++                        *fetched[peer_index - 1],
++                    )
++            tile += warp_stride
++
++    @cute.jit
++    def _gather_push_generic(
++        self,
++        local_input,
++        output,
++        staging,
++        signals,
++        batch,
++        local_packs,
++        tiles_per_rank,
++        lane,
++        warp_first,
++        warp_stride,
++        tidx,
++    ):
++        tiles_per_batch = tiles_per_rank * Int32(self._world_size)
++        tiles = batch * tiles_per_batch
++        # Every rank pushes its segments into each peer's staging and reads only
++        # its own memory after the barrier, so PCIe carries posted writes and no
++        # peer reads. Staging holds the peers' segments in rank order without the
++        # receiver's own.
++        own_stage = self._staging_words(staging[self._rank])
++        peers = Int64(self._world_size - 1)
++
++        # Assign complete 512-byte segments to warps, independently of head
++        # boundaries. Each rank stages and reads the same CTA's segments.
++        tile = warp_first
++        while tile < tiles:
++            batch_index = tile // tiles_per_batch
++            batch_tile = tile - batch_index * tiles_per_batch
++            source_rank = batch_tile // tiles_per_rank
++            rank_tile = batch_tile - source_rank * tiles_per_rank
++            pack = rank_tile * Int32(32) + lane
++            if source_rank == Int32(self._rank) and pack < local_packs:
++                source_pack = Int64(batch_index) * Int64(local_packs) + Int64(pack)
++                for peer in cutlass.range_constexpr(self._world_size):
++                    if cutlass.const_expr(peer != self._rank):
++                        staged_pack = (
++                            Int64(batch_index) * peers
++                            + Int64(
++                                self._rank if self._rank < peer else self._rank - 1
++                            )
++                        ) * Int64(local_packs) + Int64(pack)
++                        _copy_16b(
++                            local_input + source_pack * Int64(4),
++                            self._staging_words(staging[peer])
++                            + staged_pack * Int64(4),
++                        )
++            tile += warp_stride
++
++        block_pair_barrier(
++            signals,
++            self_signal=signals[self._rank],
++            rank=self._rank,
++            world_size=self._world_size,
++            max_blocks=_MAX_BLOCKS,
++        )
++        # Acquire the peers' pushed segments before reading them locally.
++        if Int32(tidx) == Int32(0):
++            _membar_sys()
++        cute.arch.sync_threads()
++
++        tile = warp_first
++        while tile < tiles:
++            batch_index = tile // tiles_per_batch
++            batch_tile = tile - batch_index * tiles_per_batch
++            source_rank = batch_tile // tiles_per_rank
++            rank_tile = batch_tile - source_rank * tiles_per_rank
++            pack = rank_tile * Int32(32) + lane
++            if pack < local_packs:
++                source_pack = Int64(batch_index) * Int64(local_packs) + Int64(pack)
++                output_pack = (
++                    Int64(batch_index) * Int64(self._world_size)
++                    + Int64(source_rank)
++                ) * Int64(local_packs) + Int64(pack)
++                source_address = Int64(
++                    (local_input + source_pack * Int64(4)).toint()
++                )
++                for source in cutlass.range_constexpr(self._world_size):
++                    if source_rank == Int32(source):
++                        if cutlass.const_expr(source != self._rank):
++                            staged_pack = (
++                                Int64(batch_index) * peers
++                                + Int64(
++                                    source if source < self._rank else source - 1
++                                )
++                            ) * Int64(local_packs) + Int64(pack)
++                            source_address = Int64(
++                                (own_stage + staged_pack * Int64(4)).toint()
++                            )
++                _copy_16b_addr(
++                    source_address,
++                    Int64((output + output_pack * Int64(4)).toint()),
++                )
++            tile += warp_stride
++
++
+ class _AllGatherPairLaunch(_DCPA2ABase):
+     def __init__(
+         self,
+@@ -2989,12 +3234,15 @@ def _gather_launcher_key(
+     has_gate: bool = False,
+ ) -> tuple[object, ...]:
+     """Return the cache key for an all-gather-heads launcher."""
++    gather_pull = _gather_pull_enabled(world_size)
+     return (
+         int(world_size),
+         int(rank),
+         int(threads),
+         bool(device_slot_selection),
+         bool(has_gate),
++        bool(gather_pull),
++        int(_gather_pull_min_bytes() if gather_pull else 0),
+     )
+ 
+ 
+@@ -3034,12 +3282,18 @@ def _get_compiled_all_gather_heads(
+         device_slot_selection,
+         has_gate=has_gate,
+     )
++    gather_pull = _gather_pull_enabled(world_size)
++    pull_min_bytes = _gather_pull_min_bytes() if gather_pull else 0
++    launch._gather_pull = gather_pull
++    launch._pull_min_packs = (pull_min_bytes + 15) // 16
+     key = (
+         int(world_size),
+         int(rank),
+         int(threads),
+         bool(device_slot_selection),
+         has_gate,
++        bool(gather_pull),
++        int(pull_min_bytes),
+     )
+     raise_if_kernel_resolution_frozen("cute.compile", target=launch, cache_key=key)
+     p_u32 = _u32_ptr(16, align=4)
+@@ -3067,6 +3321,8 @@ def _get_compiled_all_gather_heads(
+                 "threads",
+                 "device_slot_selection",
+                 "has_gate",
++                "gather_pull",
++                "pull_min_bytes",
+             ),
+         ),
+     )
+diff --git a/flashinfer/experimental/b12x/comm/pcie/_dcp_cute_common.py b/flashinfer/experimental/b12x/comm/pcie/_dcp_cute_common.py
+index eb4df14b..19590969 100644
+--- a/flashinfer/experimental/b12x/comm/pcie/_dcp_cute_common.py
++++ b/flashinfer/experimental/b12x/comm/pcie/_dcp_cute_common.py
+@@ -86,7 +86,7 @@ def _load_relaxed_sys_u32(
+         llvm.inline_asm(
+             T.i32(),
+             [ptr.toint(loc=loc, ip=ip).ir_value(loc=loc, ip=ip)],
+-            "ld.relaxed.sys.global.u32 $0, [$1];",
++            "ld.acquire.sys.global.u32 $0, [$1];",
+             "=r,l",
+             has_side_effects=True,
+             is_align_stack=False,
+diff --git a/flashinfer/experimental/b12x/comm/pcie/_runtime_gather_cute.py b/flashinfer/experimental/b12x/comm/pcie/_runtime_gather_cute.py
+index bc354aed..62ec738a 100644
+--- a/flashinfer/experimental/b12x/comm/pcie/_runtime_gather_cute.py
++++ b/flashinfer/experimental/b12x/comm/pcie/_runtime_gather_cute.py
+@@ -66,7 +66,7 @@ def _prefetch(selector, counter, source, word, total, tid, *, loc=None, ip=None)
+ 
+ class SelectedGather(_AllGatherHeadsLaunch):
+     def __init__(self, world, rank, row_words, threads, blocks, chunks, transport):
+-        if world not in (2, 4, 8, 9, 10, 12, 16) or not 0 <= rank < world:
++        if world not in (2, 3, 4, 8, 9, 10, 12, 16) or not 0 <= rank < world:
+             raise ValueError("gather requires a supported TP size and rank")
+         if threads not in (32, 64, 128, 256, 512):
+             raise ValueError("gather requires 32, 64, 128, 256, or 512 threads")
+diff --git a/flashinfer/experimental/b12x/comm/pcie/_tuning.py b/flashinfer/experimental/b12x/comm/pcie/_tuning.py
+index 5004fe63..c1a8582d 100644
+--- a/flashinfer/experimental/b12x/comm/pcie/_tuning.py
++++ b/flashinfer/experimental/b12x/comm/pcie/_tuning.py
+@@ -37,14 +37,14 @@ SURFACES = {
+     "PCIeTwoShotBF16.all_gather": (2, 3, 4, 6, 8, 10),
+     "TwoShotReduceScatter.reduce_scatter_fp8": (2, 4, 8),
+     "TwoShotReduceScatter.all_gather_fp8": (2, 4, 8),
+-    "DcpAllToAll.lse_reduce_scatter": (2, 4, 8, 9, 10, 12, 16),
++    "DcpAllToAll.lse_reduce_scatter": (2, 3, 4, 8, 9, 10, 12, 16),
+     "DcpAllToAll.all_gather_varlen": (2, 4),
+-    "DcpAllToAll.all_gather_heads": (2, 4, 8, 9, 10, 12, 16),
++    "DcpAllToAll.all_gather_heads": (2, 3, 4, 8, 9, 10, 12, 16),
+     "DcpAllToAll.all_gather_pair": (2, 4, 8, 16),
+     "DcpAllToAll.all_gather_pair_kimi_topk": (2, 4, 8, 16),
+     "DcpAllToAll.kimi_topk16": (2, 4, 8, 16),
+-    "DcpAllToAllPool.lse_reduce_scatter": (2, 4, 8, 9, 10, 12, 16),
+-    "DcpAllToAllPool.all_gather_heads": (2, 4, 8, 9, 10, 12, 16),
++    "DcpAllToAllPool.lse_reduce_scatter": (2, 3, 4, 8, 9, 10, 12, 16),
++    "DcpAllToAllPool.all_gather_heads": (2, 3, 4, 8, 9, 10, 12, 16),
+     "DcpAllToAllPool.all_gather_pair": (2, 4, 8, 16),
+     "DcpAllToAllPool.all_gather_pair_kimi_topk": (2, 4, 8, 16),
+     "DcpAllToAllPool.kimi_topk16": (2, 4, 8, 16),
+diff --git a/flashinfer/experimental/b12x/comm/pcie/_twoshot_cute.py b/flashinfer/experimental/b12x/comm/pcie/_twoshot_cute.py
+index a2dc4899..69e275b7 100644
+--- a/flashinfer/experimental/b12x/comm/pcie/_twoshot_cute.py
++++ b/flashinfer/experimental/b12x/comm/pcie/_twoshot_cute.py
+@@ -94,7 +94,7 @@ def _ld_relaxed_sys_u32(address: Int64, *, loc=None, ip=None) -> Uint32:
+         llvm.inline_asm(
+             T.i32(),
+             [Int64(address).ir_value(loc=loc, ip=ip)],
+-            "ld.relaxed.sys.global.u32 $0, [$1];",
++            "ld.acquire.sys.global.u32 $0, [$1];",
+             "=r,l",
+             has_side_effects=True,
+             is_align_stack=False,
+diff --git a/flashinfer/experimental/b12x/comm/pcie/pcie_allreduce.py b/flashinfer/experimental/b12x/comm/pcie/pcie_allreduce.py
+index f9563231..663213bc 100644
+--- a/flashinfer/experimental/b12x/comm/pcie/pcie_allreduce.py
++++ b/flashinfer/experimental/b12x/comm/pcie/pcie_allreduce.py
+@@ -522,8 +522,10 @@ class PCIeAllReduce:
+             raise ValueError(f"unsupported all-reduce operation {operation!r}")
+         if self.algorithm == "oneshot" and self.single_channel:
+             from ._collective_tuning import (
++                TWOSHOT_PULL,
+                 oneshot_alternatives,
+                 plan as collective_plan,
++                twoshot_pull_enabled,
+             )
+ 
+             target = self._runtime._prepared_channel_for_stream(stream, channel_id)
+@@ -558,6 +560,15 @@ class PCIeAllReduce:
+                         call={"inp": inp, **addend_call, **call},
+                     )
+                     alternatives["twoshot"] = (native, twoshot)
++                    if twoshot_pull_enabled():
++                        alternatives[TWOSHOT_PULL] = (
++                            query_from_runtime(
++                                twoshot,
++                                surface="PCIeTwoShotBF16.all_reduce",
++                                call={"inp": inp, **call, "transport": "pull"},
++                            ),
++                            twoshot,
++                        )
+                     if (
+                         self.world_size == 4
+                         and native.call["transport"] == "push"
+diff --git a/flashinfer/experimental/b12x/comm/pcie/pcie_dcp_a2a.py b/flashinfer/experimental/b12x/comm/pcie/pcie_dcp_a2a.py
+index 0d47ebf9..c4b84e6b 100644
+--- a/flashinfer/experimental/b12x/comm/pcie/pcie_dcp_a2a.py
++++ b/flashinfer/experimental/b12x/comm/pcie/pcie_dcp_a2a.py
+@@ -40,7 +40,7 @@ from .pcie_oneshot import (
+ )
+ 
+ 
+-SUPPORTED_WORLD_SIZES = (2, 4, 8, 9, 10, 12, 16)
++SUPPORTED_WORLD_SIZES = (2, 3, 4, 8, 9, 10, 12, 16)  # TP3 (ds41-tp3-v2): generic modulo path
+ SUPPORTED_DTYPES = (torch.float16, torch.bfloat16)
+ SUPPORTED_GATHER_DTYPES = (*SUPPORTED_DTYPES, torch.float8_e4m3fn)
+ SUPPORTED_PAIR_DTYPES = (*SUPPORTED_GATHER_DTYPES, torch.float32)
+diff --git a/flashinfer/experimental/b12x/comm/pcie/pcie_dma.py b/flashinfer/experimental/b12x/comm/pcie/pcie_dma.py
+index 219e8053..fbeb373f 100644
+--- a/flashinfer/experimental/b12x/comm/pcie/pcie_dma.py
++++ b/flashinfer/experimental/b12x/comm/pcie/pcie_dma.py
+@@ -229,13 +229,30 @@ class PCIeDmaAllReduce:
+             FLAG_SLOTS, dtype=torch.int32, device=self.device
+         )
+         self._wait_done = torch.zeros(FLAG_SLOTS, dtype=torch.int32, device=self.device)
+-        self._copy_stream = torch.cuda.Stream(device=self.device)
+-        self._flag_stream = torch.cuda.Stream(device=self.device)
++        # Dedicated non-blocking streams outside PyTorch's 32-slot round-robin
++        # stream pool so a later capture stream can never alias a DMA helper
++        # stream and accidentally serialize concurrent pipelined all-reduces.
++        from cuda.bindings import driver as cuda
++
++        self._owned_stream_handles = []
++
++        def _dedicated_stream():
++            with torch.cuda.device(self.device):
++                status, handle = cuda.cuStreamCreate(
++                    cuda.CUstream_flags.CU_STREAM_NON_BLOCKING
++                )
++            if status != cuda.CUresult.CUDA_SUCCESS:
++                raise RuntimeError(f"cannot create PCIe DMA stream: {status}")
++            self._owned_stream_handles.append(handle)
++            return torch.cuda.ExternalStream(int(handle), device=self.device)
++
++        self._copy_stream = _dedicated_stream()
++        self._flag_stream = _dedicated_stream()
+         # Separate CE/flag streams for the a2a broadcast phase so allgather
+         # traffic overlaps reduce-scatter traffic instead of queueing
+         # behind it.
+-        self._ag_copy_stream = torch.cuda.Stream(device=self.device)
+-        self._ag_flag_stream = torch.cuda.Stream(device=self.device)
++        self._ag_copy_stream = _dedicated_stream()
++        self._ag_flag_stream = _dedicated_stream()
+         # Persistent cross-stream events: captured graphs keep references to
+         # recorded events, so per-call temporaries must not be destroyed.
+         self._piece_events = [torch.cuda.Event() for _ in range(MAX_PIECES)]
+@@ -1150,6 +1167,12 @@ class PCIeDmaAllReduce:
+         dist.barrier(group=self.group)
+         with suppress(Exception):
+             self._ipc.cudaFree(self._slab.local_ptr)
++        from cuda.bindings import driver as cuda
++
++        for handle in getattr(self, "_owned_stream_handles", ()):
++            with suppress(Exception):
++                cuda.cuStreamDestroy(handle)
++        self._owned_stream_handles = []
+         dist.barrier(group=self.group)
+ 
+     def __enter__(self) -> "PCIeDmaAllReduce":
+diff --git a/flashinfer/experimental/b12x/gemm/_tuning.py b/flashinfer/experimental/b12x/gemm/_tuning.py
+index 5212cf19..f4117c18 100644
+--- a/flashinfer/experimental/b12x/gemm/_tuning.py
++++ b/flashinfer/experimental/b12x/gemm/_tuning.py
+@@ -436,7 +436,7 @@ def knob_values(query):
+         query.recipe == "mxfp8"
+         and query.rhs_prefetch_ready
+         and query.batch == 1
+-        and query.max_rows <= 8
++        and query.max_rows <= 32
+         and query.output_mode == "provided"
+         and query.alpha_mode == "unit"
+     )
+@@ -602,7 +602,7 @@ def validate_config(query, config, device):
+         )
+     if config.split_k_slices is not None and config.split_k_slices > 1:
+         if (
+-            query.max_rows > min(16 if query.recipe == "mxfp8" else 8, config.tile_m)
++            query.max_rows > min(32 if query.recipe == "mxfp8" else 8, config.tile_m)
+             or query.batch != 1
+             or config.swap_ab
+             or query.in_features % (config.tile_k * config.split_k_slices)
+diff --git a/flashinfer/experimental/b12x/gemm/bf16_gemv/_preparation.py b/flashinfer/experimental/b12x/gemm/bf16_gemv/_preparation.py
+index 6b68501a..2471addf 100644
+--- a/flashinfer/experimental/b12x/gemm/bf16_gemv/_preparation.py
++++ b/flashinfer/experimental/b12x/gemm/bf16_gemv/_preparation.py
+@@ -110,8 +110,8 @@ class _GemvExecutionState:
+     query: GemvQuery
+     device: torch.device
+     launcher: object
+-    tc_scratch: torch.Tensor | None = None
+-    tc_flags: torch.Tensor | None = None
++    tc_scratch: torch.Tensor | tuple[torch.Tensor, ...] | None = None
++    tc_flags: torch.Tensor | tuple[torch.Tensor, ...] | None = None
+ 
+     def run(self, x, weight, *, out=None, bias=None):
+         from ._kernel import _validate
+@@ -185,14 +185,18 @@ def plan(query: GemvQuery, *, invocation=FrozenMapping(), override=None) -> Plan
+         if config.backend == "tc" and config.split_k > 1:
+             from ._tensor_core import (
+                 _TC_SPLITK_BUFFERS,
++                _TC_SPLITK_MAX_STREAMS,
+                 tc_splitk_flags_bytes,
+                 tc_splitk_scratch_bytes,
+             )
+ 
+             m_tiles = (query.max_rows + 7) // 8
+-            total = tc_splitk_scratch_bytes(
+-                query.max_rows, query.out_features, config.split_k
+-            ) + tc_splitk_flags_bytes(query.out_features, config.split_k)
++            total = (
++                tc_splitk_scratch_bytes(
++                    query.max_rows, query.out_features, config.split_k
++                )
++                + tc_splitk_flags_bytes(query.out_features, config.split_k)
++            ) * _TC_SPLITK_MAX_STREAMS
+             key = (
+                 device.ordinal,
+                 query.out_features,
+diff --git a/flashinfer/experimental/b12x/gemm/bf16_gemv/_tensor_core.py b/flashinfer/experimental/b12x/gemm/bf16_gemv/_tensor_core.py
+index 4d546e73..e57d7149 100644
+--- a/flashinfer/experimental/b12x/gemm/bf16_gemv/_tensor_core.py
++++ b/flashinfer/experimental/b12x/gemm/bf16_gemv/_tensor_core.py
+@@ -35,7 +35,49 @@ TC_K_MULTIPLE = 32
+ TC_SPLIT_K_VALUES = (1, 2, 3, 4, 5, 6, 7, 8, 10, 12, 14, 16, 28, 56)
+ _LANES = 32
+ 
+-_TC_SPLITK_BUFFERS: dict[tuple[int, int, int, int, int], tuple[torch.Tensor, torch.Tensor]] = {}
++_TC_SPLITK_MAX_STREAMS = 4
++_TC_SPLITK_BUFFERS: dict[
++    tuple[int, int, int, int, int],
++    tuple[tuple[torch.Tensor, ...], tuple[torch.Tensor, ...]],
++] = {}
++_TC_CAPTURE_STREAMS: dict[int, tuple[int, dict[int, int]]] = {}
++_TC_EAGER_STREAMS: dict[int, dict[int, int]] = {}
++
++
++def select_tc_splitk_stream_slot(device_ordinal: int, stream_ptr: int) -> int:
++    """Assign each concurrent stream inside a CUDA graph capture a disjoint buffer slot.
++
++    Prevent concurrent side-stream and main-stream split-K TC-GEMV launches of the same
++    shape (e.g. ``compressor.project_gates`` on a side stream beside ``compressor.project_values``
++    on the main stream) from racing on a shared process-global scratch/flags buffer.
++    """
++    stream_ptr = int(stream_ptr)
++    res = cuda.cuStreamGetCaptureInfo(cuda.CUstream(stream_ptr))
++    if (
++        res[0] == cuda.CUresult.CUDA_SUCCESS
++        and res[1] == cuda.CUstreamCaptureStatus.CU_STREAM_CAPTURE_STATUS_ACTIVE
++    ):
++        cap_id = int(res[2])
++        cur = _TC_CAPTURE_STREAMS.get(device_ordinal)
++        if cur is None or cur[0] != cap_id:
++            _TC_CAPTURE_STREAMS[device_ordinal] = (cap_id, {stream_ptr: 0})
++            return 0
++        mapping = cur[1]
++        slot = mapping.get(stream_ptr)
++        if slot is None:
++            slot = len(mapping)
++            if slot >= _TC_SPLITK_MAX_STREAMS:
++                raise RuntimeError(
++                    f"split-K stream pool exhausted ({_TC_SPLITK_MAX_STREAMS} concurrent streams in capture)"
++                )
++            mapping[stream_ptr] = slot
++        return slot
++    mapping = _TC_EAGER_STREAMS.setdefault(device_ordinal, {})
++    slot = mapping.get(stream_ptr)
++    if slot is None:
++        slot = len(mapping) % _TC_SPLITK_MAX_STREAMS
++        mapping[stream_ptr] = slot
++    return slot
+ 
+ 
+ def tc_chunk_k(k: int) -> int:
+@@ -59,20 +101,28 @@ def tc_splitk_flags_bytes(n: int, split_k: int) -> int:
+ 
+ def tc_splitk_buffers(
+     device: torch.device, max_rows: int, n: int, k: int, split_k: int
+-) -> tuple[torch.Tensor, torch.Tensor]:
+-    """Return reusable per-(device, shape, split_k) scratch and zero-initialized flags."""
++) -> tuple[tuple[torch.Tensor, ...], tuple[torch.Tensor, ...]]:
++    """Return a stream-isolated pool of scratch and zero-initialized flags tensors."""
+     m_tiles = (int(max_rows) + 7) // 8
+     key = (int(device.index or 0), int(n), int(k), m_tiles, int(split_k))
+     cached = _TC_SPLITK_BUFFERS.get(key)
+     if cached is not None:
+         return cached
+     n_blocks = (int(n) + 15) // 16
+-    scratch = torch.empty(
+-        (n_blocks * int(split_k) * m_tiles * 128,), dtype=torch.float32, device=device
++    scratches = tuple(
++        torch.empty(
++            (n_blocks * int(split_k) * m_tiles * 128,),
++            dtype=torch.float32,
++            device=device,
++        )
++        for _ in range(_TC_SPLITK_MAX_STREAMS)
++    )
++    flags = tuple(
++        torch.zeros((n_blocks,), dtype=torch.uint32, device=device)
++        for _ in range(_TC_SPLITK_MAX_STREAMS)
+     )
+-    flags = torch.zeros((n_blocks,), dtype=torch.uint32, device=device)
+-    _TC_SPLITK_BUFFERS[key] = (scratch, flags)
+-    return scratch, flags
++    _TC_SPLITK_BUFFERS[key] = (scratches, flags)
++    return scratches, flags
+ 
+ 
+ @dsl_user_op
+@@ -465,17 +515,26 @@ def compile_tc_projection(
+ 
+     def run(x, weight, out, bias=None, *, scratch=None, flags=None):
+         del bias
+-        sc_ptr = (
+-            make_ptr(Float32, scratch.data_ptr(), cute.AddressSpace.gmem, assumed_align=16)
+-            if scratch is not None
+-            else make_ptr(Float32, out.data_ptr(), cute.AddressSpace.gmem, assumed_align=4)
+-        )
+-        fl_ptr = (
+-            make_ptr(Uint32, flags.data_ptr(), cute.AddressSpace.gmem, assumed_align=4)
+-            if flags is not None
+-            else make_ptr(Uint32, out.data_ptr(), cute.AddressSpace.gmem, assumed_align=4)
+-        )
+         with torch.cuda.device(ordinal):
++            stream_ptr = int(torch.cuda.current_stream(ordinal).cuda_stream)
++            if isinstance(scratch, tuple):
++                slot = select_tc_splitk_stream_slot(ordinal, stream_ptr)
++                scratch = scratch[slot]
++                if isinstance(flags, tuple):
++                    flags = flags[slot]
++            elif isinstance(flags, tuple):
++                slot = select_tc_splitk_stream_slot(ordinal, stream_ptr)
++                flags = flags[slot]
++            sc_ptr = (
++                make_ptr(Float32, scratch.data_ptr(), cute.AddressSpace.gmem, assumed_align=16)
++                if scratch is not None
++                else make_ptr(Float32, out.data_ptr(), cute.AddressSpace.gmem, assumed_align=4)
++            )
++            fl_ptr = (
++                make_ptr(Uint32, flags.data_ptr(), cute.AddressSpace.gmem, assumed_align=4)
++                if flags is not None
++                else make_ptr(Uint32, out.data_ptr(), cute.AddressSpace.gmem, assumed_align=4)
++            )
+             run_compiled(
+                 raw,
+                 (
+diff --git a/flashinfer/experimental/b12x/gemm/blockscaled/_mxfp8_tc_gemv.py b/flashinfer/experimental/b12x/gemm/blockscaled/_mxfp8_tc_gemv.py
+index dbd74d46..e2bbfcbe 100644
+--- a/flashinfer/experimental/b12x/gemm/blockscaled/_mxfp8_tc_gemv.py
++++ b/flashinfer/experimental/b12x/gemm/blockscaled/_mxfp8_tc_gemv.py
+@@ -33,7 +33,21 @@ from b12x._lib.utils.pointers import make_ptr
+ MXFP8_TC_GEMV_MAX_ROWS = 32
+ _LANES = 32
+ 
+-_FLAGS_CACHE: dict[tuple[int, int, int, int, int], torch.Tensor] = {}
++_FLAGS_CACHE: dict[tuple[int, int, int, int, int], tuple[torch.Tensor, ...]] = {}
++
++
++def _resolve_flags(ordinal: int, flags, stream):
++    if isinstance(flags, tuple):
++        from b12x.gemm.bf16_gemv._tensor_core import select_tc_splitk_stream_slot
++
++        if hasattr(stream, "cuda_stream"):
++            stream_ptr = int(stream.cuda_stream)
++        elif stream is not None:
++            stream_ptr = int(stream)
++        else:
++            stream_ptr = int(torch.cuda.current_stream(ordinal).cuda_stream)
++        return flags[select_tc_splitk_stream_slot(ordinal, stream_ptr)]
++    return flags
+ 
+ 
+ def mxfp8_tc_gemv_workspace_bytes(
+@@ -63,7 +77,9 @@ def cached_mxfp8_tc_gemv_flags(
+     padded_k: int,
+     split_k: int,
+     n_per_cta: int = 16,
+-) -> torch.Tensor:
++) -> tuple[torch.Tensor, ...]:
++    from b12x.gemm.bf16_gemv._tensor_core import _TC_SPLITK_MAX_STREAMS
++
+     n_per_cta = int(n_per_cta)
+     key = (
+         int(device.index or 0),
+@@ -75,10 +91,13 @@ def cached_mxfp8_tc_gemv_flags(
+     cached = _FLAGS_CACHE.get(key)
+     if cached is not None:
+         return cached
+-    flags = torch.zeros(
+-        ((int(out_features) + n_per_cta - 1) // n_per_cta,),
+-        dtype=torch.uint32,
+-        device=device,
++    flags = tuple(
++        torch.zeros(
++            ((int(out_features) + n_per_cta - 1) // n_per_cta,),
++            dtype=torch.uint32,
++            device=device,
++        )
++        for _ in range(_TC_SPLITK_MAX_STREAMS)
+     )
+     _FLAGS_CACHE[key] = flags
+     return flags
+@@ -900,6 +919,7 @@ def compile_mxfp8_tc_gemv(
+         )
+ 
+     def run(source, values, scale_bytes, output, scratch, flags, stream):
++        flags = _resolve_flags(ordinal, flags, stream)
+         sc_ptr = (
+             make_ptr(
+                 Float32, scratch.data_ptr(), cute.AddressSpace.gmem, assumed_align=16
+@@ -1015,6 +1035,7 @@ def compile_mxfp8_tc_gemv_rope(
+     def run(source, values, scale_bytes, output, cos_sin, scratch, flags, stream):
+         if split_k > 1 and (scratch is None or flags is None):
+             raise ValueError("split_k > 1 requires scratch and flags buffers")
++        flags = _resolve_flags(ordinal, flags, stream)
+         sc_ptr = (
+             make_ptr(
+                 Float32, scratch.data_ptr(), cute.AddressSpace.gmem, assumed_align=16
+diff --git a/flashinfer/experimental/b12x/gemm/blockscaled/_preparation.py b/flashinfer/experimental/b12x/gemm/blockscaled/_preparation.py
+index 042aa2d2..6731fe79 100644
+--- a/flashinfer/experimental/b12x/gemm/blockscaled/_preparation.py
++++ b/flashinfer/experimental/b12x/gemm/blockscaled/_preparation.py
+@@ -393,7 +393,7 @@ class _PackedExecutionState:
+     mxfp8_bases: tuple | None = None
+     short_dense: object | None = None
+     iq2_lut: torch.Tensor | None = None
+-    tc_flags: torch.Tensor | None = None
++    tc_flags: torch.Tensor | tuple[torch.Tensor, ...] | None = None
+ 
+     @property
+     def owned_nbytes(self) -> int:
+@@ -836,11 +836,15 @@ def _plan_bf16(query: BlockscaledQuery, *, invocation=FrozenMapping(), override=
+             and config.a16_backend == "tc_gemv"
+             and config.split_k > 1
+         ):
++            from b12x.gemm.bf16_gemv._tensor_core import _TC_SPLITK_MAX_STREAMS
+             from ._mxfp8_tc_gemv import _FLAGS_CACHE, mxfp8_tc_gemv_flags_bytes
+ 
+             n_per_cta = config.tile_n or 16
+-            fbytes = mxfp8_tc_gemv_flags_bytes(
+-                query.out_features, config.split_k, n_per_cta
++            fbytes = (
++                mxfp8_tc_gemv_flags_bytes(
++                    query.out_features, config.split_k, n_per_cta
++                )
++                * _TC_SPLITK_MAX_STREAMS
+             )
+             fkey = (
+                 device.ordinal,
+diff --git a/flashinfer/experimental/b12x/moe/_shared/kernels/dynamic/kernel.py b/flashinfer/experimental/b12x/moe/_shared/kernels/dynamic/kernel.py
+index 8eed2e84..7848332f 100644
+--- a/flashinfer/experimental/b12x/moe/_shared/kernels/dynamic/kernel.py
++++ b/flashinfer/experimental/b12x/moe/_shared/kernels/dynamic/kernel.py
+@@ -2250,12 +2250,11 @@ class MoEDynamicKernelBackend:
+         b_w13_u32 = cute.recast_tensor(b_w13, cutlass.Uint32)
+         b_down_u32 = cute.recast_tensor(b_down, cutlass.Uint32)
+         frontend_clusters = max_active_clusters
+-        if cutlass.const_expr(self.external_materialized_fc1):
+-            # Reserve 8 SMs for concurrent streams (e.g., prefill DMA wait_flag)
+-            # so a full-device resident-grid frontend cannot deadlock them, while
+-            # preserving a positive grid for small explicit cluster caps (<= 8).
+-            if max_active_clusters > Int32(8):
+-                frontend_clusters = max_active_clusters - Int32(8)
++        # Reserve 8 SMs for concurrent streams (e.g., prefill DMA wait_flag)
++        # so a full-device resident-grid cooperative launch cannot deadlock them,
++        # while preserving a positive grid for small explicit cluster caps (<= 8).
++        if max_active_clusters > Int32(8):
++            frontend_clusters = max_active_clusters - Int32(8)
+         grid = (*self.cluster_shape_mn, frontend_clusters)
+         self.kernel(
+             a_input,
+diff --git a/flashinfer/experimental/b12x/preparation/session.py b/flashinfer/experimental/b12x/preparation/session.py
+index deb76494..0cdeb3ea 100644
+--- a/flashinfer/experimental/b12x/preparation/session.py
++++ b/flashinfer/experimental/b12x/preparation/session.py
+@@ -102,6 +102,7 @@ class _Obligation:
+     selection: Selection | None = None
+     finalists: tuple[FinalistRecord, ...] = ()
+     key: str | None = None
++    race_key: str | None = None
+     candidate_program_identity: str | None = None
+     programs: dict = field(default_factory=dict)
+     compiled: dict = field(default_factory=dict)
+@@ -503,6 +504,7 @@ class PreparationSession:
+         self._plans = {}
+         self._scratch_limit = None
+         self._scratch_limit_locked = False
++        self._scratch_preference = None
+         self._shared = {}
+         self._guard = None
+         self._tuning_rank = 0
+@@ -558,6 +560,38 @@ class PreparationSession:
+             )
+         self._scratch_limit = max_bytes
+ 
++    def configure_scratch_preference(self, preference) -> None:
++        """Let a caller policy pick among near-equal race candidates (tp3 patch).
++
++        ``preference`` is ``None`` (fastest wins) or an object with an
++        ``identity`` mapping, which joins the selection cache key, and
++        ``choose(entries, reference)``, which returns a position in
++        ``entries``: ``(latency_us, candidate_index, scratch_nbytes)`` tuples.
++        ``reference`` is a faster latency measured elsewhere, or ``None``. The
++        policy applies after each local race, to every measured candidate; the
++        race and its checkpoint keep the fastest champion and a policy-free key,
++        so recorded measurements are re-selected without racing again.
++        """
++        self._check_thread()
++        if preference is not None and (
++            not callable(getattr(preference, "choose", None))
++            or getattr(preference, "identity", None) is None
++        ):
++            raise TypeError("scratch preference needs choose() and an identity")
++        if getattr(self, "_scratch_limit_locked", False) and preference is not getattr(
++            self, "_scratch_preference", None
++        ):
++            raise RuntimeError(
++                "scratch preference must be configured before preparation begins"
++            )
++        self._scratch_preference = preference
++
++    def _candidate_scratch_nbytes(self, requests, config):
++        try:
++            return self._candidate_memory(requests, config).scratch_nbytes
++        except CandidateResourceIneligibleError:
++            return math.inf
++
+     def _candidate_memory(self, requests, config):
+         if (
+             len(requests) == 1
+@@ -1508,6 +1542,13 @@ class PreparationJob:
+                 "per_family": policy.per_family,
+                 "max_total": policy.max_total,
+             }
++        # Measurements do not depend on the selection policy; checkpoints keep
++        # the policy-free key so a policy change re-selects recorded races.
++        obligation.race_key = digest(identity)
++        preference = self._scratch_policy(obligation)
++        if preference is None:
++            return obligation.race_key
++        identity["scratch_preference"] = dict(preference.identity)
+         return digest(identity)
+ 
+     def _selection(self, obligation, config, source, assignment=None):
+@@ -2168,7 +2209,7 @@ class PreparationJob:
+     def _checkpoint_key(self, obligation, rank_index, rank_count):
+         return digest(
+             {
+-                "race": obligation.key,
++                "race": obligation.race_key or obligation.key,
+                 "shard_index": rank_index,
+                 "shard_count": rank_count,
+                 "rounds": self.session.rounds,
+@@ -2558,6 +2599,30 @@ class PreparationJob:
+             with self._timing.span("race_cleanup"):
+                 _close_all(closers)
+ 
++    def _scratch_policy(self, obligation):
++        # Finalist races keep latency order: a later contextual stage chooses
++        # among their finalists, which must include the ordinary winner.
++        if obligation.request.finalist_policy is not None:
++            return None
++        return getattr(self.session, "_scratch_preference", None)
++
++    def _scratch_of(self, obligation, index):
++        return self.session._candidate_scratch_nbytes(
++            obligation.requests or (obligation.request,),
++            obligation.candidates[index][1],
++        )
++
++    def _prefer_scratch(self, obligation, timed, reference):
++        """Position chosen by the session scratch preference among timed candidates."""
++        entries = [
++            (latency, index, self._scratch_of(obligation, index))
++            for latency, index in timed
++        ]
++        position = self._scratch_policy(obligation).choose(entries, reference)
++        if type(position) is not int or not 0 <= position < len(entries):
++            raise ValueError("scratch preference returned an invalid position")
++        return position
++
+     def _race_finalists(self, obligation, measurements, champion, live):
+         policy = obligation.request.finalist_policy
+         if policy is None:
+@@ -2842,6 +2907,21 @@ class PreparationJob:
+                     winner=champion.index,
+                 )
+                 yield from self._pump_pipeline(obligation)
++            if (
++                best_index is not None
++                and measurements
++                and self._scratch_policy(obligation) is not None
++            ):
++                # The tournament and its checkpoint keep the fastest champion;
++                # the policy then picks among every recorded measurement.
++                timed = sorted(measurements.items())
++                best_index = timed[
++                    self._prefer_scratch(
++                        obligation,
++                        [(latency, index) for index, latency in timed],
++                        None,
++                    )
++                ][0]
+             obligation.coverage["measured_count"] = len(measurements)
+             if cache is not None and best_index is not None:
+                 ledger.commit(
+@@ -2873,6 +2953,13 @@ class PreparationJob:
+                 obligation.coverage["finalist_count"] = len(obligation.finalists)
+             assignment, config = obligation.candidates[best_index]
+             candidate_index, latency_us = best_index, measurements[best_index]
++            scratch_fields = {}
++            if self._scratch_policy(obligation) is not None:
++                scratch = self._scratch_of(obligation, best_index)
++                scratch_fields = {
++                    "scratch_nbytes": None if math.isinf(scratch) else scratch,
++                    "fastest_latency_us": float(min(measurements.values())),
++                }
+             if rank_count > 1:
+                 return TuningRequirement(
+                     obligation.key,
+@@ -2890,6 +2977,7 @@ class PreparationJob:
+                     ),
+                     finalists=obligation.finalists,
+                     finalist_policy=request.finalist_policy,
++                    **scratch_fields,
+                 )
+             selection = self._selection(obligation, config, "tuned", assignment)
+             obligation.cache_pending = rejected_count == 0
+diff --git a/flashinfer/experimental/b12x/preparation/types.py b/flashinfer/experimental/b12x/preparation/types.py
+index 18b5faec..b210c6c7 100644
+--- a/flashinfer/experimental/b12x/preparation/types.py
++++ b/flashinfer/experimental/b12x/preparation/types.py
+@@ -419,6 +419,11 @@ class TuningRequirement:
+     cute_programs: tuple[str, ...] = ()
+     finalists: tuple[FinalistRecord, ...] = ()
+     finalist_policy: FinalistPolicy | None = None
++    # Scratch-aware selection (tp3 patch): the winner's scratch bytes and the
++    # shard's fastest measured latency, so cross-shard selection can prefer a
++    # lower-scratch winner within tolerance of the true fastest candidate.
++    scratch_nbytes: int | None = None
++    fastest_latency_us: float | None = None
+ 
+     def __post_init__(self):
+         ranks = tuple(self.ranks)
+@@ -468,6 +473,16 @@ class TuningRequirement:
+                 raise ValueError("tuning latency must be finite and nonnegative")
+             if type(self.candidate_index) is not int or self.candidate_index < 0:
+                 raise ValueError("tuning candidate index must be nonnegative")
++        if self.scratch_nbytes is not None and (
++            type(self.scratch_nbytes) is not int or self.scratch_nbytes < 0
++        ):
++            raise ValueError("tuning scratch bytes must be a nonnegative integer")
++        if self.fastest_latency_us is not None and (
++            type(self.fastest_latency_us) not in (int, float)
++            or not math.isfinite(self.fastest_latency_us)
++            or self.fastest_latency_us < 0
++        ):
++            raise ValueError("fastest tuning latency must be finite and nonnegative")
+         object.__setattr__(self, "ranks", ranks)
+ 
+ 
+diff --git a/flashinfer/experimental/b12x/sequence/engram/_impl.py b/flashinfer/experimental/b12x/sequence/engram/_impl.py
+index 31fca1f5..c261b408 100644
+--- a/flashinfer/experimental/b12x/sequence/engram/_impl.py
++++ b/flashinfer/experimental/b12x/sequence/engram/_impl.py
+@@ -72,13 +72,14 @@ class _State:
+     _scratch_specs: tuple[ScratchBufferSpec, ...]
+     programs: tuple
+     resident_scales: bool = False
++    packed_fp4: bool = False
+ 
+     def scratch_specs(self):
+         return self._scratch_specs
+ 
+     @property
+     def weight_shape(self):
+-        return (self.shard_rows, 256)
++        return (self.shard_rows, 128 if self.packed_fp4 else 256)
+ 
+     @property
+     def scale_shape(self):
+diff --git a/flashinfer/experimental/b12x/sequence/engram/_kernels.py b/flashinfer/experimental/b12x/sequence/engram/_kernels.py
+index 46aaa057..f5413379 100644
+--- a/flashinfer/experimental/b12x/sequence/engram/_kernels.py
++++ b/flashinfer/experimental/b12x/sequence/engram/_kernels.py
+@@ -73,6 +73,7 @@ def _lookup(
+     END: tl.constexpr,
+     COMPACT: tl.constexpr,
+     RESIDENT_SCALES: tl.constexpr,
++    PACKED_FP4: tl.constexpr = False,
+ ):
+     t, head = tl.program_id(0), tl.program_id(1)
+     col = tl.arange(0, 256)
+@@ -84,9 +85,20 @@ def _lookup(
+         local_row = t.to(tl.int64) * 24 + head
+     else:
+         local_row = tl.where(local, row - tl.full((), START, tl.int64), 0)
+-    quant = tl.load(weight + local_row * 256 + col.to(tl.int64), local, 0.0).to(
+-        tl.float32
+-    )
++    if PACKED_FP4:
++        # MXFP4 rows: 128 bytes of E2M1 nibbles, even column in the low nibble (ds41 engram-nvidia tables).
++        # e = bits 2:1, m = bit 0: m*0.5 if e == 0 else (2+m)*2**(e-2); bit 3 is the sign.
++        byte = tl.load(weight + local_row * 128 + (col // 2).to(tl.int64), local, 0).to(tl.int32)
++        nib = tl.where(col % 2 == 0, byte & 0xF, (byte >> 4) & 0xF)
++        e = (nib & 0x7) >> 1
++        m = (nib & 0x1).to(tl.float32)
++        pow2 = ((e - 2 + 127) << 23).to(tl.float32, bitcast=True)
++        mag = tl.where(e == 0, m * 0.5, (2.0 + m) * pow2)
++        quant = tl.where((nib & 0x8) != 0, -mag, mag)
++    else:
++        quant = tl.load(weight + local_row * 256 + col.to(tl.int64), local, 0.0).to(
++            tl.float32
++        )
+     scale_row = local_row
+     if RESIDENT_SCALES:
+         scale_row = tl.where(local, row - tl.full((), START, tl.int64), 0)
+diff --git a/flashinfer/experimental/b12x/sequence/engram/_preparation.py b/flashinfer/experimental/b12x/sequence/engram/_preparation.py
+index b1db5e01..07e03138 100644
+--- a/flashinfer/experimental/b12x/sequence/engram/_preparation.py
++++ b/flashinfer/experimental/b12x/sequence/engram/_preparation.py
+@@ -80,7 +80,7 @@ def compile_engram(query_payload, config_payload, ordinal):
+                 gather = (compile_gather(ordinal),)
+             return (
+                 kernels._lookup.warmup(
+-                    p["weight"],
++                    _CompilePointer(torch.uint8) if query.packed_fp4 else p["weight"],
+                     p["scales"],
+                     p["hashes"],
+                     p["num_tokens"],
+@@ -92,6 +92,7 @@ def compile_engram(query_payload, config_payload, ordinal):
+                     END=shard_end,
+                     COMPACT=query.compact_rows,
+                     RESIDENT_SCALES=query.resident_scales,
++                    PACKED_FP4=query.packed_fp4,
+                     num_warps=4,
+                     grid=(t, 24, 1),
+                 ),
+@@ -143,7 +144,7 @@ def make_plan(
+     invocation=FrozenMapping(),
+     override=None,
+ ):
+-    unknown = set(invocation) - {"operation", "compact_rows", "resident_scales"}
++    unknown = set(invocation) - {"operation", "compact_rows", "resident_scales", "packed_fp4"}
+     if unknown:
+         raise ValueError(f"unknown Engram invocation fields: {sorted(unknown)!r}")
+     operation = invocation.get("operation", "hash")
+@@ -194,6 +195,7 @@ def make_plan(
+         compact_rows=compact_rows,
+         pad_id=token_map[2],
+         resident_scales=invocation.get("resident_scales", False),
++        packed_fp4=invocation.get("packed_fp4", False),
+     )
+ 
+     def memory(config, device):
+@@ -268,6 +270,7 @@ def make_plan(
+                 caps.device.index,
+             ),
+             query.resident_scales,
++            query.packed_fp4,
+         )
+ 
+     return Plan(
+diff --git a/flashinfer/experimental/b12x/sequence/engram/_tuning.py b/flashinfer/experimental/b12x/sequence/engram/_tuning.py
+index 36c74977..a53462d7 100644
+--- a/flashinfer/experimental/b12x/sequence/engram/_tuning.py
++++ b/flashinfer/experimental/b12x/sequence/engram/_tuning.py
+@@ -22,6 +22,8 @@ class EngramQuery:
+     pad_id: int
+     resident_scales: bool = False
+     max_requests: int = 1
++    # TP3 MXFP4 Engram: rows are 128 bytes of packed E2M1 (two values per byte) instead of 256 FP8 bytes.
++    packed_fp4: bool = False
+ 
+ 
+ def _validate_query(query, device):

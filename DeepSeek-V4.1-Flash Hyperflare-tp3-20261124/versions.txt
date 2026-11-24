@@ -9,13 +9,12 @@ nvidia-cutlass-dsl       4.8.1
 rustc / cargo            1.93.1
 uv                       0.11.29
 
-Repositories (post-split 3-repo stack, all tagged hyperflare-tp3-20261124):
+Repositories (post-split stack):
   hyperflare-inference   https://github.com/AzallazA/hyperflare-inference @ 5ffe4d54 (tag hyperflare-tp3-20261124)
                          rebased on NVIDIA/hyperflare-inference main + PR #416, #473, #479, #491 + disjoint CPU pinning
   hyperflare-recipes     https://github.com/AzallazA/hyperflare-recipes   @ 63f9e4b  (tag hyperflare-tp3-20261124)
                          rebased on local-inference-lab/hyperflare-recipes main + PR #9, #19 + batched Markov + pad-free DMA
-  flashinfer (b12x)      https://github.com/AzallazA/flashinfer           @ 14aa5e64 (tag hyperflare-tp3-20261124)
-                         rebased on local-inference-lab/flashinfer main @ 0aa01681 (PR #132, #136) + 4-slot split-K pool + dedicated DMA streams
+  flashinfer (b12x)      https://github.com/local-inference-lab/flashinfer @ 0aa01681 (PR #132, #136) + tp3-patches/b12x-tp3-20261124.patch
 
 flare binary             built from hyperflare-inference @ 5ffe4d54:
                          sha256 be55094c1984220519e9fe280ae5568ef642c2f6b2efdf501c38d1e5b702b67f
