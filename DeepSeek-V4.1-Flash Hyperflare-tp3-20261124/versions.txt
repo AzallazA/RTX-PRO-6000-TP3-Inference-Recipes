@@ -12,8 +12,7 @@ uv                       0.11.29
 Repositories (post-split stack):
   hyperflare-inference   https://github.com/AzallazA/hyperflare-inference @ 5ffe4d54 (tag hyperflare-tp3-20261124)
                          rebased on NVIDIA/hyperflare-inference main + PR #416, #473, #479, #491 + disjoint CPU pinning
-  hyperflare-recipes     https://github.com/AzallazA/hyperflare-recipes   @ 63f9e4b  (tag hyperflare-tp3-20261124)
-                         rebased on local-inference-lab/hyperflare-recipes main + PR #9, #19 + batched Markov + pad-free DMA
+  hyperflare-recipes     https://github.com/local-inference-lab/hyperflare-recipes @ fee34e1 + tp3-patches/hyperflare-recipes-tp3-20261124.patch
   flashinfer (b12x)      https://github.com/local-inference-lab/flashinfer @ 0aa01681 (PR #132, #136) + tp3-patches/b12x-tp3-20261124.patch
 
 flare binary             built from hyperflare-inference @ 5ffe4d54:
