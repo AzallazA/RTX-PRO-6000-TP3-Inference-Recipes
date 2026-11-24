@@ -1,0 +1,8 @@
+{"code-python": 0.09, "code-rust": 0.06, "code-cuda-c": 0.04, "code-js-ts": 0.03, "code-shell-config": 0.03,
+ "code-other": 0.01, "code-ds41-livebench": 0.04,
+ "agent-ds4-opencode": 0.10, "agent-claude": 0.08, "agent-other-opencode": 0.05, "agent-ds41-tooleval": 0.04,
+ "agent-hermes": 0.03,
+ "prose-tech-md": 0.09, "prose-chat-oasst-en": 0.08, "prose-chat-oasst-other": 0.03, "prose-ds41-bench": 0.04,
+ "prose-ds41-hotel": 0.04, "prose-exam": 0.04, "prose-wiki-en": 0.05,
+ "prose-wiki-fr": 0.005, "prose-wiki-de": 0.005, "prose-wiki-es": 0.005, "prose-wiki-ru": 0.005,
+ "prose-wiki-zh": 0.0025, "prose-wiki-ja": 0.0025, "prose-wiki-ar": 0.005}
