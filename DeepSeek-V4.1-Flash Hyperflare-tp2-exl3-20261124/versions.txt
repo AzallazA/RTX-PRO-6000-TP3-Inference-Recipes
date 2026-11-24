@@ -1,0 +1,33 @@
+# Versions used for the Hyperflare-tp2-exl3-20261124 build (packages gb202-tp2-202611241005 plain / gb202-tp2-202611241209 WARMIND).
+
+NVIDIA driver            615.71.09
+CUDA toolkit             13.1 (/usr/local/cuda-13.1); any driver supporting CUDA 13.1 works
+Python (.venv)           3.12.13 (uv-managed)
+torch                    2.14.1+cu132
+triton                   3.8.0
+nvidia-cutlass-dsl       4.8.1
+rustc / cargo            1.93.1
+uv                       0.11.29
+
+Repositories (post-split stack):
+  hyperflare-inference   https://github.com/AzallazA/hyperflare-inference @ 5ffe4d54 (tag hyperflare-tp2-exl3-20261124, identical to hyperflare-tp3-20261124)
+                         rebased on NVIDIA/hyperflare-inference main + PR #416, #473, #479, #491 + disjoint CPU pinning
+  hyperflare-recipes     https://github.com/local-inference-lab/hyperflare-recipes @ fee34e1 + tp3-patches/hyperflare-recipes-tp2-exl3-20261124.patch
+  flashinfer (b12x)      https://github.com/local-inference-lab/flashinfer @ 0aa01681 (PR #132, #136) + tp3-patches/b12x-tp2-exl3-20261124.patch
+
+flare binary             built from hyperflare-inference @ 5ffe4d54:
+                         sha256 be55094c1984220519e9fe280ae5568ef642c2f6b2efdf501c38d1e5b702b67f
+
+Packages                 gb202-tp2-202611241005 (plain default: 2,839,808 KV tokens, 269 snapshots, 102 graphs, 0/102 racy)
+                         gb202-tp2-202611241209 (WARMIND v1.1 twin: 2,868,992 KV tokens, 272 snapshots, 102 graphs, 0/102 racy; full minqual PASS)
+  STACK_LIMIT            144 B (max registered kernel stack 136 B)
+  Resident experts       344 hot (layers 2-4, 6-19) / 316 hot (layers 20-39)
+
+Checkpoint               diffbot/DeepSeek-V4.1-Flash-EXL3-3bpw-2x-RTX-PRO-6000 (EXL3 3-bit expert pack + int4 Engram tables)
+Steering sidecar (opt.)  jcartu/WARMIND-1017-Steering-Sidecar @ 1bf69d8f31e84ac08deaa6d15eb18a22137e305f,
+                         warmind-v1.1-orth4c-steering.safetensors, sha256 68551f9b8deca315d0c23f31519f69e240d0d4bf0459676add70762635d86a2d (MIT)
+Expert order             expert-order/ (TP2 blended route counts)
+
+GPU settings             2 x RTX PRO 6000 Blackwell Workstation, 450 W power limit, 3165/17001 MHz max clocks (memory clocks unlocked), ECC off, persistence mode on
+Host                     AMD Ryzen Threadripper PRO 7965WX (24-core), 256 GB DDR5-6000 (8 channels), PCIe Gen5 x4 NVMe
+Benchmarks               llm-inference-bench (llm_decode_bench.py v0.8.0, 15s decode cells, ignore_eos=true) + tetristest.py
