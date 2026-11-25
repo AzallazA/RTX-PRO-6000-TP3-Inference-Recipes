@@ -1,0 +1,38 @@
+# Versions used for the Hyperflare-tp3-20261125 build (package gb202-tp3-202611251350) and measurements (README.md).
+
+NVIDIA driver            615.71.09
+CUDA toolkit             13.1 (/usr/local/cuda-13.1); any driver supporting CUDA 13.1 works
+Python (.venv)           3.12.13 (uv-managed)
+torch                    2.14.1+cu132
+triton                   3.8.0
+nvidia-cutlass-dsl       4.8.1
+rustc / cargo            1.93.1
+uv                       0.11.29
+
+Repositories (Wave 7 upstream rebase):
+  hyperflare-inference   https://github.com/AzallazA/hyperflare-inference @ ba6a4c11 (tag hyperflare-tp3-20261125)
+                         rebased on NVIDIA/hyperflare-inference main @ 84ac035c + #424, #426, #498, #499, #510 + TP3/WARMIND/audit fixes
+  hyperflare-recipes     https://github.com/local-inference-lab/hyperflare-recipes @ 39c157a4 (#23, #27) + tp3-patches/hyperflare-recipes-tp3-20261125.patch
+  flashinfer (b12x)      https://github.com/local-inference-lab/flashinfer @ 0d48af53 (#138, #139, #140) + tp3-patches/b12x-tp3-20261125.patch
+
+flare binary             built from hyperflare-inference @ ba6a4c11:
+                         sha256 7aa439a25794d57a7dcbf1431565d51521723d87044cd639b0be7466f0669de7
+flare_heliopause ext     sha256 3437a868b1ee04dafb5b105e4cb8fac0d0e80eb1fd3abd84a99acbf97d90a4ad
+
+Package                  ds41-1017-engram-fp8@gb202-tp3-202611251350 (WARMIND v1.1 default, steering_scale=0)
+  model.safetensors      sha256 3875df1d42eae03b778bd8c2f22d482cc9b55337199b6f89439f5da3ff5d940b
+  exported with          PREFILL=3840 ROW_SHARD_PREFILL=1 MAXC=16 DRAFTS=5 HOT=355 A16_QKV=0 FLAT_POOL=1
+                         ENGRAM_SIDE=1,14 MLA_SPLITS="18:10,37:5,47:4,75:3,94:2,96:1" WOA_SMALL=0
+                         BRRR_PUSH_V2=2 H24_Q_ROPE=1 STEERING=<warmind-v1.1> STEERING_PLAIN_ID=1
+  KV tokens              5,883,648 served (556 shared snapshot slots) with serve.sh defaults (MAXC=16, BUDGET=32, PREFIX_CACHE=12G, STACK_LIMIT=48, max kernel stack 32 B)
+  graphs                 107 graphs (0/107 racy graphs verified by static CUDA-graph race check; 12,669 kernels, 0.6s boot prep)
+
+Checkpoint               deepseek-ai/DeepSeek-V4.1-Flash-1017 @ 1bae0e1088993b9b82de08f59de5be5a34e42170, all 48 shards (MIT)
+Steering sidecar         jcartu/WARMIND-1017-Steering-Sidecar @ 1bf69d8f31e84ac08deaa6d15eb18a22137e305f,
+                         warmind-v1.1-orth4c-steering.safetensors, 684,060 bytes,
+                         sha256 68551f9b8deca315d0c23f31519f69e240d0d4bf0459676add70762635d86a2d (MIT)
+Expert order             expert-order/ (blended code and prose route counts, 40 layers; expert-order/SHA256SUMS)
+
+GPU settings             3 x RTX PRO 6000 Blackwell Workstation, tested at 450 W PL and 600 W TDP (memory clocks unlocked), ECC off, persistence mode on
+Host                     AMD Ryzen Threadripper PRO 7965WX (24-core), 256 GB DDR5-6000 (8 channels)
+Benchmarks               lil-bench 1.7.1 standard/1 (450 W & 600 W) + llm-inference-bench (llm_decode_bench.py v0.8.0) + tetristest.py
