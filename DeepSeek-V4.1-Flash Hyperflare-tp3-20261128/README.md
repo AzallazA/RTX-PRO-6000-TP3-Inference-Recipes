@@ -3,7 +3,7 @@
 > **Flare = Hyperflare.** NVIDIA renamed Flare to **Hyperflare** ([NVIDIA/hyperflare-inference](https://github.com/NVIDIA/hyperflare-inference)).
 > The binary, CLI (`flare run`, `flare models`), and cache paths (`~/.cache/flare`) are still called `flare`.
 
-DeepSeek-V4.1-Flash-1017 served by **Hyperflare at tensor parallel 3 with the full 1M-token context** on three 96 GB RTX PRO 6000 Blackwell cards. This release supersedes [Hyperflare-tp3-20261125](../DeepSeek-V4.1-Flash%20Hyperflare-tp3-20261125/README.md) (`gb202-tp3-202611251350`) and consolidates **Waves 8 through 15.1** across all three repositories — jumping **prefill from `27.7K` to `39.6K–40.9K tok/s` (+43–48% at 450 W)**, **C1 decode to `395–404 tok/s`** (`586–622 tok/s` avg / **`1,034–1,074 tok/s` MAX** in real-world coding), adding **zero-replication encoder attention (`-2.26 GiB/GPU`)**, **global cross-layer hot-expert allocation (`HOT=375` default / `HOT=355` 5.06M KV-King)**, **wide SAM copy-verify (`1x16,2x16,4x16`)**, **AMD Zen 4 `MONITORX`/`MWAITX` low-latency host waits**, **SHA-256 `CUmodule` cubin deduplication**, **`io_uring` fixed-file Engram disk refill + `#566/#70` graph-driven disk lookahead prefetch**, and the **v0.4.1 `DispatchRing` deadlock fix (`da752e07`) + `#568` prefix-cache eviction protection**.
+DeepSeek-V4.1-Flash-1017 served by **Hyperflare at tensor parallel 3 with the full 1M-token context** on three 96 GB RTX PRO 6000 Blackwell cards. This release supersedes [Hyperflare-tp3-20261125](../DeepSeek-V4.1-Flash%20Hyperflare-tp3-20261125/README.md) (`gb202-tp3-202611251350`) and consolidates **Waves 8 through 15.1** across all three repositories — jumping **prefill from `27.7K` to `39.6K–40.9K tok/s` (+43–48% at 450 W)**, **C1 decode to `395–404 tok/s`** (`586–622 tok/s` avg / **`1,034–1,074 tok/s` MAX** in real-world coding), adding **zero-replication encoder attention (`-2.26 GiB/GPU`)**, **global cross-layer hot-expert allocation (`HOT=375` default / `HOT=355` 5.06M KV)**, **wide SAM copy-verify (`1x16,2x16,4x16`)**, **AMD Zen 4 `MONITORX`/`MWAITX` low-latency host waits**, **SHA-256 `CUmodule` cubin deduplication**, **`io_uring` fixed-file Engram disk refill + `#566/#70` graph-driven disk lookahead prefetch**, and the **v0.4.1 `DispatchRing` deadlock fix (`da752e07`) + `#568` prefix-cache eviction protection**.
 
 For the first time, this release also ships a **prebuilt Linux x86_64 `flare` tarball (`flare-linux-amd64.tgz`) + `SHA256SUMS.txt`** matching upstream NVIDIA Hyperflare's release packaging format.
 
@@ -26,9 +26,9 @@ Exact tool versions, SHAs, and checksums are in [versions.txt](versions.txt); qu
 
 Measured on `3 × RTX PRO 6000 Blackwell Workstation Edition 96 GB` (SM120, PCIe Gen5 x16, **450 W PL**, headless, `MAXC=16`, `PREFILL=7680`, `ROW_SHARD_PREFILL=1`, `ROW_SHARD_ATTENTION=1`, `ZERO_REP_ATTENTION=1`, `MOE_RESERVE_SMS=4`, `GLOBAL_HOT_BUDGET=1`, `DRAFTS=5`, `BUDGET=64`, `ALPHA=1.0`, `--history-drafts`, `PREFIX_CACHE=12G`, `ENGRAM_RAM=1`, `STACK_LIMIT=48`).
 
-### 1. Wave 15.1 (`HOT=375` Speed Default) vs Wave 15 (`HOT=355` KV-King) vs `2026-11-25` (450 W PL)
+### 1. Wave 15.1 (`HOT=375` Default) vs Wave 15 (`HOT=355`, 5.06M KV) vs `2026-11-25` (450 W PL)
 
-| Metric (450 W PL) | Wave 15.1 `HOT=375` (`1539`, +800/2850 MHz) | Wave 15 `HOT=355` KV-King (`0459`, stock clocks) | Last Published (`2026-11-25`) | Gain vs `2026-11-25` |
+| Metric (450 W PL) | Wave 15.1 `HOT=375` (`1539`, +800/2850 MHz) | Wave 15 `HOT=355` (`0459`, stock clocks) | Last Published (`2026-11-25`) | Gain vs `2026-11-25` |
 |---|---:|---:|---:|---:|
 | **KV Cache Capacity** | **2,432,000 tok** (`230` snaps) | **5,060,736 tok** (`478` snaps) | 5,883,648 tok (`556` snaps) | Choose `HOT=375` (speed) or `HOT=355` (5M KV) |
 | **Resident Experts (L20–39)** | **7,500 / 7,680 (97.7%)** global | **7,100 / 7,680 (92.4%)** global | 7,100 / 7,680 uniform | Global cross-layer allocation cuts cold hits |

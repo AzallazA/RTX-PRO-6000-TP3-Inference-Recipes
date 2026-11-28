@@ -122,7 +122,7 @@ FLARE_EXPORT_FORWARD_WORKERS=9 FLARE_EXPORT_FORWARD_WORKER_GIB=16 FLARE_EXPORT_F
 bash "$RECIPE_DIR/export.sh"
 ```
 
-> **KV-King / Desktop Variant (`5.06M` KV tokens):** Change only `HOT=375` → `HOT=355`. On a cold tuning cache, export once with `HOT=300` (or `FLARE_EXPORT_TUNE_ONLY=1`) if tuning runs tight on VRAM, then re-run at `HOT=375` — the second export reuses the tuning cache (~7 min total). Omit `STEERING=...` to export a plain unsteered package.
+> **Higher-KV / Desktop Variant (`5.06M` KV tokens):** Change only `HOT=375` → `HOT=355`. On a cold tuning cache, export once with `HOT=300` (or `FLARE_EXPORT_TUNE_ONLY=1`) if tuning runs tight on VRAM, then re-run at `HOT=375` — the second export reuses the tuning cache (~7 min total). Omit `STEERING=...` to export a plain unsteered package.
 
 ## 6. Serve
 

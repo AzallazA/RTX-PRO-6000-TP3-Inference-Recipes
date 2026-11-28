@@ -15,7 +15,7 @@
 #            expert-order/ next to this script in the release folder)
 #   PARK     layers whose routed experts are split between VRAM and host RAM (default 20-39)
 #   HOT      hot experts per parked layer kept in VRAM, out of 384 (default 375 for Wave 15.1 ~2.43M KV & peak C1/coding
-#            speed on headless 96 GB GPUs; use 355 for the ~5.06M KV-King variant or extra desktop headroom)
+#            speed on headless 96 GB GPUs; use 355 for ~5.06M KV tokens or extra desktop headroom)
 #   GLOBAL_HOT_BUDGET  1 (default) = allocate len(PARK) * HOT resident experts globally across PARK layers by
 #            normalized route frequency (1 <= hot_l <= 384, identical total VRAM, lower cold-route rate); 0 = uniform
 #   MAXC     request slots the package captures graphs for (default 16)

@@ -39,7 +39,7 @@ Package (default speed)  ds41-1017-engram-fp8@gb202-tp3-202611281539 (WARMIND v1
                          serve.sh defaults: MAXC=16, BUDGET=64, ALPHA=1.0, PREFIX_CACHE=12G, STACK_LIMIT=48, largest kernel stack 32 B
   graphs / cubins        120 graphs; 6,934 kernels in 4,042 SHA-256 deduplicated modules (255.10 MiB cubin data); 20,085 kernels prepared in 0.5s
 
-Companion KV-King build  ds41-1017-engram-fp8@gb202-tp3-202611280459 (Wave 15, HOT=355, GLOBAL_HOT_BUDGET=1)
+Companion 5.06M KV build ds41-1017-engram-fp8@gb202-tp3-202611280459 (Wave 15, HOT=355, GLOBAL_HOT_BUDGET=1)
   KV tokens              5,060,736 served (478 shared snapshot slots, 13.4 GiB KV)
 
 Checkpoint               deepseek-ai/DeepSeek-V4.1-Flash-1017 @ 1bae0e1088993b9b82de08f59de5be5a34e42170, all 48 shards (MIT)
