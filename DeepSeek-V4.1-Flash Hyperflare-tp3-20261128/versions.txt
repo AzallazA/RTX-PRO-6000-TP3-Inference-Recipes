@@ -1,0 +1,55 @@
+# Versions used for the Hyperflare-tp3-20261128 (Wave 15.1) build (package gb202-tp3-202611281539) and measurements (README.md).
+
+NVIDIA driver            615.71.09
+CUDA toolkit             13.3 (/usr/local/cuda -> /usr/local/cuda-13.3); any driver supporting CUDA 13.1+ works
+Python (.venv)           3.12.13 (uv-managed)
+torch                    2.14.1+cu132
+triton                   3.8.0
+nvidia-cutlass-dsl       4.7.1
+flashinfer-python        0.7.1 (overlaid by b12x-overlay from AzallazA/flashinfer @ tp3-20261128)
+safetensors              0.8.0
+rustc / cargo            1.97.0 (2d8144b78)
+uv                       0.11.29
+
+Repositories (Wave 15.1):
+  hyperflare-inference   https://github.com/AzallazA/hyperflare-inference @ 7eecfda6e1521f35d619a0eefedc22ed9c0cb87e
+                         (branch tp3-20261128, tag v0.4.1-tp3-20261128)
+                         based on NVIDIA/hyperflare-inference main @ 1e78f080 + v0.4.1 da752e07, #484, #504, #520, #523-#527,
+                         #539, #540 (+4 fixes), #542, #546, #556, #559, #561, #566, #568, Zen 4 MWAITX, CUmodule SHA-256 cubin dedup, TP3/WARMIND
+  flashinfer (b12x)      https://github.com/AzallazA/flashinfer @ 9b87317d26a5463cac837ab7017057f1478a34df
+                         (tag tp3-20261128; also tp3-patches/b12x-tp3-20261128.patch over local-inference-lab/flashinfer @ 0d48af53)
+  hyperflare-recipes     https://github.com/local-inference-lab/hyperflare-recipes @ 39c157a419af4fa187a9eecc29be8b9ebe78e519
+                         + tp3-patches/hyperflare-recipes-tp3-20261128.patch (head bcdedfac65980d0374b75f5e9cdf9abef81e292b)
+
+Prebuilt release binary  flare-linux-amd64.tgz (14,028,397 bytes, packaged via packaging/archive.py):
+                         sha256 adfb93695f2475333507ca071d2965445c797074af6584672a0c56992357b631
+flare binary             built from hyperflare-inference @ 7eecfda6:
+                         sha256 70d03647d8a9316bb56ea634f688dcb79c6873c298644d868599c33adcb23161
+flare_heliopause ext     sha256 397f4b37ea6490e0e5a96e09a7f1279cd31698a35224e97006879c3eb4999a8e
+
+Package (default speed)  ds41-1017-engram-fp8@gb202-tp3-202611281539 (WARMIND v1.1 default, steering_scale=0)
+  model.safetensors      sha256 6c903717bc30af8a1bb82f016fec04cc99140ed0ab6f4881122dfa6ed301948
+  exported with          PREFILL=7680 PREFILL_GRAPHS=128,256,512,768,1536,3072,4608,6144,7680
+                         ROW_SHARD_PREFILL=1 ROW_SHARD_ATTENTION=1 ZERO_REP_ATTENTION=1 MOE_RESERVE_SMS=4
+                         MAXC=16 DRAFTS=5 GLOBAL_HOT_BUDGET=1 HOT=375 PARK=20-39 COPY_VERIFY=1x16,2x16,4x16
+                         A16_QKV=0 FLAT_POOL=1 ENGRAM_SIDE=1,14 ENGRAM_FULL_PROJECTION=1
+                         MLA_SPLITS="18:10,37:5,48:4,62:3,94:2,96:4" WOA_SMALL=0 BRRR_PUSH_V2=2 H24_Q_ROPE=1 H24_PREFILL=1
+                         BRRR_R1_M_THRESH=17 BRRR_PARKED_HOT_R1P=2 BRRR_SPIN_NS=32 STEERING=<warmind-v1.1> STEERING_PLAIN_ID=1
+  KV tokens              2,432,000 served (230 shared snapshot slots) with --history-drafts (2,446,592 / 231 with --no-history-drafts);
+                         serve.sh defaults: MAXC=16, BUDGET=64, ALPHA=1.0, PREFIX_CACHE=12G, STACK_LIMIT=48, largest kernel stack 32 B
+  graphs / cubins        120 graphs; 6,934 kernels in 4,042 SHA-256 deduplicated modules (255.10 MiB cubin data); 20,085 kernels prepared in 0.5s
+
+Companion KV-King build  ds41-1017-engram-fp8@gb202-tp3-202611280459 (Wave 15, HOT=355, GLOBAL_HOT_BUDGET=1)
+  KV tokens              5,060,736 served (478 shared snapshot slots, 13.4 GiB KV)
+
+Checkpoint               deepseek-ai/DeepSeek-V4.1-Flash-1017 @ 1bae0e1088993b9b82de08f59de5be5a34e42170, all 48 shards (MIT)
+Steering sidecar         jcartu/WARMIND-1017-Steering-Sidecar @ 1bf69d8f31e84ac08deaa6d15eb18a22137e305f,
+                         warmind-v1.1-orth4c-steering.safetensors, 684,060 bytes,
+                         sha256 68551f9b8deca315d0c23f31519f69e240d0d4bf0459676add70762635d86a2d (MIT)
+Expert order             expert-order/ (blended code and prose route counts, 40 layers; expert-order/SHA256SUMS)
+
+GPU settings             3 x RTX PRO 6000 Blackwell Workstation Edition (headless), 450 W PL, ECC off, persistence mode on,
+                         memory clocks unlocked; Wave 15.1 HOT=375 measurements with nvoc -c 210,2850 -o 800 -m 6000
+                         (Wave 15 HOT=355 measurements at stock clocks, 450 W PL)
+Host                     AMD Ryzen Threadripper PRO 7965WX (24-core, Zen 4 MONITORX/MWAITX active), 256 GB DDR5-6000 (8 channels)
+Benchmarks               llm-inference-bench (llm_decode_bench.py) + tetristest.py + 4x2048 greedy coding + SAM copy-draft + 6-case NIAH
