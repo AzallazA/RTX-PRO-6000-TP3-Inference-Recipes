@@ -19,7 +19,7 @@ Repositories (Wave 15.1):
   flashinfer (b12x)      https://github.com/AzallazA/flashinfer @ 9b87317d26a5463cac837ab7017057f1478a34df
                          (tag tp3-20261128; also tp3-patches/b12x-tp3-20261128.patch over local-inference-lab/flashinfer @ 0d48af53)
   hyperflare-recipes     https://github.com/local-inference-lab/hyperflare-recipes @ 39c157a419af4fa187a9eecc29be8b9ebe78e519
-                         + tp3-patches/hyperflare-recipes-tp3-20261128.patch (head bcdedfac65980d0374b75f5e9cdf9abef81e292b)
+                         + tp3-patches/hyperflare-recipes-tp3-20261128.patch (head 81b490f7cd9e672b4c6896345c0f1d13c56af8f6)
 
 Prebuilt release binary  flare-linux-amd64.tgz (14,028,397 bytes, packaged via packaging/archive.py):
                          sha256 adfb93695f2475333507ca071d2965445c797074af6584672a0c56992357b631
@@ -29,7 +29,7 @@ flare_heliopause ext     sha256 397f4b37ea6490e0e5a96e09a7f1279cd31698a35224e970
 
 Package (default speed)  ds41-1017-engram-fp8@gb202-tp3-202611281539 (WARMIND v1.1 default, steering_scale=0)
   model.safetensors      sha256 6c903717bc30af8a1bb82f016fec04cc99140ed0ab6f4881122dfa6ed301948
-  exported with          PREFILL=7680 PREFILL_GRAPHS=128,256,512,768,1536,3072,4608,6144,7680
+  exported with          PREFILL=7680 FLARE_DS41_PREFILL_GRAPHS=128,256,512,768,1536,3072,4608,6144,7680
                          ROW_SHARD_PREFILL=1 ROW_SHARD_ATTENTION=1 ZERO_REP_ATTENTION=1 MOE_RESERVE_SMS=4
                          MAXC=16 DRAFTS=5 GLOBAL_HOT_BUDGET=1 HOT=375 PARK=20-39 COPY_VERIFY=1x16,2x16,4x16
                          A16_QKV=0 FLAT_POOL=1 ENGRAM_SIDE=1,14 ENGRAM_FULL_PROJECTION=1

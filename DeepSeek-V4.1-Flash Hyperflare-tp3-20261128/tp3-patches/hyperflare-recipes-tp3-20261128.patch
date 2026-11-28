@@ -70426,184 +70426,131 @@ index 0000000..5abfd17
 +              f" | merged {results['merged']:6.1f} us | merged saves {saved:5.1f} us/layer ({saved / results['serial'] * 100:4.1f}%) | rel err {err:.4f}")
 diff --git a/tp3-tools/release/check_env.sh b/tp3-tools/release/check_env.sh
 new file mode 100755
-index 0000000..81a3b5a
+index 0000000..1b7f472
 --- /dev/null
 +++ b/tp3-tools/release/check_env.sh
-@@ -0,0 +1,178 @@
+@@ -0,0 +1,125 @@
 +#!/bin/bash
-+# Preflight for building and serving this release. Read-only: it changes nothing and starts nothing on the GPUs.
-+#   usage: ./check_env.sh <checkout dir>    a Flare fork checkout or the upstream clone for recipe source.patch
-+#   env:   CUDA_HOME     CUDA toolkit root (default /usr/local/cuda-13.1 if present, else the nvcc on PATH)
++# Preflight for building and serving the DS41 TP3 Wave 15.1 (2026-11-28) release.
++# Read-only: changes nothing and starts nothing on the GPUs.
++#   usage: ./check_env.sh <workspace dir>   directory holding flare-core/, hyperflare-recipes/, flashinfer/, b12x-overlay/
++#   env:   CUDA_HOME     CUDA toolkit root (default /usr/local/cuda if present, else nvcc on PATH)
 +#          FLARE_CACHE   where packages and the kernel tuning cache go (default ~/.cache/flare)
-+#          MIN_FREE_GB   free space required on the drive holding FLARE_CACHE (default 1100: DeepSeek checkpoint ~510 GB,
-+#                        package ~505 GB (469 GiB), tuning cache 60-80 GB; lower it if the checkpoint lives on another drive)
++#          MIN_FREE_GB   free space required on the drive holding FLARE_CACHE (default 1100)
 +#          GPUS          three distinct comma-separated GPU indices (default 0,1,2)
-+# Prints one PASS / WARN / FAIL line per check and exits 1 if anything FAILed. WARN lines are steps not done yet.
++# Prints one PASS / WARN / FAIL line per check and exits 1 if anything FAILed.
 +set -uo pipefail
-+FORK=${1:?usage: check_env.sh <checkout dir>}
-+HERE=$(dirname "$(readlink -f "$0")")
++WS=${1:?usage: check_env.sh <workspace dir>}
 +FLARE_CACHE=${FLARE_CACHE:-$HOME/.cache/flare}; MIN_FREE_GB=${MIN_FREE_GB:-1100}; GPUS=${GPUS:-0,1,2}
-+# Upstream Git revision targeted by the Wave 7 runtime fork.
-+BASE=${BASE:-84ac035cf381c831fa5a4c93e8b34010845c551e}
 +fails=0
 +pass(){ echo "PASS  $*"; }; warn(){ echo "WARN  $*"; }; fail(){ echo "FAIL  $*"; fails=$((fails+1)); }
-+vge(){ [ "$(printf '%s\n%s\n' "$1" "$2" | sort -V | head -1)" = "$2" ]; }   # vge A B: version A >= B
++vge(){ [ "$(printf '%s\n%s\n' "$1" "$2" | sort -V | head -1)" = "$2" ]; }
 +
-+# --- CUDA toolkit: 13.1+ with nvcc that targets SM120 (sm_120a). The export compiles the BRRR layer kernel with it.
-+if [ -z "${CUDA_HOME:-}" ] && [ -x /usr/local/cuda-13.1/bin/nvcc ]; then CUDA_HOME=/usr/local/cuda-13.1; fi
++# --- CUDA toolkit: 13.1+ with nvcc that targets SM120 (sm_120a) for BRRR kernel compilation
++if [ -z "${CUDA_HOME:-}" ] && [ -x /usr/local/cuda/bin/nvcc ]; then CUDA_HOME=/usr/local/cuda; fi
 +NVCC=${CUDA_HOME:+$CUDA_HOME/bin/nvcc}
 +[ -n "$NVCC" ] && [ -x "$NVCC" ] || NVCC=$(command -v nvcc || true)
 +if [ -z "$NVCC" ]; then
-+  fail "nvcc not found: install CUDA 13.1 and export CUDA_HOME=/usr/local/cuda-13.1 PATH=\$CUDA_HOME/bin:\$PATH"
++  fail "nvcc not found: install CUDA 13.1+ and export CUDA_HOME=/usr/local/cuda PATH=\$CUDA_HOME/bin:\$PATH"
 +else
-+  v=$("$NVCC" --version | grep -oE 'release [0-9]+\.[0-9]+' | cut -d' ' -f2)
-+  if vge "$v" 13.1; then pass "CUDA toolkit $v ($NVCC)"; else fail "CUDA toolkit $v at $NVCC; 13.1 or newer is required (12.x cannot target SM120)"; fi
++  v=$("$NVCC" --version | grep -oE 'release [0-9]+\.[0-9]+' | awk '{print $2}')
++  if vge "$v" 13.1; then pass "CUDA toolkit $v ($NVCC)"; else fail "CUDA toolkit $v at $NVCC; 13.1+ is required (12.x cannot target SM120)"; fi
 +  if "$NVCC" --list-gpu-code 2>/dev/null | grep -q '^sm_120'; then pass "nvcc accepts sm_120 (sm_120a)"; else fail "nvcc at $NVCC does not list sm_120"; fi
 +  if [ "${CUDA_HOME:-}" != "$(dirname "$(dirname "$NVCC")")" ]; then
 +    warn "CUDA_HOME is not set to this toolkit; before exporting: export CUDA_HOME=$(dirname "$(dirname "$NVCC")") PATH=\$CUDA_HOME/bin:\$PATH"
 +  fi
 +fi
 +
-+# --- locked memory: Flare pins host memory (cold experts, Engram tables, prefix cache)
++# --- locked memory: Hyperflare pins host memory (cold experts, Engram tables, prefix cache)
 +if [ "$(ulimit -l)" = unlimited ]; then pass "memlock unlimited"
 +else fail "ulimit -l is $(ulimit -l); add '<user> - memlock unlimited' in /etc/security/limits.d/90-memlock.conf and log in again"; fi
 +
 +# --- toolchain
 +if command -v rustc >/dev/null; then
 +  v=$(rustc --version | awk '{print $2}')
-+  if vge "$v" 1.88; then pass "rustc $v (fork requires >= 1.88)"; else fail "rustc $v; the fork requires 1.88 or newer (rustup update)"; fi
-+else fail "rustc not found (install rustup)"; fi
-+if command -v cargo >/dev/null; then pass "cargo $(cargo --version | awk '{print $2}')"; else fail "cargo not found"; fi
++  if vge "$v" 1.88; then pass "rustc $v (requires >= 1.88 if building flare from source)"; else warn "rustc $v (< 1.88); needed only if building flare from source (prebuilt flare-linux-amd64.tgz needs no Rust)"; fi
++else warn "rustc not found (optional if using prebuilt flare-linux-amd64.tgz)"; fi
 +if command -v uv >/dev/null; then pass "uv $(uv --version | awk '{print $2}')"; else fail "uv not found (https://docs.astral.sh/uv/)"; fi
-+if command -v patch >/dev/null; then pass "patch present (applies tp3-patches/)"; else fail "patch not found (install the patch package)"; fi
 +command -v git >/dev/null || fail "git not found"
 +
-+# --- fork checkout and source.patch
-+if ! checkout=$(git -C "$FORK" rev-parse --show-toplevel 2>/dev/null) ||
-+   ! head=$(git -C "$FORK" rev-parse --verify HEAD 2>/dev/null); then
-+  fail "$FORK is not a git checkout (EXPORT.md step 2)"
-+elif [ "$HERE" = "$checkout/tp3-tools/release" ]; then
-+  if ! git -C "$FORK" cat-file -e HEAD:tp3-tools/release/check_env.sh 2>/dev/null ||
-+     ! git -C "$FORK" cat-file -e HEAD:tp3-patches/flashinfer-tuning-world3.patch 2>/dev/null; then
-+    fail "checkout ${head:0:8} lacks the committed TP3 release tools or FlashInfer patch"
-+  elif git -C "$FORK" merge-base --is-ancestor "$BASE" "$head" 2>/dev/null; then
-+    pass "TP3 fork checkout ${head:0:8} contains upstream base ${BASE:0:8}"
-+  elif [ "$(git -C "$FORK" rev-parse --is-shallow-repository)" = true ] &&
-+       git -C "$FORK" tag --points-at "$head" | grep -E '^hyperflare-tp3-[0-9]{8}(\.[0-9]+)?$' >/dev/null; then
-+    pass "shallow TP3 release checkout ${head:0:8} has a release tag at HEAD"
-+  else
-+    fail "cannot verify TP3 fork checkout ${head:0:8}; use the tagged release or fetch history through ${BASE:0:8}"
-+  fi
++# --- 3-repo workspace layout (EXPORT.md step 3)
++FLARE_CORE=$WS/flare-core
++RECIPES=$WS/hyperflare-recipes
++FLASHINFER=$WS/flashinfer
++OVERLAY=$WS/b12x-overlay
++
++if [ -d "$FLARE_CORE/.git" ] || [ -f "$FLARE_CORE/.git" ]; then
++  pass "flare-core checkout ($(git -C "$FLARE_CORE" rev-parse --short HEAD 2>/dev/null || echo unknown))"
++else fail "flare-core checkout missing at $FLARE_CORE (EXPORT.md step 3)"; fi
++
++if [ -f "$RECIPES/hyperflare_recipes/recipes/deepseek41/tp3_config.py" ]; then
++  pass "patched hyperflare-recipes present at $RECIPES"
++else fail "hyperflare-recipes TP3 patch not applied at $RECIPES (EXPORT.md step 3)"; fi
++
++if [ -d "$OVERLAY/b12x_tree/comm/pcie" ] && [ -f "$OVERLAY/b12x/__init__.py" ]; then
++  if grep -qs '^def twoshot_pull_enabled(' "$OVERLAY/b12x_tree/comm/pcie/_collective_tuning.py" &&
++     grep -qs '^def _gather_pull_enabled(' "$OVERLAY/b12x_tree/comm/pcie/_dcp_a2a_cute.py"; then
++    pass "b12x-overlay present with TP3 two-shot pull & DCP gather pull ($OVERLAY)"
++  else fail "b12x-overlay at $OVERLAY lacks TP3 flashinfer patches (use AzallazA/flashinfer@tp3-20261128 or apply b12x-tp3-20261128.patch)"; fi
 +else
-+  if [ "$head" = "$(git -C "$FORK" rev-parse --verify "$BASE^{commit}" 2>/dev/null)" ]; then
-+    pass "checkout at upstream Flare base ${BASE:0:8}"
-+  elif git -C "$FORK" merge-base --is-ancestor "$BASE" "$head" 2>/dev/null; then
-+    warn "checkout ${head:0:8} descends from ${BASE:0:8}; checking for the recipe patch"
-+  else
-+    fail "checkout ${head:0:8} requires upstream base $BASE (EXPORT.md step 2)"
-+  fi
-+  source_patch=$HERE/source.patch
-+  if [ ! -f "$source_patch" ] || [ ! -r "$source_patch" ]; then
-+    fail "recipe source patch missing or unreadable at $source_patch"
-+  elif git -C "$FORK" apply --check --reverse "$source_patch" 2>/dev/null; then
-+    pass "source.patch applied"
-+  elif git -C "$FORK" apply --check "$source_patch" 2>/dev/null; then
-+    warn "source.patch applies cleanly; run git -C '$FORK' apply '$source_patch'"
-+  else
-+    fail "source.patch neither applied nor applicable; check the base revision and local changes"
-+  fi
++  warn "b12x-overlay not built yet at $OVERLAY (EXPORT.md step 3)"
 +fi
 +
-+# --- Python environment: uv-managed Python 3.12, FlashInfer patches, ignition.runtime_patches
-+VENV=$FORK/.venv
++# --- Python environment (.venv in flare-core)
++VENV=$FLARE_CORE/.venv
 +if [ -x "$VENV/bin/python" ]; then
 +  pv=$("$VENV/bin/python" -c 'import sys; print("%d.%d.%d" % sys.version_info[:3])')
-+  case $pv in 3.12.*) pass "fork .venv Python $pv" ;; *) fail ".venv Python is $pv; Flare pins 3.12 (uv sync --locked --extra prepare --extra test)" ;; esac
-+  SP=$("$VENV/bin/python" -c 'import sysconfig; print(sysconfig.get_paths()["purelib"])')
-+  IMPL=$SP/flashinfer/experimental/b12x/moe/fused_moe/_impl.py
-+  if [ ! -f "$IMPL" ]; then
-+    fail "FlashInfer is not installed in .venv (uv sync --locked --extra prepare --extra test)"
-+  else
-+    # tiny_decode must honor swiglu_limit, or replies corrupt mid-way at TP3 (flare#193). FlashInfer aa6c4221 (pinned
-+    # since upstream #291) clamps inside the kernel (_tiny_decode_swiglu_supported); older pins needed the fork's
-+    # flashinfer-tiny-decode-swiglu.patch, which excluded tiny_decode whenever a limit was set (dropped 2026-11-14).
-+    if grep -q '_tiny_decode_swiglu_supported' "$IMPL"; then pass "tiny_decode honors swiglu_limit (FlashInfer applies the clamp in the kernel)"
-+    elif grep -q 'tiny_decode implements plain SiLU-GLU only' "$IMPL"; then pass "tiny_decode honors swiglu_limit (flashinfer-tiny-decode-swiglu.patch content present)"
-+    else fail "tiny_decode ignores swiglu_limit in $IMPL (replies corrupt at TP3): FlashInfer predates aa6c4221 and the old swiglu patch is not applied"; fi
-+    # The release folder carries its own tp3-patches/; run from the fork (tp3-tools/release/), check the fork's.
-+    PATCHES=$HERE/tp3-patches; [ -d "$PATCHES" ] || PATCHES=$FORK/tp3-patches
-+    shopt -s nullglob
-+    for p in "$PATCHES"/*.patch; do
-+      b=$(basename "$p")
-+      if patch -R --dry-run -f -s -p1 -d "$SP" < "$p" >/dev/null 2>&1; then pass "$b applied"
-+      elif patch --dry-run -f -s -p1 -d "$SP" < "$p" >/dev/null 2>&1; then fail "$b not applied (applies cleanly): patch -p1 -d $SP < $p"
-+      else fail "$b neither applied nor applicable to the installed FlashInfer (wrong version? re-run uv sync --locked, then re-apply)"; fi
-+    done
-+    shopt -u nullglob
-+    # The b12x two-shot overlay patch is not applied to the venv: export.sh needs a separate overlay built from it
-+    # (tp3-tools/make-b12x-overlay.sh, B12X_OVERLAY) while TWOSHOT=1 or GATHER_PULL=1, the export defaults.
-+    OV=$PATCHES/overlay/flashinfer-pcie-twoshot-pull-world3.patch
-+    if [ -f "$OV" ]; then pass "overlay patch present: $(basename "$OV") (build B12X_OVERLAY with tp3-tools/make-b12x-overlay.sh)"
-+    else warn "overlay patch $OV missing: export.sh then needs TWOSHOT=0 (upstream all-reduce candidates)"; fi
-+    # The DCP gather pull patch (from 20261121) goes into the same overlay; export.sh refuses GATHER_PULL=1 without it.
-+    GP=$PATCHES/overlay/flashinfer-dcp-gather-pull-world3.patch
-+    if [ -f "$GP" ]; then pass "overlay patch present: $(basename "$GP") (build the overlay with both patches)"
-+    else warn "overlay patch $GP missing: export.sh then needs GATHER_PULL=0"; fi
-+  fi
-+  # Upstream replaced `python -m ignition.patches` (on-disk edits of torch/Triton, re-run after every uv sync) with
-+  # ignition.runtime_patches: version-checked in-memory fixes that ignition export applies itself. Nothing to run;
-+  # check that the module is there and accepts the installed torch/Triton (it raises on a version mismatch).
-+  if (cd "$FORK" && "$VENV/bin/python" -c 'from ignition import runtime_patches as r; r.apply(); print(r.identity())') >/dev/null 2>&1; then
-+    pass "ignition.runtime_patches import and apply (torch Inductor and Triton fixes, in memory)"
-+  else fail "ignition.runtime_patches failed to import or apply: (cd $FORK && .venv/bin/python -c 'from ignition import runtime_patches as r; r.apply()') shows why; usually uv sync --locked --extra prepare --extra test"; fi
-+  if [ -x "$VENV/bin/ignition" ]; then pass "ignition CLI present"; else warn ".venv/bin/ignition missing (uv sync --locked --extra prepare --extra test)"; fi
-+  if [ -x "$VENV/bin/ninja" ]; then pass "ninja present (BRRR kernel compile)"; else warn ".venv/bin/ninja missing; the BRRR kernel compile needs it (uv sync --locked --extra prepare --extra test)"; fi
++  case "$pv" in 3.12.*) pass "flare-core .venv Python $pv" ;; *) fail ".venv Python is $pv; Hyperflare pins 3.12 (uv sync --locked --extra prepare)" ;; esac
++  if (cd "$FLARE_CORE" && "$VENV/bin/python" -c 'from ignition import runtime_patches as r; r.apply(); print(r.identity())') >/dev/null 2>&1; then
++    pass "ignition.runtime_patches import and apply"
++  else fail "ignition.runtime_patches failed to import or apply (run uv sync --locked --extra prepare in $FLARE_CORE)"; fi
++  if [ -x "$VENV/bin/ninja" ]; then pass "ninja present (BRRR kernel compile)"; else warn ".venv/bin/ninja missing (uv sync --locked --extra prepare)"; fi
 +  tv=$("$VENV/bin/python" -c 'import importlib.metadata as m; print(m.version("torch"))' 2>/dev/null || echo missing)
 +  fv=$("$VENV/bin/python" -c 'import importlib.metadata as m; print(m.version("flashinfer-python"))' 2>/dev/null || echo missing)
 +  cv=$("$VENV/bin/python" -c 'import importlib.metadata as m; print(m.version("nvidia-cutlass-dsl"))' 2>/dev/null || echo missing)
-+  echo "      torch $tv, flashinfer-python $fv, nvidia-cutlass-dsl $cv (release: 2.14.1+cu132, 0.7.3, 4.8.1; see versions.txt). A cu132 torch wheel next to the"
-+  echo "      13.1 toolkit is expected: the wheel ships its own CUDA libraries, nvcc 13.1 only compiles the BRRR kernel."
++  echo "      torch $tv, flashinfer-python $fv, nvidia-cutlass-dsl $cv (see versions.txt)"
 +else
-+  warn "no .venv in $FORK yet: uv sync --locked --extra prepare --extra test, then the FlashInfer patches (EXPORT.md step 2); re-run this check afterwards"
++  warn "no .venv in $FLARE_CORE yet (run: cd $FLARE_CORE && uv sync --locked --extra prepare)"
 +fi
-+# The flare binary moved to flare-cli/ upstream (flare/ is now the shared library crate).
-+if [ -x "$FORK/flare-cli/target/release/flare" ]; then pass "flare binary built: $FORK/flare-cli/target/release/flare"
-+else warn "flare binary not built yet: cargo build --locked --release --manifest-path $FORK/flare-cli/Cargo.toml"; fi
++
++# --- flare serving binary
++if [ -x "$WS/flare-bin/flare" ]; then pass "prebuilt flare binary found: $WS/flare-bin/flare"
++elif [ -x "$FLARE_CORE/flare-cli/target/release/flare" ]; then pass "source-built flare binary found: $FLARE_CORE/flare-cli/target/release/flare"
++else warn "flare binary not found yet (download flare-linux-amd64.tgz or run cargo build --locked --release --manifest-path $FLARE_CORE/flare-cli/Cargo.toml)"; fi
 +
 +# --- disk
 +d=$FLARE_CACHE; while [ ! -d "$d" ]; do d=$(dirname "$d"); done
 +free=$(df -BG --output=avail "$d" | tail -1 | tr -dc 0-9)
 +if [ "$free" -ge "$MIN_FREE_GB" ]; then pass "$free GB free on the drive holding $FLARE_CACHE (need $MIN_FREE_GB)"
-+else fail "$free GB free on the drive holding $FLARE_CACHE; $MIN_FREE_GB GB needed (set MIN_FREE_GB if the checkpoints are on another drive)"; fi
++else fail "$free GB free on the drive holding $FLARE_CACHE; $MIN_FREE_GB GB needed (set MIN_FREE_GB if checkpoints live elsewhere)"; fi
 +
-+# --- GPUs: 3 visible SM120 cards, idle. Kernel tuning captures the power limit and clocks in effect during the export.
++# --- GPUs: 3 visible SM120 cards, idle
 +IFS=, read -r gpu0 gpu1 gpu2 <<< "$GPUS"
-+if [[ ! $GPUS =~ ^[0-9]+,[0-9]+,[0-9]+$ || $gpu0 = "$gpu1" || $gpu0 = "$gpu2" || $gpu1 = "$gpu2" ]]; then
++if [[ ! "$GPUS" =~ ^[0-9]+,[0-9]+,[0-9]+$ || "$gpu0" = "$gpu1" || "$gpu0" = "$gpu2" || "$gpu1" = "$gpu2" ]]; then
 +  fail "GPUS=$GPUS must specify exactly 3 distinct comma-separated GPU indices"
 +elif ! command -v nvidia-smi >/dev/null; then
-+  fail "nvidia-smi not found (NVIDIA driver 615.71.09 or any driver supporting CUDA 13.1)"
-+elif ! gpu_rows=$(nvidia-smi --query-gpu=index,name,compute_cap,memory.used,power.limit,clocks.max.sm,clocks.max.memory --format=csv,noheader,nounits); then
++  fail "nvidia-smi not found (NVIDIA driver 615.71.09+ supporting CUDA 13.1+)"
++elif ! gpu_rows=$(nvidia-smi --query-gpu=index,name,compute_cap,memory.used,power.limit --format=csv,noheader,nounits); then
 +  fail "nvidia-smi could not report visible GPUs"
 +else
 +  drv=$(nvidia-smi --query-gpu=driver_version --format=csv,noheader | head -1 | tr -d ' ')
 +  n=0; bad=0
 +  want=("$gpu0" "$gpu1" "$gpu2")
-+  while IFS=, read -r idx name cc used plim smmax memmax; do
-+    idx=${idx// /}; cc=${cc// /}; used=${used// /}; plim=${plim// /}; smmax=${smmax// /}; memmax=${memmax// /}; name=${name# }
++  while IFS=, read -r idx name cc used plim; do
++    idx=${idx// /}; cc=${cc// /}; used=${used// /}; plim=${plim// /}; name=${name# }
 +    for i in "${!want[@]}"; do
 +      [ "${want[i]}" = "$idx" ] || continue
 +      unset 'want[i]'
 +      n=$((n+1))
 +      [ "$cc" = "12.0" ] || { fail "GPU $idx: compute capability $cc, need 12.0 (SM120, RTX PRO 6000 Blackwell)"; bad=1; }
-+      [ "$used" -lt 1024 ] || { fail "GPU $idx: $used MiB in use; stop the server and other GPU processes before exporting"; bad=1; }
-+      echo "      GPU $idx: $name · power limit $plim W · max clocks SM $smmax MHz, memory $memmax MHz · $used MiB used"
++      [[ "$used" =~ ^[0-9]+$ ]] && [ "$used" -lt 1024 ] || { fail "GPU $idx: memory.used=$used MiB (stop server or reset GPU before exporting)"; bad=1; }
++      echo "      GPU $idx: $name · power limit $plim W · $used MiB used"
 +      break
 +    done
 +  done <<< "$gpu_rows"
 +  if [ "$n" -ne 3 ]; then fail "$n of the 3 GPUs in GPUS=$GPUS are visible"
 +  elif [ "$bad" = 0 ]; then pass "3 SM120 GPUs ($GPUS) visible and idle, driver $drv"; fi
-+  echo "      Export with the power limit and clock offsets you will serve with: the tuning cache records kernels measured"
-+  echo "      at those settings. The release numbers were taken at 450 W, +75 MHz core, +6000 MHz memory offset; 350 W is 10-14% slower."
++  echo "      Export with the power limit and clock settings you will serve with; see README.md for 450 W notes."
 +fi
 +
 +echo
@@ -71881,21 +71828,19 @@ index 0000000..52a8ae4
 \ No newline at end of file
 diff --git a/tp3-tools/release/export.sh b/tp3-tools/release/export.sh
 new file mode 100755
-index 0000000..fec4025
+index 0000000..828c943
 --- /dev/null
 +++ b/tp3-tools/release/export.sh
-@@ -0,0 +1,319 @@
+@@ -0,0 +1,345 @@
 +#!/bin/bash
-+# Export the package from a checkpoint view (make_checkpoint_view.sh). Run it from the fork checkout with its .venv
-+# (uv sync, then re-apply tp3-patches/ to the installed FlashInfer; Hyperflare's torch/Triton fixes are applied in memory
-+# by ignition.runtime_patches). The defaults reproduce the release package 202611201530 except the steering sidecar,
-+# which you pass with STEERING= (download: README "Building the package"). The DS41 recipe settings are recorded in the package's
-+# tp3-config.json. EXPORT.md step 4 has the table of what each one sets.
++# Export the DS41 TP3 Wave 15.1 package from a checkpoint view (make_checkpoint_view.sh). Run with the flare-core
++# .venv (uv sync --locked --extra prepare), patched hyperflare-recipes, and B12X_OVERLAY pointing to patched flashinfer
++# (EXPORT.md steps 3-5; Hyperflare's torch/Triton fixes are applied in memory by ignition.runtime_patches). The defaults
++# reproduce the Wave 15.1 release package gb202-tp3-202611281539 except the steering sidecar, which you pass with
++# STEERING= (download: EXPORT.md step 4). The DS41 recipe settings are recorded in the package's tp3-config.json.
 +#   CKPT     checkpoint view directory (required; the directory name becomes the model name, default view: ds41-1017-engram-fp8)
-+#   B12X_OVERLAY  b12x copy with the DS41 TP3 overlay patches (required while TWOSHOT=1 or GATHER_PULL=1, the defaults):
-+#            VENV=$PWD/.venv B12X_OVERLAY_PATCHES="<folder>/tp3-patches/overlay/flashinfer-pcie-twoshot-pull-world3.patch \
-+#              <folder>/tp3-patches/overlay/flashinfer-dcp-gather-pull-world3.patch \
-+#              <folder>/tp3-patches/overlay/flashinfer-ds41-wave3-m32-ro-acquire.patch" tp3-tools/make-b12x-overlay.sh $PWD/.b12x-overlay-w3
++#   B12X_OVERLAY  b12x overlay directory with b12x_tree symlinked to flashinfer/flashinfer/experimental/b12x and the
++#            b12x/__init__.py shim (required while TWOSHOT=1 or GATHER_PULL=1, the defaults; see EXPORT.md step 3)
 +#   STEERING  path of the steering sidecar (.safetensors, layers 4-36) = --steering-sidecar; the package then takes a
 +#            per-request steering_scale in [0, 1] (0 = unsteered). Unset = no sidecar (nonzero scales get HTTP 400)
 +#   STEERING_PLAIN_ID  1 (default) = with STEERING, tune under the checkpoint's plain identity: the same tuning records
@@ -71903,8 +71848,8 @@ index 0000000..fec4025
 +#   COUNTS   expert route counts that decide the hot experts (default: the blended code and prose order of the release,
 +#            expert-order/ next to this script in the release folder)
 +#   PARK     layers whose routed experts are split between VRAM and host RAM (default 20-39)
-+#   HOT      hot experts per parked layer kept in VRAM, out of 384 (default 340, ~4.07M-4.35M KV tokens; use 335 for
-+#            ~4.7M-5.0M KV with extra desktop headroom, or 355 with TUNING_MARGIN_MIB=384 for ~2.37M KV & max C1 speed)
++#   HOT      hot experts per parked layer kept in VRAM, out of 384 (default 375 for Wave 15.1 ~2.43M KV & peak C1/coding
++#            speed on headless 96 GB GPUs; use 355 for the ~5.06M KV-King variant or extra desktop headroom)
 +#   GLOBAL_HOT_BUDGET  1 (default) = allocate len(PARK) * HOT resident experts globally across PARK layers by
 +#            normalized route frequency (1 <= hot_l <= 384, identical total VRAM, lower cold-route rate); 0 = uniform
 +#   MAXC     request slots the package captures graphs for (default 16)
@@ -71944,7 +71889,7 @@ index 0000000..fec4025
 +#            requires ROW_SHARD_PREFILL=1); 0 = off
 +#   ZERO_REP_ATTENTION  1 (default) = zero-replication encoder attention weight gather (keeps only 5 KiB of FP32
 +#            attn_sink resident and all-gathers wq_b/wo_a/wo_b on demand, saving ~2.26 GiB/rank); 0 = replicate MXFP8
-+#   MOE_RESERVE_SMS  optional SM reservation on overlapped encoder MoE layers (0-19) when b12x supports it (unset = 0)
++#   MOE_RESERVE_SMS  SMs reserved on overlapped encoder MoE layers (0-19) for concurrent weight AllGather (default 4; 0 = off)
 +#   BRRR_DRAFT   1 (default) = DSpark draft layers (mtp.0..2, 128 experts, top-3) run through the fused BRRR kernel
 +#   BRRR_R1_M_THRESH  BRRR hot-expert R1 row threshold (default 17; empty = kernel default 48)
 +#   BRRR_PARKED_HOT_R1P  BRRR parked-layer hot R1P warps/expert (default 2; empty = kernel default 5)
@@ -71960,10 +71905,10 @@ index 0000000..fec4025
 +#   MARKOV_STAGE 1 (default) = with MARKOV_HOST=1, copy each request's Markov row into VRAM once per draft step
 +#   MARKOV_TILE N = Markov score tiles cover N request rows per program (default unset = one program per row)
 +#   GLUE2    1 (default) = second decode-glue pass (fewer zero fills and copies around verification; same bytes)
-+#   SKIP_SUFFIX  prefill capacities that get an encoder-only twin (default 3072,3584,4096 when captured; empty = none).
++#   SKIP_SUFFIX  prefill capacities that get an encoder-only twin (default 3072,4608,6144,7680 at PREFILL=7680; empty = none).
 +#            Non-final chunks of long prompts skip layers 21-39 and the head.
-+#   IDX_SPLIT  prefill capacities whose index layers split the indexer rows across the GPUs (default 4096 when captured;
-+#            empty = off)
++#   IDX_SPLIT  prefill capacities whose index layers split the indexer rows across the GPUs (default empty when
++#            ROW_SHARD_ATTENTION=1; otherwise PREFILL when captured)
 +#   IDX_SPLIT_MIN_CTX  only for prefill chunks from this many tokens on (default unset = always split captured IDX_SPLIT
 +#            capacities, reclaiming duplicate variant graphs now that GATHER_PULL=1 lowers break-even to ~3K);
 +#            IDX_SPLIT_VARIANTS = prefill, terminal_prefill or both (default both when IDX_SPLIT_MIN_CTX is set)
@@ -71991,6 +71936,26 @@ index 0000000..fec4025
 +set -euo pipefail
 +: "${CKPT:?set CKPT to the checkpoint view directory}"
 +HERE=$(dirname "$(readlink -f "$0")")
++# Ensure CUDA_HOME / nvcc >= 13.1 for SM120 (sm_120a) BRRR kernel compilation.
++if [ -z "${CUDA_HOME:-}" ] && [ -x /usr/local/cuda/bin/nvcc ]; then
++    export CUDA_HOME=/usr/local/cuda
++fi
++if [ -n "${CUDA_HOME:-}" ] && [ -d "$CUDA_HOME/bin" ]; then
++    case ":${PATH:-}:" in
++        *":$CUDA_HOME/bin:"*) ;;
++        *) export PATH="$CUDA_HOME/bin${PATH:+:$PATH}" ;;
++    esac
++fi
++NVCC_BIN=$(command -v nvcc || true)
++if [ -z "$NVCC_BIN" ]; then
++    echo "nvcc not found: install CUDA 13.1+ and export CUDA_HOME=/usr/local/cuda PATH=\$CUDA_HOME/bin:\$PATH" >&2
++    exit 1
++fi
++NVCC_VER=$("$NVCC_BIN" --version | grep -oE 'release [0-9]+\.[0-9]+' | awk '{print $2}')
++if [ -n "$NVCC_VER" ] && [ "$(printf '%s\n%s\n' "$NVCC_VER" "13.1" | sort -V | head -1)" != "13.1" ]; then
++    echo "nvcc $NVCC_VER at $NVCC_BIN is too old for SM120 (need CUDA >= 13.1; export CUDA_HOME=/usr/local/cuda PATH=\$CUDA_HOME/bin:\$PATH)" >&2
++    exit 1
++fi
 +TWOSHOT=${TWOSHOT:-1}
 +GATHER_PULL=${GATHER_PULL:-1}
 +if [ -n "${B12X_OVERLAY:-}" ]; then
@@ -72043,7 +72008,7 @@ index 0000000..fec4025
 +    DEFAULT_AR_PART_ROWS=768
 +    DEFAULT_ENGRAM_PART_ROWS=768
 +fi
-+export FLARE_DS41_TP3_GRAPH_GIB=1 FLARE_DS41_HOST_EXPERT_LAYERS=${PARK:-20-39} FLARE_DS41_HOT_EXPERTS=${HOT:-340} \
++export FLARE_DS41_TP3_GRAPH_GIB=1 FLARE_DS41_HOST_EXPERT_LAYERS=${PARK:-20-39} FLARE_DS41_HOT_EXPERTS=${HOT:-375} \
 +       FLARE_DS41_GLOBAL_HOT_BUDGET=${GLOBAL_HOT_BUDGET-1} \
 +       FLARE_DS41_MERGED_BANK=1 FLARE_DS41_TP3_VOCAB_PARALLEL=1 \
 +       FLARE_DS41_EXPERT_COUNTS_DIR=${COUNTS:-$DEFAULT_COUNTS} HF_HUB_OFFLINE=1 \
@@ -72105,7 +72070,7 @@ index 0000000..fec4025
 +export FLARE_DS41_BRRR_R1_M_THRESH=${BRRR_R1_M_THRESH-17}
 +export FLARE_DS41_BRRR_PARKED_HOT_R1P=${BRRR_PARKED_HOT_R1P-2}
 +[ "${BRRR_WOB_KS24_MAXM+x}" ] && export FLARE_DS41_BRRR_WOB_KS24_MAXM=$BRRR_WOB_KS24_MAXM
-+[ "${MOE_RESERVE_SMS+x}" ] && export FLARE_DS41_MOE_RESERVE_SMS=$MOE_RESERVE_SMS
++export FLARE_DS41_MOE_RESERVE_SMS=${MOE_RESERVE_SMS-4}
 +if [ "${RECLAIM:-}" = 0 ]; then
 +    export FLARE_DS41_SHARE_ENGRAM_TOKEN_MAP=$FLARE_DS41_VRAM_RECLAIM \
 +           FLARE_DS41_TRIM_VOCAB_GATHER=$FLARE_DS41_VRAM_RECLAIM \
@@ -72134,7 +72099,7 @@ index 0000000..fec4025
 +    DEFAULT_SKIP_SUFFIX=3072,3584,4096
 +    DEFAULT_IDX_SPLIT=4096
 +elif [ -z "${SKIP_SUFFIX+x}" ] || [ -z "${IDX_SPLIT+x}" ]; then
-+    read -r DEFAULT_SKIP_SUFFIX DEFAULT_IDX_SPLIT < <("${IGNITION_PYTHON:-.venv/bin/python}" - "$PREFILL" "${FLARE_DS41_PREFILL_GRAPHS:-}" <<'PY'
++    if ! _prefill_defaults=$("${IGNITION_PYTHON:-.venv/bin/python}" - "$PREFILL" "${FLARE_DS41_PREFILL_GRAPHS:-}" <<'PY'
 +import sys
 +
 +from ignition.components.capacity import prefill_capacities
@@ -72156,14 +72121,22 @@ index 0000000..fec4025
 +idx = str(chunk) if chunk in (3840, 4096, 4608, 5376, 6144, 7680) and chunk in captured else "-"
 +print(skip, idx)
 +PY
-+    )
++    ); then
++        echo "failed to compute prefill defaults for PREFILL=$PREFILL using ${IGNITION_PYTHON:-.venv/bin/python}" >&2
++        exit 1
++    fi
++    read -r DEFAULT_SKIP_SUFFIX DEFAULT_IDX_SPLIT <<< "$_prefill_defaults"
 +    [ "$DEFAULT_SKIP_SUFFIX" = "-" ] && DEFAULT_SKIP_SUFFIX=
 +    [ "$DEFAULT_IDX_SPLIT" = "-" ] && DEFAULT_IDX_SPLIT=
 +fi
 +ROW_SHARD_PREFILL=${ROW_SHARD_PREFILL-1}
-+ROW_SHARD_ATTENTION=${ROW_SHARD_ATTENTION-1}
++ROW_SHARD_ATTENTION=${ROW_SHARD_ATTENTION-$ROW_SHARD_PREFILL}
 +if [ "$ROW_SHARD_ATTENTION" = 1 ] && [ "$ROW_SHARD_PREFILL" != 1 ]; then
 +    echo "ROW_SHARD_ATTENTION=1 requires ROW_SHARD_PREFILL=1" >&2; exit 2
++fi
++if [ "$ROW_SHARD_PREFILL" = 1 ] && [[ "$PREFILL" =~ ^[0-9]+$ ]] && (( PREFILL % 768 != 0 )); then
++    echo "ROW_SHARD_PREFILL=1 on TP3 requires PREFILL to be a multiple of 768 (got $PREFILL; e.g. 3840, 4608, 6144, or 7680)" >&2
++    exit 2
 +fi
 +if [ "$ROW_SHARD_ATTENTION" = 1 ]; then
 +    DEFAULT_IDX_SPLIT=
@@ -72494,10 +72467,10 @@ index 0000000..3a2ef7c
 +echo "FP8 checkpoint view ready: $OUT"
 diff --git a/tp3-tools/release/serve.sh b/tp3-tools/release/serve.sh
 new file mode 100755
-index 0000000..a130eb8
+index 0000000..a67bb66
 --- /dev/null
 +++ b/tp3-tools/release/serve.sh
-@@ -0,0 +1,71 @@
+@@ -0,0 +1,73 @@
 +#!/bin/bash
 +# Serve the exported package on 3 GPUs with both FP8 Engram tables in host RAM (~189 GiB of tables; the server
 +# commits ~218 GiB of host RAM in total at PREFIX_CACHE=12G, so this needs a 256 GB machine, see README "Memory").
@@ -72508,8 +72481,9 @@ index 0000000..a130eb8
 +#                 layer1 = layer 1's table in RAM, layer 14's read from disk through a row cache of ENGRAM_CACHE
 +#                 (default 32GiB); ~60 GiB less committed host RAM (README "Memory")
 +#                 0 = both tables from disk through a row cache of ENGRAM_CACHE (default 32GiB, shared by the tables)
-+#   READ_AHEAD    Engram disk read-ahead before each prefill chunk (FLARE_ENGRAM_READ_AHEAD; default 1; empty = off).
-+#                 Does nothing with both tables in RAM; keep it on with ENGRAM_RAM=layer1 or 0
++#   READ_AHEAD    Legacy CPU pre-chunk Engram read-ahead (FLARE_ENGRAM_READ_AHEAD; default empty = use upstream #566+#70
++#                 graph-driven advisory lookahead prefetch in disk mode; set READ_AHEAD=1 for the legacy CPU reader)
++#   ENGRAM_PREFETCH  1 (default) = graph-driven advisory disk lookahead prefetch (#566+#70); 0 = pass --no-embedding-table-prefetch
 +#   STEERING_KEYS_FILE  file with steering keys (FLARE_STEERING_API_KEYS_FILE; one key per line or comma-separated,
 +#                 '#' comment lines, mode 600). Unset by default: any client may then set steering_scale.
 +#                 With keys, a nonzero steering_scale needs X-Steering-Key (README "Steering access")
@@ -72542,18 +72516,19 @@ index 0000000..a130eb8
 +unset FLARE_ENGRAM_RAM_TABLES FLARE_ENGRAM_RAM_LAYERS FLARE_ENGRAM_PRIVATE_TABLES FLARE_FAST_EXIT
 +unset FLARE_CUDA_STACK_LIMIT FLARE_SCHEDULER_PREFILL_MERGE_MIN_ROWS FLARE_ENGRAM_READ_AHEAD FLARE_STEERING_API_KEYS_FILE
 +ENV=() STORAGE=() EXTRA=()
-+case ${ENGRAM_RAM:-1} in
++case "${ENGRAM_RAM:-1}" in
 +  1) ENV+=(FLARE_ENGRAM_RAM_TABLES=0) ;;
 +  layer1) ENV+=(FLARE_ENGRAM_RAM_LAYERS=0); STORAGE=(--embedding-table-storage disk --embedding-table-cache-size "${ENGRAM_CACHE:-32GiB}") ;;
 +  0) STORAGE=(--embedding-table-storage disk --embedding-table-cache-size "${ENGRAM_CACHE:-32GiB}") ;;
 +  *) echo "ENGRAM_RAM must be 1, layer1 or 0" >&2; exit 2 ;;
 +esac
 +[ "${FAST:-1}" = 1 ] && ENV+=(FLARE_ENGRAM_PRIVATE_TABLES=1 FLARE_FAST_EXIT=1)
-+SL=${STACK_LIMIT-48}; PM=${PREFILL_MERGE-512}; TO=${TTFT_ORDER-shortest}; RA=${READ_AHEAD-1}
-+[ -n "$SL" ] && ENV+=(FLARE_CUDA_STACK_LIMIT=$SL)
-+[ -n "$PM" ] && ENV+=(FLARE_SCHEDULER_PREFILL_MERGE_MIN_ROWS=$PM)
-+[ -n "$RA" ] && ENV+=(FLARE_ENGRAM_READ_AHEAD=$RA)
++SL=${STACK_LIMIT-48}; PM=${PREFILL_MERGE-512}; TO=${TTFT_ORDER-shortest}; RA=${READ_AHEAD-}
++[ -n "$SL" ] && ENV+=("FLARE_CUDA_STACK_LIMIT=$SL")
++[ -n "$PM" ] && ENV+=("FLARE_SCHEDULER_PREFILL_MERGE_MIN_ROWS=$PM")
++[ -n "$RA" ] && ENV+=("FLARE_ENGRAM_READ_AHEAD=$RA")
 +[ -n "$TO" ] && EXTRA+=(--scheduler-ttft-order "$TO")
++[ "${ENGRAM_PREFETCH:-1}" = 0 ] && STORAGE+=(--no-embedding-table-prefetch)
 +if [ "${HISTORY_DRAFTS:-1}" = 1 ]; then
 +  EXTRA+=(--history-drafts)
 +else

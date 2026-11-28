@@ -43,7 +43,7 @@ PACKAGE=${PACKAGE:-ds41-1017-engram-fp8}
 unset FLARE_ENGRAM_RAM_TABLES FLARE_ENGRAM_RAM_LAYERS FLARE_ENGRAM_PRIVATE_TABLES FLARE_FAST_EXIT
 unset FLARE_CUDA_STACK_LIMIT FLARE_SCHEDULER_PREFILL_MERGE_MIN_ROWS FLARE_ENGRAM_READ_AHEAD FLARE_STEERING_API_KEYS_FILE
 ENV=() STORAGE=() EXTRA=()
-case ${ENGRAM_RAM:-1} in
+case "${ENGRAM_RAM:-1}" in
   1) ENV+=(FLARE_ENGRAM_RAM_TABLES=0) ;;
   layer1) ENV+=(FLARE_ENGRAM_RAM_LAYERS=0); STORAGE=(--embedding-table-storage disk --embedding-table-cache-size "${ENGRAM_CACHE:-32GiB}") ;;
   0) STORAGE=(--embedding-table-storage disk --embedding-table-cache-size "${ENGRAM_CACHE:-32GiB}") ;;
@@ -51,9 +51,9 @@ case ${ENGRAM_RAM:-1} in
 esac
 [ "${FAST:-1}" = 1 ] && ENV+=(FLARE_ENGRAM_PRIVATE_TABLES=1 FLARE_FAST_EXIT=1)
 SL=${STACK_LIMIT-48}; PM=${PREFILL_MERGE-512}; TO=${TTFT_ORDER-shortest}; RA=${READ_AHEAD-}
-[ -n "$SL" ] && ENV+=(FLARE_CUDA_STACK_LIMIT=$SL)
-[ -n "$PM" ] && ENV+=(FLARE_SCHEDULER_PREFILL_MERGE_MIN_ROWS=$PM)
-[ -n "$RA" ] && ENV+=(FLARE_ENGRAM_READ_AHEAD=$RA)
+[ -n "$SL" ] && ENV+=("FLARE_CUDA_STACK_LIMIT=$SL")
+[ -n "$PM" ] && ENV+=("FLARE_SCHEDULER_PREFILL_MERGE_MIN_ROWS=$PM")
+[ -n "$RA" ] && ENV+=("FLARE_ENGRAM_READ_AHEAD=$RA")
 [ -n "$TO" ] && EXTRA+=(--scheduler-ttft-order "$TO")
 [ "${ENGRAM_PREFETCH:-1}" = 0 ] && STORAGE+=(--no-embedding-table-prefetch)
 if [ "${HISTORY_DRAFTS:-1}" = 1 ]; then

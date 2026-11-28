@@ -189,7 +189,7 @@ def run_case(device, pool, swa_page, rows, heads, splits, variant, cache_dir):
     h24 (one-launch 24-head kernel, remainder stream on as in production)."""
     import torch
     from b12x.preparation import PreparationSession
-    from ignition.components import mla_decode_splits, mla_h24_decode, mla_remainder_stream
+    from hyperflare_recipes.components import mla_decode_splits, mla_h24_decode, mla_remainder_stream
 
     mla_h24_decode.uninstall()  # the remainder-stream hook must sit under the H24 hook, never above it
     os.environ[mla_remainder_stream.ENV] = "0" if variant == "serial" else "1"
@@ -240,6 +240,8 @@ def main():
     parser.add_argument("--quick", action="store_true")
     parser.add_argument("--h24", action="store_true", help="add one-launch 24-head (H24) arms at every split count")
     parser.add_argument("--h24-only", action="store_true", help="only the 24-head 16 + 8 and H24 arms")
+    parser.add_argument("--rows", default=None, help="comma-separated row counts (e.g. 64,72,96); overrides --quick/full")
+    parser.add_argument("--splits", default=None, help="comma-separated split counts (e.g. 10,5,4,3,2,1); overrides --quick/full")
     parser.add_argument("--cache-dir", default=None, help="b12x preparation cache (default: <out dir>/prep-cache)")
     args = parser.parse_args()
     preflight()
@@ -250,7 +252,10 @@ def main():
     device = torch.device("cuda", 0)
     cache_dir = args.cache_dir or os.path.join(os.path.dirname(os.path.abspath(args.out)), "prep-cache")
     os.makedirs(cache_dir, exist_ok=True)
-    rows_list, splits_list = (ROWS_QUICK, SPLITS_QUICK) if args.quick else (ROWS_FULL, SPLITS_FULL)
+    rows_list = (tuple(int(x) for x in args.rows.split(",") if x.strip()) if args.rows
+                 else (ROWS_QUICK if args.quick else ROWS_FULL))
+    splits_list = (tuple(int(x) for x in args.splits.split(",") if x.strip()) if args.splits
+                   else (SPLITS_QUICK if args.quick else SPLITS_FULL))
     pool, swa_page = build_pool(device, torch.Generator(device=device).manual_seed(1118))
     h24_mode = "only" if args.h24_only else ("on" if args.h24 else "off")
     reference, same_split, failures, times = {}, {}, [], {}
@@ -284,7 +289,7 @@ def main():
                                     f"applied {info['applied']}")
                 if variant == "serial" and diff != 0.0:
                     failures.append(f"rows {rows}: serial arm differs from 10 splits by {diff:.3e}")
-                if not diff <= MAX_DIFF:
+                if key in reference and not diff <= MAX_DIFF:
                     failures.append(f"rows {rows} heads {heads} S{splits}: max diff {diff:.3e} > {MAX_DIFF}")
             times[(rows, heads, variant, splits)] = info["us"]
             handle.write(f"{rows}\t{heads}\t{variant}\t{splits}\t{planned}\t{info['us']}\t{info['us_p10']}\t"
@@ -295,9 +300,10 @@ def main():
             expected = next((us for bound, us in TRACE_BANDS if rows <= bound), None)
             ours = times.get((rows, 24, "bf16", 10))
             best = min((us, s) for (r, h, v, s), us in times.items() if r == rows and h == 24 and v == "bf16")
-            trace = ("n/a" if expected is None else
+            trace = ("n/a" if expected is None or ours is None else
                      f"trace {expected} us {'ok' if abs(ours - expected) <= 0.1 * expected else 'OFF>10%'}")
-            line = (f"SUMMARY rows={rows} S10={ours} us best=S{best[1]} {best[0]} us ({best[0] - ours:+.2f}); {trace}; "
+            delta_best = f"{best[0] - ours:+.2f}" if ours is not None else "n/a"
+            line = (f"SUMMARY rows={rows} S10={ours} us best=S{best[1]} {best[0]} us ({delta_best}); {trace}; "
                     f"16-head S10={times.get((rows, 16, 'bf16', 10))} S5={times.get((rows, 16, 'bf16', 5))}; "
                     f"fp8h8={times.get((rows, 24, 'fp8h8', None))} serial={times.get((rows, 24, 'serial', 10))}")
             handle.write("# " + line + "\n")
@@ -307,8 +313,9 @@ def main():
                 h_us, h_s = min((us, s) for s, us in fused.items())
                 same = " ".join(f"S{s}:{times[(rows, 24, 'bf16', s)]}->{us}" for s, us in sorted(fused.items(),
                                 key=lambda item: -item[0]) if (rows, 24, "bf16", s) in times)
+                delta_s10 = f"{h_us - ours:+.2f}" if ours is not None else "n/a"
                 line = (f"H24 rows={rows} best=S{h_s} {h_us} us vs 16+8 best S{best[1]} {best[0]} us "
-                        f"({h_us - best[0]:+.2f}) vs S10 {ours} us ({h_us - ours:+.2f}); same-S {same}")
+                        f"({h_us - best[0]:+.2f}) vs S10 {ours} us ({delta_s10}); same-S {same}")
                 handle.write("# " + line + "\n")
                 print(line, flush=True)
     if failures:

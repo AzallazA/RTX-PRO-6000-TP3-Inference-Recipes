@@ -1,14 +1,12 @@
 #!/bin/bash
-# Export the package from a checkpoint view (make_checkpoint_view.sh). Run it from the fork checkout with its .venv
-# (uv sync, then re-apply tp3-patches/ to the installed FlashInfer; Hyperflare's torch/Triton fixes are applied in memory
-# by ignition.runtime_patches). The defaults reproduce the release package 202611201530 except the steering sidecar,
-# which you pass with STEERING= (download: README "Building the package"). The DS41 recipe settings are recorded in the package's
-# tp3-config.json. EXPORT.md step 4 has the table of what each one sets.
+# Export the DS41 TP3 Wave 15.1 package from a checkpoint view (make_checkpoint_view.sh). Run with the flare-core
+# .venv (uv sync --locked --extra prepare), patched hyperflare-recipes, and B12X_OVERLAY pointing to patched flashinfer
+# (EXPORT.md steps 3-5; Hyperflare's torch/Triton fixes are applied in memory by ignition.runtime_patches). The defaults
+# reproduce the Wave 15.1 release package gb202-tp3-202611281539 except the steering sidecar, which you pass with
+# STEERING= (download: EXPORT.md step 4). The DS41 recipe settings are recorded in the package's tp3-config.json.
 #   CKPT     checkpoint view directory (required; the directory name becomes the model name, default view: ds41-1017-engram-fp8)
-#   B12X_OVERLAY  b12x copy with the DS41 TP3 overlay patches (required while TWOSHOT=1 or GATHER_PULL=1, the defaults):
-#            VENV=$PWD/.venv B12X_OVERLAY_PATCHES="<folder>/tp3-patches/overlay/flashinfer-pcie-twoshot-pull-world3.patch \
-#              <folder>/tp3-patches/overlay/flashinfer-dcp-gather-pull-world3.patch \
-#              <folder>/tp3-patches/overlay/flashinfer-ds41-wave3-m32-ro-acquire.patch" tp3-tools/make-b12x-overlay.sh $PWD/.b12x-overlay-w3
+#   B12X_OVERLAY  b12x overlay directory with b12x_tree symlinked to flashinfer/flashinfer/experimental/b12x and the
+#            b12x/__init__.py shim (required while TWOSHOT=1 or GATHER_PULL=1, the defaults; see EXPORT.md step 3)
 #   STEERING  path of the steering sidecar (.safetensors, layers 4-36) = --steering-sidecar; the package then takes a
 #            per-request steering_scale in [0, 1] (0 = unsteered). Unset = no sidecar (nonzero scales get HTTP 400)
 #   STEERING_PLAIN_ID  1 (default) = with STEERING, tune under the checkpoint's plain identity: the same tuning records
@@ -73,10 +71,10 @@
 #   MARKOV_STAGE 1 (default) = with MARKOV_HOST=1, copy each request's Markov row into VRAM once per draft step
 #   MARKOV_TILE N = Markov score tiles cover N request rows per program (default unset = one program per row)
 #   GLUE2    1 (default) = second decode-glue pass (fewer zero fills and copies around verification; same bytes)
-#   SKIP_SUFFIX  prefill capacities that get an encoder-only twin (default 3072,3584,4096 when captured; empty = none).
+#   SKIP_SUFFIX  prefill capacities that get an encoder-only twin (default 3072,4608,6144,7680 at PREFILL=7680; empty = none).
 #            Non-final chunks of long prompts skip layers 21-39 and the head.
-#   IDX_SPLIT  prefill capacities whose index layers split the indexer rows across the GPUs (default 4096 when captured;
-#            empty = off)
+#   IDX_SPLIT  prefill capacities whose index layers split the indexer rows across the GPUs (default empty when
+#            ROW_SHARD_ATTENTION=1; otherwise PREFILL when captured)
 #   IDX_SPLIT_MIN_CTX  only for prefill chunks from this many tokens on (default unset = always split captured IDX_SPLIT
 #            capacities, reclaiming duplicate variant graphs now that GATHER_PULL=1 lowers break-even to ~3K);
 #            IDX_SPLIT_VARIANTS = prefill, terminal_prefill or both (default both when IDX_SPLIT_MIN_CTX is set)
@@ -104,6 +102,26 @@
 set -euo pipefail
 : "${CKPT:?set CKPT to the checkpoint view directory}"
 HERE=$(dirname "$(readlink -f "$0")")
+# Ensure CUDA_HOME / nvcc >= 13.1 for SM120 (sm_120a) BRRR kernel compilation.
+if [ -z "${CUDA_HOME:-}" ] && [ -x /usr/local/cuda/bin/nvcc ]; then
+    export CUDA_HOME=/usr/local/cuda
+fi
+if [ -n "${CUDA_HOME:-}" ] && [ -d "$CUDA_HOME/bin" ]; then
+    case ":${PATH:-}:" in
+        *":$CUDA_HOME/bin:"*) ;;
+        *) export PATH="$CUDA_HOME/bin${PATH:+:$PATH}" ;;
+    esac
+fi
+NVCC_BIN=$(command -v nvcc || true)
+if [ -z "$NVCC_BIN" ]; then
+    echo "nvcc not found: install CUDA 13.1+ and export CUDA_HOME=/usr/local/cuda PATH=\$CUDA_HOME/bin:\$PATH" >&2
+    exit 1
+fi
+NVCC_VER=$("$NVCC_BIN" --version | grep -oE 'release [0-9]+\.[0-9]+' | awk '{print $2}')
+if [ -n "$NVCC_VER" ] && [ "$(printf '%s\n%s\n' "$NVCC_VER" "13.1" | sort -V | head -1)" != "13.1" ]; then
+    echo "nvcc $NVCC_VER at $NVCC_BIN is too old for SM120 (need CUDA >= 13.1; export CUDA_HOME=/usr/local/cuda PATH=\$CUDA_HOME/bin:\$PATH)" >&2
+    exit 1
+fi
 TWOSHOT=${TWOSHOT:-1}
 GATHER_PULL=${GATHER_PULL:-1}
 if [ -n "${B12X_OVERLAY:-}" ]; then
@@ -247,7 +265,7 @@ elif [ "$PREFILL" = 4096 ] && [ -z "${FLARE_DS41_PREFILL_GRAPHS:-}" ]; then
     DEFAULT_SKIP_SUFFIX=3072,3584,4096
     DEFAULT_IDX_SPLIT=4096
 elif [ -z "${SKIP_SUFFIX+x}" ] || [ -z "${IDX_SPLIT+x}" ]; then
-    read -r DEFAULT_SKIP_SUFFIX DEFAULT_IDX_SPLIT < <("${IGNITION_PYTHON:-.venv/bin/python}" - "$PREFILL" "${FLARE_DS41_PREFILL_GRAPHS:-}" <<'PY'
+    if ! _prefill_defaults=$("${IGNITION_PYTHON:-.venv/bin/python}" - "$PREFILL" "${FLARE_DS41_PREFILL_GRAPHS:-}" <<'PY'
 import sys
 
 from ignition.components.capacity import prefill_capacities
@@ -269,14 +287,22 @@ skip = ",".join(str(c) for c in (3072, 3584, 3840, 4096, 4608, 5376, 6144, 7680)
 idx = str(chunk) if chunk in (3840, 4096, 4608, 5376, 6144, 7680) and chunk in captured else "-"
 print(skip, idx)
 PY
-    )
+    ); then
+        echo "failed to compute prefill defaults for PREFILL=$PREFILL using ${IGNITION_PYTHON:-.venv/bin/python}" >&2
+        exit 1
+    fi
+    read -r DEFAULT_SKIP_SUFFIX DEFAULT_IDX_SPLIT <<< "$_prefill_defaults"
     [ "$DEFAULT_SKIP_SUFFIX" = "-" ] && DEFAULT_SKIP_SUFFIX=
     [ "$DEFAULT_IDX_SPLIT" = "-" ] && DEFAULT_IDX_SPLIT=
 fi
 ROW_SHARD_PREFILL=${ROW_SHARD_PREFILL-1}
-ROW_SHARD_ATTENTION=${ROW_SHARD_ATTENTION-1}
+ROW_SHARD_ATTENTION=${ROW_SHARD_ATTENTION-$ROW_SHARD_PREFILL}
 if [ "$ROW_SHARD_ATTENTION" = 1 ] && [ "$ROW_SHARD_PREFILL" != 1 ]; then
     echo "ROW_SHARD_ATTENTION=1 requires ROW_SHARD_PREFILL=1" >&2; exit 2
+fi
+if [ "$ROW_SHARD_PREFILL" = 1 ] && [[ "$PREFILL" =~ ^[0-9]+$ ]] && (( PREFILL % 768 != 0 )); then
+    echo "ROW_SHARD_PREFILL=1 on TP3 requires PREFILL to be a multiple of 768 (got $PREFILL; e.g. 3840, 4608, 6144, or 7680)" >&2
+    exit 2
 fi
 if [ "$ROW_SHARD_ATTENTION" = 1 ]; then
     DEFAULT_IDX_SPLIT=
